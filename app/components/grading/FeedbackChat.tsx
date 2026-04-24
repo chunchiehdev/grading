@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Markdown } from '@/components/ui/markdown';
 import { Textarea } from '@/components/ui/textarea';
 import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
+import type { DraftChatMessage } from '@/types/draft';
 
 const TRIGGER_MSG_ID = '__sparring_trigger__';
 
@@ -20,18 +21,12 @@ interface UiChatPart {
   text?: string;
 }
 
-interface UiChatMessage {
+interface UiChatMessage extends DraftChatMessage {
   id?: string;
   role?: string;
   content?: string;
   parts?: UiChatPart[];
   studentReaction?: 'up' | 'down';
-  studentDecision?: 'adopt' | 'keep';
-  studentDecisionReason?: string;
-  decisionAt?: string;
-  convergenceSuggestionAt?: string;
-  decisionLatencyMs?: number;
-  roundsBeforeDecision?: number;
 }
 
 interface ConvergenceSections {
@@ -108,18 +103,23 @@ interface FeedbackChatProps {
   sparringQuestions: SparringQuestion[]; // Direction 1: all questions, not just [0]
   assignmentId: string;
   sessionId: string;
-  result: any;
+  result: {
+    totalScore?: number;
+    maxScore?: number;
+    overallFeedback?: string;
+    breakdown?: Array<{ criteriaId?: string; name?: string; score: number; maxScore?: number; feedback: string }>;
+  };
   studentName?: string;
   studentPicture?: string | null;
   fileId?: string;
   /** Per-question conversation map: { [questionIdx]: messages[] } */
-  initialConversationsMap?: Record<number, any[]>;
+  initialConversationsMap?: Record<number, DraftChatMessage[]>;
   thinkingProcess?: string | null;
   gradingRationale?: string | null;
   normalizedScore?: number | null;
   maxRounds?: number;
   /** Emits the FULL conversations map (all questions) whenever messages change */
-  onChatChange?: (conversationsMap: Record<number, any[]>) => void;
+  onChatChange?: (conversationsMap: Record<number, DraftChatMessage[]>) => void;
   onSparringComplete?: () => void;
   initialSparringState?: SparringState;
   onSparringStateChange?: (state: SparringState) => void;
@@ -158,7 +158,7 @@ export function FeedbackChat({
   );
   // Per-question conversation memory: { 0: messages[], 1: messages[], … }
   // Initialize from persisted data (excluding activeIdx which will be loaded via setMessages)
-  const [conversationsMap, setConversationsMap] = useState<Record<number, any[]>>(() => {
+  const [conversationsMap, setConversationsMap] = useState<Record<number, DraftChatMessage[]>>(() => {
     if (!initialConversationsMap) return {};
     // Store all saved conversations EXCEPT the active question's
     // (the active question's messages will be loaded via setMessages in the init effect)
@@ -203,7 +203,7 @@ export function FeedbackChat({
   const getQuestionKemberLevel = useCallback(
     (question: SparringQuestion) => {
       const item = result?.breakdown?.find(
-        (b: any) =>
+        (b) =>
           b.criteriaId === question.related_rubric_id ||
           b.name === question.related_rubric_id
       );
@@ -220,7 +220,7 @@ export function FeedbackChat({
   );
 
   const criterionBreakdown = result?.breakdown?.find(
-    (b: any) =>
+    (b) =>
       b.criteriaId === activeQuestion.related_rubric_id ||
       b.name === activeQuestion.related_rubric_id
   );
@@ -320,7 +320,7 @@ export function FeedbackChat({
       setConversationsMap((prev) => ({ ...prev, [activeIdx]: messages }));
       // Restore from conversationsMap first, then from persisted data
       const saved = conversationsMap[idx] ?? initialConversationsMap?.[idx] ?? [];
-      setMessages(saved as any);
+      setMessages(saved);
       hasSentOpening.current = saved.length > 0;
       setActiveIdx(idx);
       setShowRevisionBox(false);
@@ -334,7 +334,7 @@ export function FeedbackChat({
   );
 
   useEffect(() => {
-    const savedDecision = messages.find((m: any) =>
+    const savedDecision = messages.find((m) =>
       m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep')
     ) as { studentDecision?: 'adopt' | 'keep' } | undefined;
 
@@ -343,7 +343,7 @@ export function FeedbackChat({
       setHasConvergenceSuggestion(true);
     }
 
-    const savedReason = messages.find((m: any) =>
+    const savedReason = messages.find((m) =>
       m?.role === 'user' && typeof m?.studentDecisionReason === 'string' && m.studentDecisionReason.trim().length > 0
     ) as { studentDecisionReason?: string } | undefined;
 
@@ -359,7 +359,7 @@ export function FeedbackChat({
       // Restore from persisted data for the CURRENT activeIdx (works for any question, not just 0)
       const savedForActive = initialConversationsMap?.[activeIdx];
       if (savedForActive && savedForActive.length > 0) {
-        setMessages(savedForActive as any);
+        setMessages(savedForActive);
         hasSentOpening.current = true;
       } else {
         hasSentOpening.current = true;
@@ -378,7 +378,7 @@ export function FeedbackChat({
       if (prevMessagesRef.current !== str) {
         prevMessagesRef.current = str;
         // Emit the FULL conversations map: merge conversationsMap + current active question
-        const fullMap: Record<number, any[]> = { ...conversationsMap, [activeIdx]: messages };
+        const fullMap: Record<number, DraftChatMessage[]> = { ...conversationsMap, [activeIdx]: messages as DraftChatMessage[] };
         onChatChange(fullMap);
       }
     }
@@ -428,7 +428,7 @@ export function FeedbackChat({
         normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
         normalizeChatTypography('Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.').trim(),
       ]);
-      const conversationMessages = messages.filter((m: any) => {
+      const conversationMessages = messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
         const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
         if (!content) return false;
@@ -449,7 +449,7 @@ export function FeedbackChat({
         throw new Error(payload?.error || 'Failed to generate convergence suggestion');
       }
 
-      setMessages((prev: any[]) => [
+      setMessages((prev) => [
         ...prev,
         {
           id: `convergence-assistant-${Date.now()}`,
@@ -479,9 +479,11 @@ export function FeedbackChat({
       setConvergenceError(null);
 
       const nowIso = new Date().toISOString();
-      const latestConvergenceMessage = ([...messages] as any[])
+      const latestConvergenceMessage = [...messages]
         .reverse()
-        .find((m: any) => m?.role === 'assistant' && typeof m?.convergenceSuggestionAt === 'string');
+        .find((m) => m?.role === 'assistant' && typeof (m as UiChatMessage)?.convergenceSuggestionAt === 'string') as
+        | UiChatMessage
+        | undefined;
 
       const convergenceAtIso =
         latestConvergenceMessage && typeof latestConvergenceMessage?.convergenceSuggestionAt === 'string'
@@ -500,9 +502,9 @@ export function FeedbackChat({
           ? 'Decision: Adopt (selected via UI)'
           : 'Decision: Keep (selected via UI)';
 
-      setMessages((prev: any[]) => {
+      setMessages((prev) => {
         const filtered = prev.filter(
-          (m: any) => !(m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep'))
+          (m) => !(m?.role === 'user' && ((m as UiChatMessage)?.studentDecision === 'adopt' || (m as UiChatMessage)?.studentDecision === 'keep'))
         );
 
         return [
@@ -527,9 +529,9 @@ export function FeedbackChat({
     const reason = decisionReasonDraft.trim();
     if (!selectedConvergenceDecision || reason.length < 10) return;
 
-    setMessages((prev: any[]) =>
-      prev.map((m: any) => {
-        if (!(m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep'))) {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (!(m?.role === 'user' && ((m as UiChatMessage)?.studentDecision === 'adopt' || (m as UiChatMessage)?.studentDecision === 'keep'))) {
           return m;
         }
 
@@ -559,7 +561,7 @@ export function FeedbackChat({
 
   const handleAssistantReaction = useCallback(
     (messageId: string, reaction: 'up' | 'down') => {
-      setMessages((prevMessages: any[]) =>
+      setMessages((prevMessages) =>
         prevMessages.map((msg, index) => {
           const currentId = msg.id || `assistant-${activeIdx}-${index}`;
           if (currentId !== messageId || msg.role !== 'assistant') return msg;
@@ -672,7 +674,7 @@ export function FeedbackChat({
                   {t('grading:result.criteriaDetails')}
                 </p>
                 <div className="space-y-1">
-                  {result.breakdown.map((item: any, idx: number) => {
+                  {result.breakdown.map((item: { criteriaId?: string; name?: string; maxScore?: number; score: number; feedback: string }, idx: number) => {
                     const ratio = item.maxScore > 0 ? item.score / item.maxScore : 0;
                     const color: 'green' | 'amber' | 'red' =
                       ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
@@ -740,9 +742,7 @@ export function FeedbackChat({
 
           {sparringQuestions.map((q, idx) => {
             const kLevel = getQuestionKemberLevel(q);
-            const breakdownItem = result?.breakdown?.find(
-              (b: any) => b.criteriaId === q.related_rubric_id || b.name === q.related_rubric_id
-            );
+              const breakdownItem = result?.breakdown?.find((b) => b.criteriaId === q.related_rubric_id || b.name === q.related_rubric_id);
             const isDiscussed =
               completedQuestions.has(idx) || (idx === activeIdx && userRoundCount > 0);
 
@@ -845,7 +845,7 @@ export function FeedbackChat({
       <div className="flex-1 overflow-y-auto min-h-0 w-full">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 min-h-full flex flex-col">
           <div className="space-y-6 py-6 flex-1">
-            {visibleMessages.map((m: any) => {
+                {visibleMessages.map((m) => {
               const parsedMessage = m as UiChatMessage;
               const messageText = normalizeChatTypography(extractChatMessageText(parsedMessage));
               const convergenceSections = parseConvergenceSections(messageText);

@@ -4,7 +4,19 @@ import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
 import { generateDialecticalFeedback } from '@/services/dialectical-feedback.server';
 import { checkAIAccess } from '@/services/ai-access.server';
+import { updateSubmissionSparringResponses } from '@/services/submission.server';
 import type { SparringQuestion } from '@/types/grading';
+
+interface SparringResponseRecord {
+  questionIndex: number;
+  questionId?: string;
+  strategy?: string;
+  response?: string;
+  respondedAt?: string;
+  dialecticalFeedback?: string;
+  studentDecision?: string;
+  decisionAt?: string;
+}
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (request.method !== 'POST') {
@@ -27,12 +39,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     }
 
     const body = await request.json();
-    const { 
-      sessionId, 
-      questionIndex, 
-      questionId, 
-      strategy, 
-      response, 
+    const {
+      sessionId,
+      questionIndex,
+      questionId,
+      strategy,
+      response,
       respondedAt,
       // 新增：用於生成辯證回饋
       sparringQuestion,
@@ -73,12 +85,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     }
 
     // Get existing sparring responses or initialize empty array
-    const existingResponses = (submission.aiAnalysisResult as any)?.sparringResponses || [];
+    const existingResponses = (
+      (submission.aiAnalysisResult as { sparringResponses?: SparringResponseRecord[] } | null)?.sparringResponses ?? []
+    ).slice();
 
     // 找到現有的回應（如果有）
-    const existingIdx = existingResponses.findIndex(
-      (r: any) => r.questionIndex === questionIndex
-    );
+    const existingIdx = existingResponses.findIndex((r) => r.questionIndex === questionIndex);
 
     // ============================================================
     // 情況 1：學生提交回應 → 生成辯證回饋
@@ -88,18 +100,20 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       // 取得完整的評分標準（包含 description 和 levels）
       // 從 AssignmentArea → Rubric → criteria JSON 中查找對應的 criterion
-      let rubricCriterion: { description: string; maxScore: number; levels?: Array<{ score: number; description: string }> } | undefined;
-      
+      let rubricCriterion:
+        | { description: string; maxScore: number; levels?: Array<{ score: number; description: string }> }
+        | undefined;
+
       try {
         const assignmentArea = await db.assignmentArea.findUnique({
           where: { id: assignmentId },
-          select: { 
-            rubric: { 
-              select: { criteria: true } 
-            } 
+          select: {
+            rubric: {
+              select: { criteria: true },
+            },
           },
         });
-        
+
         if (assignmentArea?.rubric?.criteria) {
           const criteriaArray = assignmentArea.rubric.criteria as Array<{
             id: string;
@@ -108,23 +122,26 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
             maxScore: number;
             levels?: Array<{ score: number; description: string }>;
           }>;
-          
+
           // 根據 related_rubric_id 找到對應的 criterion
           const matchedCriterion = criteriaArray.find(
-            c => c.id === (sparringQuestion as SparringQuestion).related_rubric_id
+            (c) => c.id === (sparringQuestion as SparringQuestion).related_rubric_id
           );
-          
+
           if (matchedCriterion) {
             rubricCriterion = {
               description: matchedCriterion.description,
               maxScore: matchedCriterion.maxScore,
               levels: matchedCriterion.levels,
             };
-            logger.debug({
-              criterionId: matchedCriterion.id,
-              criterionName: matchedCriterion.name,
-              hasLevels: !!matchedCriterion.levels,
-            }, '[SparringResponse] Found rubric criterion');
+            logger.debug(
+              {
+                criterionId: matchedCriterion.id,
+                criterionName: matchedCriterion.name,
+                hasLevels: !!matchedCriterion.levels,
+              },
+              '[SparringResponse] Found rubric criterion'
+            );
           }
         }
       } catch (rubricError) {
@@ -138,8 +155,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           sparringQuestion: sparringQuestion as SparringQuestion,
           studentResponse: response,
           rubricCriterionName,
-          rubricCriterion,  // 傳入完整評分維度資料
-          fullAssignmentContent,  // 傳入完整作業內容，避免 AI 斷章取義
+          rubricCriterion, // 傳入完整評分維度資料
+          fullAssignmentContent, // 傳入完整作業內容，避免 AI 斷章取義
           language: 'zh',
         });
 
@@ -149,41 +166,46 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
           // Record token usage (Feature: Sparring Token Tracking)
           // Prefer sessionId from request body, fallback to submission record
           const targetSessionId = sessionId || submission.sessionId;
-          
+
           if (feedbackResult.usage && targetSessionId) {
             try {
               // submission.filePath stores the UploadedFile ID
               // Find existing record first, then update (handles NULL as 0)
               const existingResult = await db.gradingResult.findFirst({
-                where: { 
+                where: {
                   gradingSessionId: targetSessionId,
-                  uploadedFileId: submission.filePath 
+                  uploadedFileId: submission.filePath,
                 },
-                select: { id: true, sparringTokens: true }
+                select: { id: true, sparringTokens: true },
               });
 
               if (existingResult) {
                 const currentTokens = existingResult.sparringTokens ?? 0;
                 const newTokens = currentTokens + (feedbackResult.usage.totalTokens || 0);
-                
+
                 await db.gradingResult.update({
                   where: { id: existingResult.id },
-                  data: { sparringTokens: newTokens }
+                  data: { sparringTokens: newTokens },
                 });
               }
-              logger.debug(`[SparringResponse] Updated tokens for session ${targetSessionId}: +${feedbackResult.usage.totalTokens}`);
+              logger.debug(
+                `[SparringResponse] Updated tokens for session ${targetSessionId}: +${feedbackResult.usage.totalTokens}`
+              );
             } catch (tokenError) {
               logger.error({ err: tokenError }, '[SparringResponse] Failed to update token usage');
             }
           }
         }
 
-        logger.info({
-          submissionId: submission.id,
-          questionIndex,
-          provider: feedbackResult.provider,
-          feedbackLength: dialecticalFeedback?.length || 0,
-        }, `[SparringResponse] Generated dialectical feedback`);
+        logger.info(
+          {
+            submissionId: submission.id,
+            questionIndex,
+            provider: feedbackResult.provider,
+            feedbackLength: dialecticalFeedback?.length || 0,
+          },
+          `[SparringResponse] Generated dialectical feedback`
+        );
       } catch (error) {
         logger.error({ err: error }, '[SparringResponse] Failed to generate dialectical feedback');
         // Fallback: 使用原本的 AI 推理
@@ -209,27 +231,20 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         existingResponses.push(responseData);
       }
 
-      // 更新資料庫
-      const currentResult = (submission.aiAnalysisResult as any) || {};
-      await db.submission.update({
-        where: { id: submission.id },
-        data: {
-          aiAnalysisResult: {
-            ...currentResult,
-            sparringResponses: existingResponses,
-          },
+      await updateSubmissionSparringResponses(submission.id, existingResponses);
+
+      logger.info(
+        {
+          submissionId: submission.id,
+          questionId,
+          strategy,
+          responseLength: response.length,
+          hasDialecticalFeedback: !!dialecticalFeedback,
         },
-      });
+        `[SparringResponse] Saved response for question ${questionIndex}`
+      );
 
-      logger.info({
-        submissionId: submission.id,
-        questionId,
-        strategy,
-        responseLength: response.length,
-        hasDialecticalFeedback: !!dialecticalFeedback,
-      }, `[SparringResponse] Saved response for question ${questionIndex}`);
-
-      return data({ 
+      return data({
         success: true,
         dialecticalFeedback,
       });
@@ -245,23 +260,16 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         decisionAt,
       };
 
-      // 更新資料庫
-      const currentResult = (submission.aiAnalysisResult as any) || {};
-      await db.submission.update({
-        where: { id: submission.id },
-        data: {
-          aiAnalysisResult: {
-            ...currentResult,
-            sparringResponses: existingResponses,
-          },
-        },
-      });
+      await updateSubmissionSparringResponses(submission.id, existingResponses);
 
-      logger.info({
-        submissionId: submission.id,
-        questionIndex,
-        studentDecision,
-      }, `[SparringResponse] Saved student decision for question ${questionIndex}`);
+      logger.info(
+        {
+          submissionId: submission.id,
+          questionIndex,
+          studentDecision,
+        },
+        `[SparringResponse] Saved student decision for question ${questionIndex}`
+      );
 
       return data({ success: true });
     }

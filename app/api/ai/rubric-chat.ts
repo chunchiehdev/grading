@@ -136,14 +136,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // 7. Stream object using messages (for multi-turn conversation)
     logger.info({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.1-flash-lite-preview',
       schemaFields: Object.keys(UIRubricDataSchema.shape || {}),
       messagesCount: coreMessages.length,
       temperature: 0.7,
     }, 'Calling streamObject');
 
     const result = streamObject({
-      model: googleProvider('gemini-2.0-flash'),
+      model: googleProvider('gemini-3.1-flash-lite-preview'),
       schema: UIRubricDataSchema,
       system: RUBRIC_SYSTEM_PROMPT,
       messages: coreMessages as any,  // Messages already in correct format: { role, content }

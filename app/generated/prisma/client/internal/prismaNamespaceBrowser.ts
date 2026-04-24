@@ -163,6 +163,7 @@ export const SubmissionScalarFieldEnum = {
   uploadedAt: 'uploadedAt',
   sessionId: 'sessionId',
   aiAnalysisResult: 'aiAnalysisResult',
+  draftUiState: 'draftUiState',
   thoughtSummary: 'thoughtSummary',
   thinkingProcess: 'thinkingProcess',
   gradingRationale: 'gradingRationale',

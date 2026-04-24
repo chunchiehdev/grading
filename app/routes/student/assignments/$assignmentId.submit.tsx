@@ -20,6 +20,8 @@ import { useUploadStore } from '@/stores/uploadStore';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { dbCriteriaToUICategories } from '@/utils/rubric-transform';
+import type { DraftChatMessage, DraftUiState } from '@/types/draft';
+import { normalizeDraftPhase, parseDraftUiState, parseLegacyDraftUiState } from '@/utils/draft-ui-state';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -40,7 +42,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // 預設：任何非 DRAFT 紀錄都先帶去「繳交紀錄」頁
     if (!isResubmit) {
       // Before redirecting, check if there's an in-progress DRAFT version
-      // If a DRAFT exists (e.g., resubmit was started but not finished), 
+      // If a DRAFT exists (e.g., resubmit was started but not finished),
       // auto-redirect to resubmit mode instead of the old submission page
       if (latestSubmission.status !== 'DRAFT') {
         const draftCheck = await getDraftSubmission(assignmentId, student.id);
@@ -78,14 +80,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 interface SubmissionState {
   phase: 'upload' | 'analyze' | 'sparring' | 'submit' | 'done';
   file: { id: string; name: string; size: number } | null;
-  session: { 
-    id: string; 
-    result: any; 
+  session: {
+    id: string;
+    result: Record<string, unknown> | null;
     thoughtSummary?: string;
     thinkingProcess?: string; // Feature 012
     gradingRationale?: string; // Feature 012
     /** Per-question conversation map: { [questionIdx]: messages[] } */
-    chatMessagesMap?: Record<number, any[]>;
+    chatMessagesMap?: Record<number, DraftChatMessage[]>;
   } | null;
   error: string | null;
   loading: boolean;
@@ -96,10 +98,16 @@ interface SubmissionState {
 type Action =
   | { type: 'file_uploaded'; file: { id: string; name: string; size: number } }
   | { type: 'analysis_started'; sessionId: string }
-  | { type: 'analysis_completed'; result: any; thoughtSummary?: string; thinkingProcess?: string; gradingRationale?: string }
+  | {
+      type: 'analysis_completed';
+      result: Record<string, unknown>;
+      thoughtSummary?: string;
+      thinkingProcess?: string;
+      gradingRationale?: string;
+    }
   | { type: 'sparring_completed' }
   | { type: 'submission_completed'; sessionId: string }
-  | { type: 'chat_updated'; conversationsMap: Record<number, any[]> }
+  | { type: 'chat_updated'; conversationsMap: Record<number, DraftChatMessage[]> }
   | { type: 'error'; message: string }
   | { type: 'reset' }
   | { type: 'thought_update'; thought: string };
@@ -112,20 +120,20 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
     case 'analysis_completed':
-       // Check if there are sparring questions
-       const hasSparring = action.result.sparringQuestions && action.result.sparringQuestions.length > 0;
-      return { 
-        ...state, 
-        phase: hasSparring ? 'sparring' : 'submit', 
-        loading: false, 
-        session: { 
+      // Check if there are sparring questions
+      const hasSparring = action.result.sparringQuestions && action.result.sparringQuestions.length > 0;
+      return {
+        ...state,
+        phase: hasSparring ? 'sparring' : 'submit',
+        loading: false,
+        session: {
           id: state.session?.id || '',
-          result: action.result, 
+          result: action.result,
           thoughtSummary: action.thoughtSummary,
           thinkingProcess: action.thinkingProcess,
           gradingRationale: action.gradingRationale,
           chatMessagesMap: undefined,
-        } 
+        },
       };
     case 'sparring_completed':
       return { ...state, phase: 'submit' };
@@ -138,8 +146,8 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
         ...state,
         session: {
           ...state.session,
-          chatMessagesMap: action.conversationsMap
-        }
+          chatMessagesMap: action.conversationsMap,
+        },
       };
     case 'error':
       return { ...state, error: action.message, loading: false };
@@ -149,7 +157,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       if (!state.session) return state;
       // Only update if there's actual new content (avoid overwriting with empty strings)
       if (!action.thought || action.thought.length === 0) return state;
-      
+
       // Use the new thought directly (useChat already accumulates for us)
       return {
         ...state,
@@ -167,6 +175,10 @@ export default function SubmitAssignment() {
   const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
   const { student, assignment, draftSubmission } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const persistedDraftUiState = React.useMemo(
+    () => parseDraftUiState(draftSubmission?.draftUiState) || parseLegacyDraftUiState(draftSubmission?.aiAnalysisResult),
+    [draftSubmission?.draftUiState, draftSubmission?.aiAnalysisResult]
+  );
   const [useDirectGrading, setUseDirectGrading] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('info'); // Mobile tab navigation
   const [isDesktop, setIsDesktop] = React.useState(
@@ -215,7 +227,7 @@ export default function SubmitAssignment() {
   } | null>(null);
 
   const toggleCategory = React.useCallback((categoryId: string) => {
-    setExpandedCategories(prev => {
+    setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) {
         next.delete(categoryId);
@@ -228,8 +240,7 @@ export default function SubmitAssignment() {
 
   // Persisted sparring progress (which questions are done / active / phase)
   const [sparringState, setSparringState] = React.useState<SparringState | undefined>(() => {
-    const raw = (draftSubmission?.aiAnalysisResult as any)?._sparringState;
-    return raw || undefined;
+    return persistedDraftUiState?.sparringState as SparringState | undefined;
   });
 
   // Parse rubric criteria once
@@ -248,8 +259,6 @@ export default function SubmitAssignment() {
       return [];
     }
   }, [assignment.rubric?.criteria]);
-
-
 
   // Clear upload store only if there's no draft submission to restore
   const clearFiles = useUploadStore((state) => state.clearFiles);
@@ -273,20 +282,17 @@ export default function SubmitAssignment() {
   const step3Ref = useRef<HTMLDivElement>(null);
 
   // Single state machine - "good taste" principle
-  const isPersistedSubmitted =
-    draftSubmission?.status === 'SUBMITTED' || draftSubmission?.status === 'GRADED';
+  const isPersistedSubmitted = draftSubmission?.status === 'SUBMITTED' || draftSubmission?.status === 'GRADED';
 
   const [state, dispatch] = useReducer(submissionReducer, {
     // Determine phase based on draft state
-    // Distinguish sparring from submit: if sparringState exists and phase is 'chat', it's sparring
-    phase:
-      draftSubmission?.lastState === 'completed'
-        ? ((draftSubmission?.aiAnalysisResult as any)?._sparringState?.phase === 'chat' ? 'sparring' : 'submit')
-        : draftSubmission?.lastState === 'sparring'
-          ? 'sparring'
-          : draftSubmission?.fileMetadata
-            ? 'analyze' // Has file, ready to analyze
-            : 'upload', // No file, show upload
+    phase: (() => {
+      const normalizedLastState = normalizeDraftPhase(draftSubmission?.lastState);
+      if (normalizedLastState === 'sparring') return 'sparring';
+      if (normalizedLastState === 'completed') return 'submit';
+      if (draftSubmission?.fileMetadata) return 'analyze';
+      return 'upload';
+    })(),
     file: draftSubmission?.fileMetadata
       ? {
           id: draftSubmission.fileMetadata.fileId,
@@ -304,17 +310,17 @@ export default function SubmitAssignment() {
             thoughtSummary: draftSubmission.thoughtSummary || undefined,
             thinkingProcess: draftSubmission.thinkingProcess || undefined,
             gradingRationale: draftSubmission.gradingRationale || undefined,
-            chatMessagesMap: (draftSubmission.aiAnalysisResult as any)?._chatMessagesMap || undefined,
+            chatMessagesMap: persistedDraftUiState?.chatMessagesMap,
           }
         : null,
     error: null,
-    loading: !!draftSubmission?.sessionId && draftSubmission?.lastState !== 'completed' && draftSubmission?.lastState !== 'sparring',
+    loading:
+      !!draftSubmission?.sessionId &&
+      normalizeDraftPhase(draftSubmission?.lastState) !== 'completed' &&
+      normalizeDraftPhase(draftSubmission?.lastState) !== 'sparring',
     // Only SUBMITTED/GRADED should be treated as actually submitted.
     // ANALYZED means grading finished but student may still need to click final submit.
-    lastSubmittedSessionId:
-      isPersistedSubmitted
-        ? draftSubmission.sessionId || null
-        : null,
+    lastSubmittedSessionId: isPersistedSubmitted ? draftSubmission.sessionId || null : null,
   });
 
   // Debounced auto-save of chatMessagesMap to draft (persist across page refresh)
@@ -322,36 +328,35 @@ export default function SubmitAssignment() {
 
   // Build the save payload (shared between debounce and beforeunload)
   const buildChatSavePayload = useCallback(() => {
-    if (!state.session?.chatMessagesMap || Object.keys(state.session.chatMessagesMap).length === 0) return null;
-    if (!state.session?.result) return null;
+    const chatMessagesMap = state.session?.chatMessagesMap;
+    const hasChatMessages =
+      !!chatMessagesMap &&
+      Object.keys(chatMessagesMap).length > 0 &&
+      Object.values(chatMessagesMap).some((msgs) => msgs && msgs.length > 1);
 
-    // Check if there's at least one real message across all conversations
-    const hasRealMessages = Object.values(state.session.chatMessagesMap).some(
-      (msgs) => msgs && msgs.length > 1
-    );
-    if (!hasRealMessages) return null;
+    if (!hasChatMessages && !sparringState) return null;
 
-    const aiResultWithChat = {
-      ...state.session.result,
-      _chatMessagesMap: state.session.chatMessagesMap,
-      _sparringState: sparringState,
-    };
     return {
       // CRITICAL: Include fileMetadata + sessionId so saveDraftSubmission can create
       // a new DRAFT version if the existing submission is SUBMITTED/ANALYZED.
       // Without these, saveDraftSubmission silently returns null for non-DRAFT submissions.
-      ...(state.file ? {
-        fileMetadata: {
-          fileId: state.file.id,
-          fileName: state.file.name,
-          fileSize: state.file.size,
-        },
-      } : {}),
-      sessionId: state.session.id || undefined,
-      aiAnalysisResult: aiResultWithChat,
+      ...(state.file
+        ? {
+            fileMetadata: {
+              fileId: state.file.id,
+              fileName: state.file.name,
+              fileSize: state.file.size,
+            },
+          }
+        : {}),
+      sessionId: state.session?.id || undefined,
+      draftUiState: {
+        sparringState,
+        ...(chatMessagesMap ? { chatMessagesMap } : {}),
+      },
       lastState: state.phase === 'sparring' ? 'sparring' : 'completed',
     };
-  }, [state.session?.chatMessagesMap, state.session?.result, state.phase, state.file, state.session?.id, sparringState]);
+  }, [state.session?.chatMessagesMap, state.phase, state.file, state.session?.id, sparringState]);
 
   useEffect(() => {
     const payload = buildChatSavePayload();
@@ -374,7 +379,14 @@ export default function SubmitAssignment() {
     return () => {
       if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
     };
-  }, [state.session?.chatMessagesMap, state.session?.result, assignment.id, sparringState, state.phase, buildChatSavePayload]);
+  }, [
+    state.session?.chatMessagesMap,
+    state.session?.result,
+    assignment.id,
+    sparringState,
+    state.phase,
+    buildChatSavePayload,
+  ]);
 
   // beforeunload: flush pending saves immediately via sendBeacon to prevent data loss
   useEffect(() => {
@@ -389,14 +401,8 @@ export default function SubmitAssignment() {
       if (!payload) return;
 
       // Use sendBeacon for reliable delivery during page unload
-      const blob = new Blob(
-        [JSON.stringify(payload)],
-        { type: 'application/json' }
-      );
-      navigator.sendBeacon(
-        `/api/student/assignments/${assignment.id}/draft`,
-        blob
-      );
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(`/api/student/assignments/${assignment.id}/draft`, blob);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -406,10 +412,7 @@ export default function SubmitAssignment() {
   // Auto-transition from 'sparring' → 'submit' when all questions are completed
   // Previously triggered by a manual button in FeedbackChat; now driven by sparringState
   useEffect(() => {
-    if (
-      state.phase === 'sparring' &&
-      sparringState?.phase === 'summary'
-    ) {
+    if (state.phase === 'sparring' && sparringState?.phase === 'summary') {
       dispatch({ type: 'sparring_completed' });
     }
   }, [state.phase, sparringState?.phase]);
@@ -495,7 +498,7 @@ export default function SubmitAssignment() {
   };
 
   // Simple handlers - no over-engineering
-  const handleFileUpload = async (files: any[]) => {
+  const handleFileUpload = async (files: Array<{ fileId: string; fileName: string; fileSize: number }>) => {
     if (files[0]) {
       const uploadedFile = files[0];
       setSparringState(undefined);
@@ -535,7 +538,7 @@ export default function SubmitAssignment() {
       const data = await res.json();
 
       if (data.success && data.data?.status === 'COMPLETED') {
-        const result = data.data.gradingResults?.find((r: any) => r.result);
+        const result = data.data.gradingResults?.find((r: { result?: unknown }) => r.result);
         if (result?.result) {
           // Extract thought summary from grading result
           const thoughtSummary = result.thoughtSummary;
@@ -605,7 +608,11 @@ export default function SubmitAssignment() {
   }, [state.loading, state.session?.id]);
 
   // AI SDK UI Hook for Streaming Bridge
-  const { messages, sendMessage, isLoading: isChatLoading } = useChat({
+  const {
+    messages,
+    sendMessage,
+    isLoading: isChatLoading,
+  } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/grading/bridge',
     }),
@@ -616,26 +623,26 @@ export default function SubmitAssignment() {
     onError: (error) => {
       console.error('[Frontend] Streaming error:', error);
       dispatch({ type: 'error', message: 'Streaming connection failed' });
-    }
-  }) as any;
+    },
+  });
 
   // Sync streaming messages to local state for display
   useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       // console.log('[Frontend] Received message update:', lastMessage);
-      
+
       if (lastMessage.role === 'assistant') {
         // Update thought stream
         // Strictly prioritize 'parts' to separate text from tool calls
         let thought = '';
-        const parts = (lastMessage as any).parts;
+        const parts = (lastMessage as { parts?: Array<{ type?: string; text?: string }> }).parts;
 
         if (parts && Array.isArray(parts)) {
           // Only extract text parts, ignoring tool-invocations
           thought = parts
-            .filter((p: any) => p.type === 'text')
-            .map((p: any) => p.text)
+            .filter((p: { type?: string; text?: string }) => p.type === 'text')
+            .map((p: { type?: string; text?: string }) => p.text)
             .join('');
         } else {
           // Fallback only if parts structure is missing
@@ -646,7 +653,7 @@ export default function SubmitAssignment() {
         // This regex looks for patterns like "Calling tool X with arguments: {...}"
         thought = thought.replace(/Calling tool \w+ with arguments: \{[\s\S]*?\}/g, '');
         thought = thought.replace(/tool_code[\s\S]*?```/g, ''); // Remove code blocks that might be tool calls
-        
+
         // console.log('[Frontend] Extracted thought:', thought.substring(0, 50) + '...');
         dispatch({ type: 'thought_update', thought });
       }
@@ -657,30 +664,41 @@ export default function SubmitAssignment() {
   useEffect(() => {
     if (state.loading && state.session?.id && !isChatLoading && messages.length === 0) {
       // console.log('Starting streaming bridge for session:', state.session.id);
-      
+
       // Trigger the bridge API
-      sendMessage({ 
-        role: 'user', 
-        content: 'Start grading stream',
-      }, {
-        body: {
-          data: {
-            resultId: state.session.result?.id || '', // Use result.id from session state
-            userId: student.id,
-            sessionId: state.session.id,
-            useDirectGrading: useDirectGrading,
-          }
+      sendMessage(
+        {
+          role: 'user',
+          content: 'Start grading stream',
+        },
+        {
+          body: {
+            data: {
+              resultId: state.session.result?.id || '', // Use result.id from session state
+              userId: student.id,
+              sessionId: state.session.id,
+              useDirectGrading: useDirectGrading,
+            },
+          },
         }
-      });
+      );
     }
-  }, [state.loading, state.session?.id, isChatLoading, messages.length, student.id, useDirectGrading, state.session?.result?.id]);
+  }, [
+    state.loading,
+    state.session?.id,
+    isChatLoading,
+    messages.length,
+    student.id,
+    useDirectGrading,
+    state.session?.result?.id,
+  ]);
 
   const waitForParse = async (fileId: string): Promise<boolean> => {
     for (let i = 0; i < 30; i++) {
       try {
         const res = await fetch('/api/files?limit=100');
         const payload = await res.json();
-        const file = payload?.data?.find((f: any) => f.id === fileId);
+        const file = payload?.data?.find((f: { id?: string; parseStatus?: string }) => f.id === fileId);
         if (file?.parseStatus === 'COMPLETED') return true;
         if (file?.parseStatus === 'FAILED') return false;
       } catch {}
@@ -763,9 +781,7 @@ export default function SubmitAssignment() {
       const sessionRes = await fetch('/api/grading/session', { method: 'POST', body: form });
       const sessionData = await sessionRes.json();
       if (!sessionData.success) {
-        throw new Error(
-          getApiErrorMessage(sessionData, t('assignment:submit.errors.failedToStartGrading'))
-        );
+        throw new Error(getApiErrorMessage(sessionData, t('assignment:submit.errors.failedToStartGrading')));
       }
 
       dispatch({ type: 'analysis_started', sessionId: sessionData.data.sessionId });
@@ -780,9 +796,7 @@ export default function SubmitAssignment() {
       });
       const startData = await startRes.json();
       if (!startData.success) {
-        throw new Error(
-          getApiErrorMessage(startData, t('assignment:submit.errors.failedToStartGrading'))
-        );
+        throw new Error(getApiErrorMessage(startData, t('assignment:submit.errors.failedToStartGrading')));
       }
 
       // Only save draft with sessionId AFTER grading successfully started
@@ -809,7 +823,10 @@ export default function SubmitAssignment() {
     } catch (err) {
       dispatch({
         type: 'error',
-        message: normalizeErrorMessage(err instanceof Error ? err.message : err, t('assignment:submit.errors.failedToStartGrading')),
+        message: normalizeErrorMessage(
+          err instanceof Error ? err.message : err,
+          t('assignment:submit.errors.failedToStartGrading')
+        ),
       });
     }
   };
@@ -822,7 +839,7 @@ export default function SubmitAssignment() {
 
     try {
       // Flatten all conversations into a single array for final submission storage
-      const allMessages: any[] = [];
+      const allMessages: DraftChatMessage[] = [];
       if (state.session.chatMessagesMap) {
         const sortedKeys = Object.keys(state.session.chatMessagesMap)
           .map(Number)
@@ -842,7 +859,7 @@ export default function SubmitAssignment() {
           assignmentId: assignment.id,
           uploadedFileId: state.file.id,
           sessionId: state.session.id,
-          chatMessages: allMessages
+          chatMessages: allMessages,
         }),
       });
 
@@ -851,14 +868,15 @@ export default function SubmitAssignment() {
         dispatch({ type: 'submission_completed', sessionId: state.session.id });
         navigate(`/student/submissions/${data.submissionId}`);
       } else {
-        throw new Error(
-          getApiErrorMessage(data, t('assignment:submit.errors.failedToSubmit'))
-        );
+        throw new Error(getApiErrorMessage(data, t('assignment:submit.errors.failedToSubmit')));
       }
     } catch (err) {
       dispatch({
         type: 'error',
-        message: normalizeErrorMessage(err instanceof Error ? err.message : err, t('assignment:submit.errors.failedToSubmit')),
+        message: normalizeErrorMessage(
+          err instanceof Error ? err.message : err,
+          t('assignment:submit.errors.failedToSubmit')
+        ),
       });
     }
   };
@@ -891,12 +909,8 @@ export default function SubmitAssignment() {
     const isActuallySubmitted = !!state.lastSubmittedSessionId || isPersistedSubmitted;
     const hasAnalysis = !!state.session?.result;
     const hasSessionBasedNewAnalysis =
-      !!state.session?.id &&
-      (!state.lastSubmittedSessionId || state.session.id !== state.lastSubmittedSessionId);
-    const hasAnalysisWithoutSession =
-      hasAnalysis &&
-      !state.session?.id &&
-      !isActuallySubmitted;
+      !!state.session?.id && (!state.lastSubmittedSessionId || state.session.id !== state.lastSubmittedSessionId);
+    const hasAnalysisWithoutSession = hasAnalysis && !state.session?.id && !isActuallySubmitted;
 
     return {
       // 情況一：未上傳作業
@@ -928,8 +942,8 @@ export default function SubmitAssignment() {
     if (!chatMessagesMap || Object.keys(chatMessagesMap).length === 0) return false;
 
     // 僅接受 UI 決策（有幫助 / 沒幫助）+ 理由（至少 10 字）作為完成條件
-    return Object.values(chatMessagesMap).some((messages: any[]) =>
-      messages.some((m: any) => {
+    return Object.values(chatMessagesMap).some((messages) =>
+      messages.some((m) => {
         const hasDecision = m.role === 'user' && (m.studentDecision === 'adopt' || m.studentDecision === 'keep');
         if (!hasDecision) return false;
         return typeof m.studentDecisionReason === 'string' && m.studentDecisionReason.trim().length >= 10;
@@ -942,7 +956,10 @@ export default function SubmitAssignment() {
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Column: Assignment Cards - Scrollable */}
-        <div ref={leftPanelRef} className="w-full lg:w-5/12 overflow-y-auto border-r-0 lg:border-r border-border hide-scrollbar">
+        <div
+          ref={leftPanelRef}
+          className="w-full lg:w-5/12 overflow-y-auto border-r-0 lg:border-r border-border hide-scrollbar"
+        >
           <div className="space-y-6 p-4 sm:px-6 lg:px-8 py-8">
             {/* Assignment Header Card - Bento Style */}
             <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
@@ -971,14 +988,10 @@ export default function SubmitAssignment() {
             {/* Due Date Card - Bento Style */}
             {assignment.dueDate && (
               <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
-                <h2 className="mb-4 text-lg font-semibold text-foreground">
-                  {t('assignment:submit.dueDate')}
-                </h2>
+                <h2 className="mb-4 text-lg font-semibold text-foreground">{t('assignment:submit.dueDate')}</h2>
                 <div
                   className={`rounded-xl border p-4 ${
-                    isOverdue
-                      ? 'border-destructive/30 bg-destructive/5'
-                      : 'border-border bg-muted/30'
+                    isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-muted/30'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -988,9 +1001,7 @@ export default function SubmitAssignment() {
                           isOverdue ? 'bg-destructive/10' : 'bg-primary/10'
                         }`}
                       >
-                        <Calendar
-                          className={`h-4 w-4 ${isOverdue ? 'text-destructive' : 'text-primary'}`}
-                        />
+                        <Calendar className={`h-4 w-4 ${isOverdue ? 'text-destructive' : 'text-primary'}`} />
                       </div>
 
                       <div className="min-w-0">
@@ -1026,9 +1037,7 @@ export default function SubmitAssignment() {
                     <h2 className="text-lg font-semibold text-foreground mb-1">
                       {t('assignment:submit.rubricCriteria')}
                     </h2>
-                    <h3 className="text-sm font-medium text-foreground">
-                      {assignment.rubric.name}
-                    </h3>
+                    <h3 className="text-sm font-medium text-foreground">{assignment.rubric.name}</h3>
                     {assignment.rubric.description && (
                       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                         {assignment.rubric.description}
@@ -1061,9 +1070,7 @@ export default function SubmitAssignment() {
                                 >
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
-                                <h4 className="text-sm font-medium text-foreground">
-                                  {category.name}
-                                </h4>
+                                <h4 className="text-sm font-medium text-foreground">{category.name}</h4>
                                 <span className="text-xs text-muted-foreground ml-auto">
                                   {category.criteria.length} {t('common:items', '項')}
                                 </span>
@@ -1077,12 +1084,14 @@ export default function SubmitAssignment() {
                                   <button
                                     key={criterion.id}
                                     className="w-full p-4 text-left transition-colors hover:bg-accent/50 group"
-                                    onClick={() => setSelectedCriterion({
-                                      name: criterion.name,
-                                      description: criterion.description,
-                                      levels: criterion.levels,
-                                      label: `${categoryIndex + 1}.${criterionIndex + 1}`,
-                                    })}
+                                    onClick={() =>
+                                      setSelectedCriterion({
+                                        name: criterion.name,
+                                        description: criterion.description,
+                                        levels: criterion.levels,
+                                        label: `${categoryIndex + 1}.${criterionIndex + 1}`,
+                                      })
+                                    }
                                   >
                                     <div className="flex items-start gap-3">
                                       <div className="flex-1 min-w-0">
@@ -1116,9 +1125,7 @@ export default function SubmitAssignment() {
 
             {/* File Upload Card - Bento Style */}
             <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
-              <h2 className="mb-4 text-lg font-semibold text-foreground">
-                {t('assignment:submit.uploadWork')}
-              </h2>
+              <h2 className="mb-4 text-lg font-semibold text-foreground">{t('assignment:submit.uploadWork')}</h2>
 
               {state.phase === 'upload' ? (
                 <CompactFileUpload maxFiles={1} maxFileSize={1 * 1024 * 1024} onUploadComplete={handleFileUpload} />
@@ -1131,9 +1138,7 @@ export default function SubmitAssignment() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="truncate font-medium text-foreground">{state.file?.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {Math.round((state.file?.size || 0) / 1024)} KB
-                      </p>
+                      <p className="text-sm text-muted-foreground">{Math.round((state.file?.size || 0) / 1024)} KB</p>
                     </div>
                   </div>
 
@@ -1183,9 +1188,7 @@ export default function SubmitAssignment() {
                                 disabled={state.loading}
                                 size="icon"
                                 className={`h-16 w-16 rounded-full shadow-lg transition-all hover:shadow-xl hover:scale-105 ${
-                                  state.loading 
-                                    ? 'bg-muted' 
-                                    : 'bg-primary hover:bg-primary/90'
+                                  state.loading ? 'bg-muted' : 'bg-primary hover:bg-primary/90'
                                 }`}
                               >
                                 {state.loading ? (
@@ -1207,7 +1210,6 @@ export default function SubmitAssignment() {
                           </Tooltip>
                         </TooltipProvider>
                       )}
-
                     </div>
                   </div>
 
@@ -1227,37 +1229,32 @@ export default function SubmitAssignment() {
         <aside ref={rightPanelRef} className="w-full lg:w-7/12 overflow-y-auto bg-background hide-scrollbar">
           <div className="p-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
             <div className="flex-1 min-h-0">
-              {isDesktop && (state.session?.result ? (
-                activeSparringQuestions.length > 0 ? (
-                  <FeedbackChat
-                    sparringQuestions={activeSparringQuestions}
-                    assignmentId={assignment.id}
-                    sessionId={state.session.id}
-                    result={state.session.result}
-                    studentName={student.name}
-                    studentPicture={student.picture}
-                    fileId={state.file?.id}
-                    initialConversationsMap={state.session?.chatMessagesMap}
-                    thinkingProcess={state.session?.thinkingProcess}
-                    gradingRationale={state.session?.gradingRationale}
-                    normalizedScore={state.session.result?.normalizedScore}
-                    onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
-                    onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-                    initialSparringState={sparringState}
-                    onSparringStateChange={setSparringState}
-                  />
+              {isDesktop &&
+                (state.session?.result ? (
+                  activeSparringQuestions.length > 0 ? (
+                    <FeedbackChat
+                      sparringQuestions={activeSparringQuestions}
+                      assignmentId={assignment.id}
+                      sessionId={state.session.id}
+                      result={state.session.result}
+                      studentName={student.name}
+                      studentPicture={student.picture}
+                      fileId={state.file?.id}
+                      initialConversationsMap={state.session?.chatMessagesMap}
+                      thinkingProcess={state.session?.thinkingProcess}
+                      gradingRationale={state.session?.gradingRationale}
+                      normalizedScore={state.session.result?.normalizedScore}
+                      onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
+                      onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                      initialSparringState={sparringState}
+                      onSparringStateChange={setSparringState}
+                    />
+                  ) : (
+                    <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                  )
                 ) : (
-                  <GradingResultDisplay
-                    isLoading={state.loading}
-                    thinkingProcess={state.session?.thinkingProcess}
-                  />
-                )
-              ) : (
-                <GradingResultDisplay
-                  isLoading={state.loading}
-                  thinkingProcess={state.session?.thinkingProcess}
-                />
-              ))}
+                  <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                ))}
             </div>
 
             {state.phase === 'submit' &&
@@ -1287,15 +1284,21 @@ export default function SubmitAssignment() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-1 min-h-0 flex-col">
         <div className="border-b border-border shrink-0 bg-background">
           <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
-            <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+            <TabsTrigger
+              value="info"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
+            >
               {t('assignment:submit.info')}
             </TabsTrigger>
-            <TabsTrigger value="results" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+            <TabsTrigger
+              value="results"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
+            >
               {t('assignment:submit.results')}
             </TabsTrigger>
           </TabsList>
         </div>
-        
+
         <TabsContent value="info" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
           <div className="flex h-full min-h-0 flex-col px-4 py-2">
             <div className="flex-1 space-y-2 overflow-y-auto">
@@ -1307,7 +1310,9 @@ export default function SubmitAssignment() {
                 </div>
                 {assignment.description && (
                   <div className="border-t border-border pt-3">
-                    <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">{assignment.description}</p>
+                    <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">
+                      {assignment.description}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1315,15 +1320,11 @@ export default function SubmitAssignment() {
               {/* Due Date Card (mobile) */}
               {assignment.dueDate && (
                 <div className="rounded-2xl bg-card border border-border p-4">
-                  <h2 className="mb-2 text-sm font-semibold text-foreground">
-                    {t('assignment:submit.dueDate')}
-                  </h2>
+                  <h2 className="mb-2 text-sm font-semibold text-foreground">{t('assignment:submit.dueDate')}</h2>
                   <div className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {formattedDueDate}
-                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">{formattedDueDate}</span>
                     </div>
                     {isOverdue && (
                       <span className="text-xs font-semibold text-destructive">
@@ -1339,15 +1340,11 @@ export default function SubmitAssignment() {
                 <div className="rounded-2xl bg-card border border-border p-4">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-sm font-semibold text-foreground">
-                        {t('assignment:submit.rubricCriteria')}
-                      </h2>
+                      <h2 className="text-sm font-semibold text-foreground">{t('assignment:submit.rubricCriteria')}</h2>
                       <span className="text-xs text-muted-foreground">{assignment.rubric.name}</span>
                     </div>
                     {assignment.rubric.description && (
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        {assignment.rubric.description}
-                      </p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{assignment.rubric.description}</p>
                     )}
                     {rubricCategories.length > 0 ? (
                       <div className="space-y-1.5">
@@ -1360,8 +1357,18 @@ export default function SubmitAssignment() {
                                 className="w-full bg-muted/50 px-3 py-2 text-left hover:bg-muted transition-colors"
                               >
                                 <div className="flex items-center gap-2">
-                                  <svg className={`h-3 w-3 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  <svg
+                                    className={`h-3 w-3 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 5l7 7-7 7"
+                                    />
                                   </svg>
                                   <h4 className="text-xs font-medium text-foreground truncate">{category.name}</h4>
                                   <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
@@ -1375,12 +1382,14 @@ export default function SubmitAssignment() {
                                     <button
                                       key={criterion.id}
                                       className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50 active:bg-accent/70"
-                                      onClick={() => setSelectedCriterion({
-                                        name: criterion.name,
-                                        description: criterion.description,
-                                        levels: criterion.levels,
-                                        label: `${categoryIndex + 1}.${criterionIndex + 1}`,
-                                      })}
+                                      onClick={() =>
+                                        setSelectedCriterion({
+                                          name: criterion.name,
+                                          description: criterion.description,
+                                          levels: criterion.levels,
+                                          label: `${categoryIndex + 1}.${criterionIndex + 1}`,
+                                        })
+                                      }
                                     >
                                       <div className="flex items-center gap-2">
                                         <div className="flex-1 min-w-0">
@@ -1492,7 +1501,6 @@ export default function SubmitAssignment() {
                     </Tooltip>
                   </TooltipProvider>
                 )}
-
               </div>
             )}
           </div>
@@ -1501,37 +1509,32 @@ export default function SubmitAssignment() {
         <TabsContent value="results" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex-1 min-h-0">
-            {!isDesktop && (state.session?.result ? (
-              activeSparringQuestions.length > 0 ? (
-                <FeedbackChat
-                  sparringQuestions={activeSparringQuestions}
-                  assignmentId={assignment.id}
-                  sessionId={state.session.id}
-                  result={state.session.result}
-                  studentName={student.name}
-                  studentPicture={student.picture}
-                  fileId={state.file?.id}
-                  initialConversationsMap={state.session?.chatMessagesMap}
-                  thinkingProcess={state.session?.thinkingProcess}
-                  gradingRationale={state.session?.gradingRationale}
-                  normalizedScore={state.session.result?.normalizedScore}
-                  onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
-                  onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-                  initialSparringState={sparringState}
-                  onSparringStateChange={setSparringState}
-                />
-              ) : (
-                <GradingResultDisplay
-                  isLoading={state.loading}
-                  thinkingProcess={state.session?.thinkingProcess}
-                />
-              )
-            ) : (
-              <GradingResultDisplay
-                isLoading={state.loading}
-                thinkingProcess={state.session?.thinkingProcess}
-              />
-            ))}
+              {!isDesktop &&
+                (state.session?.result ? (
+                  activeSparringQuestions.length > 0 ? (
+                    <FeedbackChat
+                      sparringQuestions={activeSparringQuestions}
+                      assignmentId={assignment.id}
+                      sessionId={state.session.id}
+                      result={state.session.result}
+                      studentName={student.name}
+                      studentPicture={student.picture}
+                      fileId={state.file?.id}
+                      initialConversationsMap={state.session?.chatMessagesMap}
+                      thinkingProcess={state.session?.thinkingProcess}
+                      gradingRationale={state.session?.gradingRationale}
+                      normalizedScore={state.session.result?.normalizedScore}
+                      onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
+                      onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                      initialSparringState={sparringState}
+                      onSparringStateChange={setSparringState}
+                    />
+                  ) : (
+                    <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                  )
+                ) : (
+                  <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                ))}
             </div>
 
             {/* Mobile submit action in Results tab (avoid forcing user back to Info tab) */}
@@ -1544,11 +1547,7 @@ export default function SubmitAssignment() {
                   <div className="mx-auto w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
                     <Button
                       onClick={submitFinal}
-                      disabled={
-                        state.loading ||
-                        getSubmissionStatus().isOverdue ||
-                        !hasCompletedSparringDecision
-                      }
+                      disabled={state.loading || getSubmissionStatus().isOverdue || !hasCompletedSparringDecision}
                       className="h-11 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
                     >
                       <Check className="mr-2 h-4 w-4" strokeWidth={3} />
@@ -1571,9 +1570,7 @@ export default function SubmitAssignment() {
               {selectedCriterion?.label} {selectedCriterion?.name}
             </SheetTitle>
             {selectedCriterion?.description && (
-              <SheetDescription className="text-sm leading-relaxed">
-                {selectedCriterion.description}
-              </SheetDescription>
+              <SheetDescription className="text-sm leading-relaxed">{selectedCriterion.description}</SheetDescription>
             )}
           </SheetHeader>
 
@@ -1582,38 +1579,44 @@ export default function SubmitAssignment() {
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t('assignment:submit.scoringLevels')}
             </h4>
-            {selectedCriterion?.levels && [4, 3, 2, 1].map((score) => {
-              const level = selectedCriterion.levels.find((l) => l.score === score);
-              const description = level?.description || '';
-              const isTopLevel = score === 4;
+            {selectedCriterion?.levels &&
+              [4, 3, 2, 1].map((score) => {
+                const level = selectedCriterion.levels.find((l) => l.score === score);
+                const description = level?.description || '';
+                const isTopLevel = score === 4;
 
-              return (
-                <div
-                  key={score}
-                  className={`rounded-xl p-4 transition-all ${
-                    isTopLevel
-                      ? 'bg-primary/5 border-2 border-primary/20'
-                      : 'bg-muted/40 border border-border/50'
-                  }`}
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className={`text-xl font-bold ${isTopLevel ? 'text-primary' : 'text-foreground/60'}`}>
-                      {score}
-                    </span>
-                    <span className={`text-xs font-medium ${isTopLevel ? 'text-primary/80' : 'text-muted-foreground'}`}>
-                      {t(`rubric:levelLabels.${score}`, score === 4 ? '優秀' : score === 3 ? '良好' : score === 2 ? '及格' : '需改進')}
-                    </span>
+                return (
+                  <div
+                    key={score}
+                    className={`rounded-xl p-4 transition-all ${
+                      isTopLevel ? 'bg-primary/5 border-2 border-primary/20' : 'bg-muted/40 border border-border/50'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`text-xl font-bold ${isTopLevel ? 'text-primary' : 'text-foreground/60'}`}>
+                        {score}
+                      </span>
+                      <span
+                        className={`text-xs font-medium ${isTopLevel ? 'text-primary/80' : 'text-muted-foreground'}`}
+                      >
+                        {t(
+                          `rubric:levelLabels.${score}`,
+                          score === 4 ? '優秀' : score === 3 ? '良好' : score === 2 ? '及格' : '需改進'
+                        )}
+                      </span>
+                    </div>
+                    {description ? (
+                      <p
+                        className={`text-sm leading-relaxed ${isTopLevel ? 'text-foreground/90' : 'text-muted-foreground'}`}
+                      >
+                        {description}
+                      </p>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground/40">—</p>
+                    )}
                   </div>
-                  {description ? (
-                    <p className={`text-sm leading-relaxed ${isTopLevel ? 'text-foreground/90' : 'text-muted-foreground'}`}>
-                      {description}
-                    </p>
-                  ) : (
-                    <p className="text-sm italic text-muted-foreground/40">—</p>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </SheetContent>
       </Sheet>

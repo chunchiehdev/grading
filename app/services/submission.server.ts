@@ -2,6 +2,8 @@ import { db, type Prisma } from '@/types/database';
 import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
 import { parseGradingResult, type GradingResultData, type UsedContext } from '@/utils/grading-helpers';
 import { UsedContextSchema } from '@/schemas/grading';
+import type { DraftUiState } from '@/types/draft';
+import { normalizeDraftPhase, parseDraftUiState } from '@/utils/draft-ui-state';
 import { publishSubmissionCreatedNotification } from './notification.server';
 import { deleteFromStorage } from './storage.server';
 import logger from '@/utils/logger';
@@ -170,15 +172,16 @@ export async function createSubmissionAndLinkGradingResult(
       return payload.role === 'user' && (payload.studentDecision === 'adopt' || payload.studentDecision === 'keep');
     });
 
-    const latestDecision = decisionMessages.length > 0
-      ? (decisionMessages[decisionMessages.length - 1] as {
-          studentDecision?: 'adopt' | 'keep';
-          studentDecisionReason?: string;
-          decisionAt?: string;
-          convergenceSuggestionAt?: string;
-          decisionLatencyMs?: number;
-        })
-      : null;
+    const latestDecision =
+      decisionMessages.length > 0
+        ? (decisionMessages[decisionMessages.length - 1] as {
+            studentDecision?: 'adopt' | 'keep';
+            studentDecisionReason?: string;
+            decisionAt?: string;
+            convergenceSuggestionAt?: string;
+            decisionLatencyMs?: number;
+          })
+        : null;
 
     if (!latestDecision?.studentDecision) {
       return {
@@ -190,16 +193,16 @@ export async function createSubmissionAndLinkGradingResult(
       };
     }
 
-    const decisionReason = typeof latestDecision.studentDecisionReason === 'string'
-      ? latestDecision.studentDecisionReason.trim()
-      : '';
+    const decisionReason =
+      typeof latestDecision.studentDecisionReason === 'string' ? latestDecision.studentDecisionReason.trim() : '';
 
     const decisionAt = parseISODate(latestDecision.decisionAt);
     const convergenceShownAt = parseISODate(latestDecision.convergenceSuggestionAt);
 
-    let decisionLatencyMs = typeof latestDecision.decisionLatencyMs === 'number'
-      ? Math.max(0, Math.round(latestDecision.decisionLatencyMs))
-      : null;
+    let decisionLatencyMs =
+      typeof latestDecision.decisionLatencyMs === 'number'
+        ? Math.max(0, Math.round(latestDecision.decisionLatencyMs))
+        : null;
 
     if (decisionLatencyMs === null && decisionAt && convergenceShownAt) {
       decisionLatencyMs = Math.max(0, decisionAt.getTime() - convergenceShownAt.getTime());
@@ -293,9 +296,7 @@ export async function createSubmissionAndLinkGradingResult(
     });
 
     if (!hasUIDecision) {
-      throw new Error(
-        `${SUBMIT_GUARD_PREFIX}請先在對練建議區塊用按鈕選擇「採納建議」或「先保留原寫法」後再送出`
-      );
+      throw new Error(`${SUBMIT_GUARD_PREFIX}請先在對練建議區塊用按鈕選擇「採納建議」或「先保留原寫法」後再送出`);
     }
 
     const metrics = extractDecisionMetrics(chatMessages);
@@ -316,9 +317,7 @@ export async function createSubmissionAndLinkGradingResult(
     // SPECIAL CASE: If existing submission is DRAFT, convert it to SUBMITTED
     // This ensures version 1 is the first actual submission, not a draft
     if (existingLatestSubmission.status === 'DRAFT') {
-      logger.info(
-        `🔄 Converting DRAFT to SUBMITTED for student ${studentId}, assignment ${assignmentAreaId}`
-      );
+      logger.info(`🔄 Converting DRAFT to SUBMITTED for student ${studentId}, assignment ${assignmentAreaId}`);
 
       // Fetch assignmentArea with teacher info for notification
       const assignmentArea = await db.assignmentArea.findUnique({
@@ -483,7 +482,7 @@ export async function createSubmissionAndLinkGradingResult(
   }
 
   try {
-      const gradingResult = await db.gradingResult.findFirst({
+    const gradingResult = await db.gradingResult.findFirst({
       where: {
         gradingSessionId: sessionId,
         status: 'COMPLETED',
@@ -503,7 +502,7 @@ export async function createSubmissionAndLinkGradingResult(
       if (aiAnalysisResult && chatMessages.length > 0) {
         (aiAnalysisResult as any).chatHistory = chatMessages;
       }
-      
+
       const totalScore = aiAnalysisResult?.totalScore;
       const hasTotalScore = totalScore !== undefined && totalScore !== null;
       const finalScore = hasTotalScore ? Math.round(totalScore) : null;
@@ -521,7 +520,10 @@ export async function createSubmissionAndLinkGradingResult(
         if (parseResult.success) {
           usedContext = parseResult.data;
         } else {
-          logger.warn({ err: parseResult.error }, `⚠️ Invalid usedContext format in grading result ${gradingResult.id}:`);
+          logger.warn(
+            { err: parseResult.error },
+            `⚠️ Invalid usedContext format in grading result ${gradingResult.id}:`
+          );
         }
       }
 
@@ -576,9 +578,9 @@ export async function getStudentAssignments(studentId: string, courseId?: string
   try {
     // Get all enrollments with class and course information
     const enrollments = await db.enrollment.findMany({
-      where: { 
+      where: {
         studentId,
-        ...(courseId ? { class: { courseId } } : {}) // Optimization: only fetch enrollments for specific course if provided
+        ...(courseId ? { class: { courseId } } : {}), // Optimization: only fetch enrollments for specific course if provided
       },
       include: {
         class: {
@@ -620,8 +622,8 @@ export async function getStudentAssignments(studentId: string, courseId?: string
                 },
               },
             ],
-          }
-        ]
+          },
+        ],
       },
       include: {
         course: {
@@ -910,7 +912,7 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
                 teacher: {
                   select: {
                     id: true,
-                    email: true
+                    email: true,
                   },
                 },
               },
@@ -974,7 +976,7 @@ export async function getSubmissionByIdForTeacher(
                 teacher: {
                   select: {
                     id: true,
-                    email: true
+                    email: true,
                   },
                 },
               },
@@ -1090,9 +1092,12 @@ export async function updateSubmission(
   if ('sparringDecision' in updateData) prismaData.sparringDecision = updateData.sparringDecision;
   if ('sparringDecisionReason' in updateData) prismaData.sparringDecisionReason = updateData.sparringDecisionReason;
   if ('sparringDecisionAt' in updateData) prismaData.sparringDecisionAt = updateData.sparringDecisionAt;
-  if ('sparringConvergenceShownAt' in updateData) prismaData.sparringConvergenceShownAt = updateData.sparringConvergenceShownAt;
-  if ('sparringDecisionLatencyMs' in updateData) prismaData.sparringDecisionLatencyMs = updateData.sparringDecisionLatencyMs;
-  if ('sparringRoundsBeforeDecision' in updateData) prismaData.sparringRoundsBeforeDecision = updateData.sparringRoundsBeforeDecision;
+  if ('sparringConvergenceShownAt' in updateData)
+    prismaData.sparringConvergenceShownAt = updateData.sparringConvergenceShownAt;
+  if ('sparringDecisionLatencyMs' in updateData)
+    prismaData.sparringDecisionLatencyMs = updateData.sparringDecisionLatencyMs;
+  if ('sparringRoundsBeforeDecision' in updateData)
+    prismaData.sparringRoundsBeforeDecision = updateData.sparringRoundsBeforeDecision;
 
   try {
     const submission = await db.submission.update({
@@ -1144,10 +1149,11 @@ export interface DraftSubmissionData {
   sessionId?: string | null;
   // Use Prisma's JsonValue type for proper JSON handling
   aiAnalysisResult?: Prisma.JsonValue | null;
+  draftUiState?: DraftUiState | Prisma.JsonValue | null;
   thoughtSummary?: string | null;
   thinkingProcess?: string | null;
   gradingRationale?: string | null;
-  lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'sparring' | 'error';
+  lastState?: ReturnType<typeof normalizeDraftPhase>;
 }
 
 export interface DraftSubmissionInfo extends DraftSubmissionData {
@@ -1155,6 +1161,33 @@ export interface DraftSubmissionInfo extends DraftSubmissionData {
   status?: 'DRAFT' | 'SUBMITTED' | 'ANALYZED' | 'GRADED';
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export async function updateSubmissionSparringResponses(
+  submissionId: string,
+  sparringResponses: Prisma.JsonValue
+): Promise<void> {
+  const latestSubmission = await db.submission.findUnique({
+    where: { id: submissionId },
+    select: { aiAnalysisResult: true },
+  });
+
+  const currentResult =
+    latestSubmission?.aiAnalysisResult &&
+    typeof latestSubmission.aiAnalysisResult === 'object' &&
+    !Array.isArray(latestSubmission.aiAnalysisResult)
+      ? (latestSubmission.aiAnalysisResult as Prisma.JsonObject)
+      : {};
+
+  await db.submission.update({
+    where: { id: submissionId },
+    data: {
+      aiAnalysisResult: {
+        ...currentResult,
+        sparringResponses,
+      },
+    },
+  });
 }
 
 /**
@@ -1263,11 +1296,16 @@ export async function getDraftSubmission(
       }
 
       // Determine state based on submission status and AI result
+      const draftUiState = parseDraftUiState(existingSubmission.draftUiState) ?? null;
       let lastState: DraftSubmissionData['lastState'] = 'idle';
-      if (existingSubmission.status === 'ANALYZED' || existingSubmission.aiAnalysisResult) {
+      if (draftUiState?.sparringState?.phase === 'chat') {
+        lastState = 'sparring';
+      } else if (existingSubmission.status === 'ANALYZED' || existingSubmission.aiAnalysisResult) {
         lastState = 'completed';
+      } else if (existingSubmission.sessionId) {
+        lastState = 'analyzing';
       } else if (fileMetadata) {
-        lastState = 'ready';
+        lastState = 'uploaded';
       }
 
       return {
@@ -1277,6 +1315,7 @@ export async function getDraftSubmission(
         fileMetadata,
         sessionId: resolvedSessionId,
         aiAnalysisResult: existingSubmission.aiAnalysisResult,
+        draftUiState,
         thoughtSummary: existingSubmission.thoughtSummary,
         thinkingProcess: existingSubmission.thinkingProcess,
         gradingRationale: existingSubmission.gradingRationale,
@@ -1308,6 +1347,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       fileMetadata,
       sessionId,
       aiAnalysisResult,
+      draftUiState,
       thoughtSummary,
       thinkingProcess,
       gradingRationale,
@@ -1355,6 +1395,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
             fileMetadata,
             sessionId: existingSubmission.sessionId ?? sessionId ?? null,
             aiAnalysisResult: existingSubmission.aiAnalysisResult,
+            draftUiState: parseDraftUiState(existingSubmission.draftUiState) ?? null,
             thoughtSummary: existingSubmission.thoughtSummary,
             lastState,
             status: existingSubmission.status,
@@ -1397,6 +1438,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
               status: 'DRAFT',
               sessionId: sessionId ?? undefined,
               aiAnalysisResult: aiAnalysisResult ?? undefined,
+              draftUiState: (draftUiState ?? undefined) as Prisma.InputJsonValue | undefined,
               thoughtSummary: thoughtSummary ?? undefined,
               thinkingProcess: thinkingProcess ?? undefined,
               gradingRationale: gradingRationale ?? undefined,
@@ -1417,6 +1459,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
           fileMetadata,
           sessionId,
           aiAnalysisResult: newVersion.aiAnalysisResult,
+            draftUiState: parseDraftUiState(newVersion.draftUiState) ?? null,
           thoughtSummary: newVersion.thoughtSummary,
           lastState,
           status: newVersion.status,
@@ -1444,6 +1487,10 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
         // Keep status as DRAFT - AI result doesn't mean submission is complete
         // Status should only change to SUBMITTED when user explicitly submits
         // (Don't auto-change to ANALYZED - that's for submitted assignments only)
+      }
+
+      if (draftUiState !== undefined) {
+        updateData.draftUiState = (draftUiState ?? undefined) as Prisma.InputJsonValue | undefined;
       }
 
       if (thoughtSummary !== undefined) {
@@ -1483,6 +1530,9 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       if (aiAnalysisResult !== null && aiAnalysisResult !== undefined) {
         createData.aiAnalysisResult = aiAnalysisResult;
       }
+      if (draftUiState !== null && draftUiState !== undefined) {
+        createData.draftUiState = draftUiState as Prisma.InputJsonValue;
+      }
       if (thoughtSummary !== null && thoughtSummary !== undefined) {
         createData.thoughtSummary = thoughtSummary;
       }
@@ -1510,6 +1560,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       fileMetadata,
       sessionId,
       aiAnalysisResult: submission.aiAnalysisResult,
+      draftUiState: parseDraftUiState(submission.draftUiState) ?? null,
       thoughtSummary: submission.thoughtSummary,
       lastState,
       status: submission.status,
@@ -1556,7 +1607,7 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: 
                 teacher: {
                   select: {
                     id: true,
-                    email: true
+                    email: true,
                   },
                 },
               },
@@ -1620,9 +1671,9 @@ export async function deleteSubmissionByTeacher(
 
     if (!submission) {
       logger.warn({ submissionId, teacherId }, 'Submission not found or teacher unauthorized');
-      return { 
-        success: false, 
-        error: 'Submission not found or you do not have permission to delete it' 
+      return {
+        success: false,
+        error: 'Submission not found or you do not have permission to delete it',
       };
     }
 
@@ -1630,7 +1681,7 @@ export async function deleteSubmissionByTeacher(
     if (submission.isDeleted) {
       return {
         success: false,
-        error: 'This submission has already been deleted'
+        error: 'This submission has already been deleted',
       };
     }
 
@@ -1642,7 +1693,7 @@ export async function deleteSubmissionByTeacher(
       // Log the error but continue with soft delete
       // The file might already be deleted or the path might be invalid
       logger.warn(
-        { error: storageError, fileKey: submission.filePath }, 
+        { error: storageError, fileKey: submission.filePath },
         'Failed to delete file from storage, continuing with soft delete'
       );
     }
@@ -1659,12 +1710,12 @@ export async function deleteSubmissionByTeacher(
     });
 
     logger.info(
-      { 
-        submissionId, 
-        teacherId, 
+      {
+        submissionId,
+        teacherId,
         studentId: submission.studentId,
-        assignmentAreaId: submission.assignmentAreaId 
-      }, 
+        assignmentAreaId: submission.assignmentAreaId,
+      },
       'Successfully soft deleted submission and removed S3 file'
     );
 

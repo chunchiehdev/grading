@@ -1,14 +1,16 @@
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getDraftSubmission, saveDraftSubmission } from '@/services/submission.server';
 import { createErrorResponse } from '@/types/api';
 import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
+import { normalizeDraftPhase, parseDraftUiState } from '@/utils/draft-ui-state';
 
 /**
  * GET /api/student/assignments/[assignmentId]/draft
  * Retrieves existing draft submission data for the student
  */
-export async function loader({ request, params }: { request: Request; params: any }) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
     const student = await requireStudent(request);
     const { assignmentId } = params;
@@ -36,7 +38,7 @@ export async function loader({ request, params }: { request: Request; params: an
  * DELETE /api/student/assignments/[assignmentId]/draft
  * Deletes draft submission (DRAFT status only)
  */
-export async function action({ request, params }: { request: Request; params: any }) {
+export async function action({ request, params }: ActionFunctionArgs) {
   try {
     const student = await requireStudent(request);
     const { assignmentId } = params;
@@ -72,7 +74,7 @@ export async function action({ request, params }: { request: Request; params: an
 
     // Handle POST request - save/update draft
     const contentType = request.headers.get('content-type') || '';
-    let body: any;
+    let body: Record<string, unknown>;
 
     if (contentType.includes('application/json')) {
       body = await request.json();
@@ -95,6 +97,13 @@ export async function action({ request, params }: { request: Request; params: an
           logger.warn({ err: e }, 'Could not parse aiAnalysisResult JSON:');
         }
       }
+      if (body.draftUiState && typeof body.draftUiState === 'string') {
+        try {
+          body.draftUiState = JSON.parse(body.draftUiState);
+        } catch (e) {
+          logger.warn({ err: e }, 'Could not parse draftUiState JSON:');
+        }
+      }
     }
 
     const draftData = {
@@ -103,10 +112,11 @@ export async function action({ request, params }: { request: Request; params: an
       fileMetadata: body.fileMetadata || null,
       sessionId: body.sessionId || null,
       aiAnalysisResult: body.aiAnalysisResult || null,
+      draftUiState: parseDraftUiState(body.draftUiState) || null,
       thoughtSummary: body.thoughtSummary ?? null,
       thinkingProcess: body.thinkingProcess ?? null,
       gradingRationale: body.gradingRationale ?? null,
-      lastState: body.lastState || 'idle',
+      lastState: normalizeDraftPhase(body.lastState),
     };
 
     const savedDraft = await saveDraftSubmission(draftData);

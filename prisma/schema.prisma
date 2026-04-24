@@ -172,6 +172,7 @@ model Submission {
   // AI analysis and grading
   sessionId        String? // GradingSession ID for linking AI results
   aiAnalysisResult Json? // AI analysis results
+  draftUiState     Json? // UI-only draft recovery state (chat, sparring progress)
   thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)
   thinkingProcess  String? @db.Text // AI 的原始思考過程
   gradingRationale String? @db.Text // AI 的正式評分推理
