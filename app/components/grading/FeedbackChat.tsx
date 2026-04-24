@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import { TextStreamChatTransport } from 'ai';
 import { Button } from '@/components/ui/button';
 import { Loader2, Send, ChevronDown, BrainCircuit, CheckCircle2, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react';
@@ -27,6 +28,104 @@ interface UiChatMessage extends DraftChatMessage {
   content?: string;
   parts?: UiChatPart[];
   studentReaction?: 'up' | 'down';
+}
+
+interface FeedbackMessageMetadata {
+  studentReaction?: 'up' | 'down';
+  studentDecision?: 'adopt' | 'keep';
+  studentDecisionReason?: string;
+  decisionAt?: string;
+  convergenceSuggestionAt?: string;
+  decisionLatencyMs?: number;
+  roundsBeforeDecision?: number;
+}
+
+type FeedbackUIMessage = UIMessage<FeedbackMessageMetadata>;
+
+type DraftChatMessageLike = DraftChatMessage & {
+  parts?: UiChatPart[];
+  studentReaction?: 'up' | 'down';
+};
+
+function createTextParts(content?: string): FeedbackUIMessage['parts'] {
+  return typeof content === 'string' && content.length > 0 ? [{ type: 'text', text: content }] : [];
+}
+
+function getDraftMessageText(message: DraftChatMessageLike): string {
+  return extractChatMessageText({
+    content: message.content,
+    parts: message.parts,
+  });
+}
+
+export function toFeedbackUIMessage(message: DraftChatMessageLike, index: number): FeedbackUIMessage {
+  const content = getDraftMessageText(message);
+
+  return {
+    id: message.id ?? `draft-message-${index}`,
+    role: message.role === 'assistant' || message.role === 'system' ? message.role : 'user',
+    parts: createTextParts(content),
+    metadata: {
+      ...(message.studentReaction ? { studentReaction: message.studentReaction } : {}),
+      ...(message.studentDecision ? { studentDecision: message.studentDecision } : {}),
+      ...(message.studentDecisionReason ? { studentDecisionReason: message.studentDecisionReason } : {}),
+      ...(message.decisionAt ? { decisionAt: message.decisionAt } : {}),
+      ...(message.convergenceSuggestionAt ? { convergenceSuggestionAt: message.convergenceSuggestionAt } : {}),
+      ...(typeof message.decisionLatencyMs === 'number' ? { decisionLatencyMs: message.decisionLatencyMs } : {}),
+      ...(typeof message.roundsBeforeDecision === 'number' ? { roundsBeforeDecision: message.roundsBeforeDecision } : {}),
+    },
+  };
+}
+
+export function toFeedbackUIMessages(messages: DraftChatMessageLike[]): FeedbackUIMessage[] {
+  return messages.map(toFeedbackUIMessage);
+}
+
+export function toDraftChatMessage(message: FeedbackUIMessage): DraftChatMessageLike {
+  return {
+    id: message.id,
+    role: message.role,
+    content: extractChatMessageText(message),
+    studentReaction: message.metadata?.studentReaction,
+    studentDecision: message.metadata?.studentDecision,
+    studentDecisionReason: message.metadata?.studentDecisionReason,
+    decisionAt: message.metadata?.decisionAt,
+    convergenceSuggestionAt: message.metadata?.convergenceSuggestionAt,
+    decisionLatencyMs: message.metadata?.decisionLatencyMs,
+    roundsBeforeDecision: message.metadata?.roundsBeforeDecision,
+  };
+}
+
+export function toDraftChatMessages(messages: FeedbackUIMessage[]): DraftChatMessageLike[] {
+  return messages.map(toDraftChatMessage);
+}
+
+export function mergeDraftMessagesPreservingContent(
+  currentMessages: DraftChatMessageLike[],
+  previousMessages: DraftChatMessageLike[]
+): DraftChatMessageLike[] {
+  const previousByKey = new Map(
+    previousMessages.map((message, index) => [`${message.id ?? ''}:${message.role ?? ''}:${index}`, message] as const)
+  );
+
+  return currentMessages.map((message, index) => {
+    const previous = previousByKey.get(`${message.id ?? ''}:${message.role ?? ''}:${index}`);
+    const currentContent = getDraftMessageText(message);
+    const previousContent = previous ? getDraftMessageText(previous) : '';
+
+    if (currentContent.length > 0 || previousContent.length === 0) {
+      return {
+        ...message,
+        content: currentContent,
+      };
+    }
+
+    return {
+      ...previous,
+      ...message,
+      content: previousContent,
+    };
+  });
 }
 
 interface ConvergenceSections {
@@ -146,6 +245,8 @@ export function FeedbackChat({
   const triggerText = t('grading:chat.triggerText');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestDraftSavePayloadRef = useRef<Record<string, unknown> | null>(null);
   const [input, setInput] = useState('');
   const hasSentOpening = useRef(false);
 
@@ -278,7 +379,7 @@ export function FeedbackChat({
     [chatContext]
   );
 
-  const { messages, status, sendMessage, setMessages } = useChat({
+  const { messages, status, sendMessage, setMessages } = useChat<FeedbackUIMessage>({
     transport,
     onError: (error) => {
       console.error('[FeedbackChat] Error:', error);
@@ -317,10 +418,16 @@ export function FeedbackChat({
     (idx: number) => {
       if (idx === activeIdx) return;
       // Save current question's messages before switching
-      setConversationsMap((prev) => ({ ...prev, [activeIdx]: messages }));
+      setConversationsMap((prev) => {
+        const previousMessages = prev[activeIdx] ?? initialConversationsMap?.[activeIdx] ?? [];
+        return {
+          ...prev,
+          [activeIdx]: mergeDraftMessagesPreservingContent(toDraftChatMessages(messages), previousMessages),
+        };
+      });
       // Restore from conversationsMap first, then from persisted data
       const saved = conversationsMap[idx] ?? initialConversationsMap?.[idx] ?? [];
-      setMessages(saved);
+      setMessages(toFeedbackUIMessages(saved));
       hasSentOpening.current = saved.length > 0;
       setActiveIdx(idx);
       setShowRevisionBox(false);
@@ -335,20 +442,22 @@ export function FeedbackChat({
 
   useEffect(() => {
     const savedDecision = messages.find((m) =>
-      m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep')
-    ) as { studentDecision?: 'adopt' | 'keep' } | undefined;
+      m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep')
+    );
 
-    if (savedDecision?.studentDecision) {
-      setSelectedConvergenceDecision(savedDecision.studentDecision);
+    if (savedDecision?.metadata?.studentDecision) {
+      setSelectedConvergenceDecision(savedDecision.metadata.studentDecision);
       setHasConvergenceSuggestion(true);
     }
 
     const savedReason = messages.find((m) =>
-      m?.role === 'user' && typeof m?.studentDecisionReason === 'string' && m.studentDecisionReason.trim().length > 0
-    ) as { studentDecisionReason?: string } | undefined;
+      m.role === 'user' &&
+      typeof m.metadata?.studentDecisionReason === 'string' &&
+      m.metadata.studentDecisionReason.trim().length > 0
+    );
 
-    if (savedReason?.studentDecisionReason) {
-      setDecisionReasonDraft(savedReason.studentDecisionReason);
+    if (savedReason?.metadata?.studentDecisionReason) {
+      setDecisionReasonDraft(savedReason.metadata.studentDecisionReason);
     }
   }, [messages]);
 
@@ -359,7 +468,7 @@ export function FeedbackChat({
       // Restore from persisted data for the CURRENT activeIdx (works for any question, not just 0)
       const savedForActive = initialConversationsMap?.[activeIdx];
       if (savedForActive && savedForActive.length > 0) {
-        setMessages(savedForActive);
+        setMessages(toFeedbackUIMessages(savedForActive));
         hasSentOpening.current = true;
       } else {
         hasSentOpening.current = true;
@@ -370,19 +479,109 @@ export function FeedbackChat({
     }
   }, [hasStarted, messages.length, setMessages, sendMessage, initialConversationsMap, activeIdx, triggerText]);
 
-  const prevMessagesRef = useRef<string>('');
+  const prevPersistedMessagesRef = useRef<string>('');
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     if (onChatChange && messages) {
-      const str = JSON.stringify(messages);
-      if (prevMessagesRef.current !== str) {
-        prevMessagesRef.current = str;
-        // Emit the FULL conversations map: merge conversationsMap + current active question
-        const fullMap: Record<number, DraftChatMessage[]> = { ...conversationsMap, [activeIdx]: messages as DraftChatMessage[] };
-        onChatChange(fullMap);
-      }
+      const previousMessages = conversationsMap[activeIdx] ?? initialConversationsMap?.[activeIdx] ?? [];
+      const mergedMessages = mergeDraftMessagesPreservingContent(toDraftChatMessages(messages), previousMessages);
+      const persistedString = JSON.stringify(mergedMessages);
+
+      if (prevPersistedMessagesRef.current === persistedString) return;
+
+      prevPersistedMessagesRef.current = persistedString;
+      const fullMap: Record<number, DraftChatMessage[]> = {
+        ...conversationsMap,
+        [activeIdx]: mergedMessages,
+      };
+      onChatChange(fullMap);
     }
-  }, [messages, onChatChange, conversationsMap, activeIdx]);
+  }, [messages, onChatChange, conversationsMap, activeIdx, initialConversationsMap]);
+
+  const prevDirectSaveRef = useRef<string>('');
+  useEffect(() => {
+    if (!hasStarted || messages.length === 0) return;
+
+    const previousMessages = conversationsMap[activeIdx] ?? initialConversationsMap?.[activeIdx] ?? [];
+    const mergedMessages = mergeDraftMessagesPreservingContent(toDraftChatMessages(messages), previousMessages);
+    const hasPersistableContent = mergedMessages.some((message) => getDraftMessageText(message).trim().length > 0);
+
+    if (!hasPersistableContent) return;
+
+    const fullMap: Record<number, DraftChatMessage[]> = {
+      ...conversationsMap,
+      [activeIdx]: mergedMessages,
+    };
+    const persistedString = JSON.stringify({
+      activeIdx,
+      chatPhase,
+      completedQuestionIndices: Array.from(completedQuestions.values()).sort((a, b) => a - b),
+      fullMap,
+    });
+
+    if (prevDirectSaveRef.current === persistedString) return;
+    prevDirectSaveRef.current = persistedString;
+
+    const payload = {
+      sessionId,
+      draftUiState: {
+        sparringState: {
+          activeQuestionIndex: activeIdx,
+          completedQuestionIndices: Array.from(completedQuestions.values()).sort((a, b) => a - b),
+          phase: chatPhase,
+        },
+        chatMessagesMap: fullMap,
+      },
+      lastState: 'sparring',
+    };
+
+    latestDraftSavePayloadRef.current = payload;
+
+    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    draftSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/student/assignments/${assignmentId}/draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        console.error('[FeedbackChat] Failed to persist draft chat:', error);
+      }
+    }, 700);
+
+    return () => {
+      if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    };
+  }, [
+    activeIdx,
+    assignmentId,
+    chatPhase,
+    completedQuestions,
+    conversationsMap,
+    hasStarted,
+    initialConversationsMap,
+    messages,
+    sessionId,
+  ]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+        draftSaveTimerRef.current = null;
+      }
+
+      const payload = latestDraftSavePayloadRef.current;
+      if (!payload) return;
+
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(`/api/student/assignments/${assignmentId}/draft`, blob);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [assignmentId]);
 
   // Auto-resize input textarea (like community comment box)
   const adjustInputHeight = useCallback(() => {
@@ -454,8 +653,10 @@ export function FeedbackChat({
         {
           id: `convergence-assistant-${Date.now()}`,
           role: 'assistant',
-          content: payload.suggestion,
-          convergenceSuggestionAt: new Date().toISOString(),
+          parts: createTextParts(payload.suggestion),
+          metadata: {
+            convergenceSuggestionAt: new Date().toISOString(),
+          },
         },
       ]);
       setHasConvergenceSuggestion(true);
@@ -481,13 +682,13 @@ export function FeedbackChat({
       const nowIso = new Date().toISOString();
       const latestConvergenceMessage = [...messages]
         .reverse()
-        .find((m) => m?.role === 'assistant' && typeof (m as UiChatMessage)?.convergenceSuggestionAt === 'string') as
-        | UiChatMessage
+        .find((m) => m.role === 'assistant' && typeof m.metadata?.convergenceSuggestionAt === 'string') as
+        | FeedbackUIMessage
         | undefined;
 
       const convergenceAtIso =
-        latestConvergenceMessage && typeof latestConvergenceMessage?.convergenceSuggestionAt === 'string'
-          ? latestConvergenceMessage.convergenceSuggestionAt
+        latestConvergenceMessage && typeof latestConvergenceMessage.metadata?.convergenceSuggestionAt === 'string'
+          ? latestConvergenceMessage.metadata.convergenceSuggestionAt
           : null;
 
       const decisionLatencyMs = convergenceAtIso
@@ -504,7 +705,7 @@ export function FeedbackChat({
 
       setMessages((prev) => {
         const filtered = prev.filter(
-          (m) => !(m?.role === 'user' && ((m as UiChatMessage)?.studentDecision === 'adopt' || (m as UiChatMessage)?.studentDecision === 'keep'))
+          (m) => !(m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep'))
         );
 
         return [
@@ -512,12 +713,14 @@ export function FeedbackChat({
           {
             id: `convergence-decision-${Date.now()}`,
             role: 'user',
-            content,
-            studentDecision: decision,
-            decisionAt: nowIso,
-            convergenceSuggestionAt: convergenceAtIso || undefined,
-            decisionLatencyMs: decisionLatencyMs ?? undefined,
-            roundsBeforeDecision: userRoundCount,
+            parts: createTextParts(content),
+            metadata: {
+              studentDecision: decision,
+              decisionAt: nowIso,
+              convergenceSuggestionAt: convergenceAtIso || undefined,
+              decisionLatencyMs: decisionLatencyMs ?? undefined,
+              roundsBeforeDecision: userRoundCount,
+            },
           },
         ];
       });
@@ -531,13 +734,16 @@ export function FeedbackChat({
 
     setMessages((prev) =>
       prev.map((m) => {
-        if (!(m?.role === 'user' && ((m as UiChatMessage)?.studentDecision === 'adopt' || (m as UiChatMessage)?.studentDecision === 'keep'))) {
+        if (!(m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep'))) {
           return m;
         }
 
         return {
           ...m,
-          studentDecisionReason: reason,
+          metadata: {
+            ...m.metadata,
+            studentDecisionReason: reason,
+          },
         };
       })
     );
@@ -565,10 +771,13 @@ export function FeedbackChat({
         prevMessages.map((msg, index) => {
           const currentId = msg.id || `assistant-${activeIdx}-${index}`;
           if (currentId !== messageId || msg.role !== 'assistant') return msg;
-          const nextReaction = msg.studentReaction === reaction ? undefined : reaction;
+          const nextReaction = msg.metadata?.studentReaction === reaction ? undefined : reaction;
           return {
             ...msg,
-            studentReaction: nextReaction,
+            metadata: {
+              ...msg.metadata,
+              studentReaction: nextReaction,
+            },
           };
         })
       );
@@ -594,7 +803,7 @@ export function FeedbackChat({
 
       return messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
-        if ((m as UiChatMessage).studentDecision) return false;
+        if (m.metadata?.studentDecision) return false;
         const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
         if (!content) return false;
         if (triggerTexts.has(content)) return false;
@@ -675,7 +884,8 @@ export function FeedbackChat({
                 </p>
                 <div className="space-y-1">
                   {result.breakdown.map((item: { criteriaId?: string; name?: string; maxScore?: number; score: number; feedback: string }, idx: number) => {
-                    const ratio = item.maxScore > 0 ? item.score / item.maxScore : 0;
+                    const maxScore = item.maxScore ?? 0;
+                    const ratio = maxScore > 0 ? item.score / maxScore : 0;
                     const color: 'green' | 'amber' | 'red' =
                       ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
 
@@ -852,7 +1062,7 @@ export function FeedbackChat({
               const rawMessageIndex = messages.findIndex((msg) => msg === m);
               const messageId = m.id || `assistant-${activeIdx}-${rawMessageIndex}`;
               const isAssistant = m.role === 'assistant';
-              const reaction = parsedMessage.studentReaction;
+              const reaction = m.metadata?.studentReaction;
 
               return (
                 <div

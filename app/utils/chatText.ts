@@ -1,6 +1,8 @@
 export interface ChatTextPartLike {
   type?: string;
   text?: string;
+  content?: string;
+  value?: string;
 }
 
 export interface ChatTextMessageLike {
@@ -18,8 +20,13 @@ export function extractChatMessageText(message: ChatTextMessageLike): string {
   }
 
   return message.parts
-    .filter((part) => part.type === 'text' && typeof part.text === 'string')
-    .map((part) => part.text || '')
+    .filter((part) => part.type === 'text')
+    .map((part) => {
+      if (typeof part.text === 'string') return part.text;
+      if (typeof part.content === 'string') return part.content;
+      if (typeof part.value === 'string') return part.value;
+      return '';
+    })
     .join('');
 }
 

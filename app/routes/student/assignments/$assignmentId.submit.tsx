@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse, Link } from 'react-router';
 import { ErrorPage } from '@/components/errors/ErrorPage';
-import React, { useReducer, useEffect, useRef, useCallback } from 'react';
+import React, { useReducer, useEffect, useRef } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
@@ -22,6 +22,70 @@ import { DefaultChatTransport } from 'ai';
 import { dbCriteriaToUICategories } from '@/utils/rubric-transform';
 import type { DraftChatMessage, DraftUiState } from '@/types/draft';
 import { normalizeDraftPhase, parseDraftUiState, parseLegacyDraftUiState } from '@/utils/draft-ui-state';
+import { parseGradingResult, type GradingResultData } from '@/utils/grading-helpers';
+
+type SubmissionResult = GradingResultData & {
+  id?: string;
+  normalizedScore?: number;
+};
+
+function parseSubmissionResult(value: unknown): SubmissionResult | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const record = value as Record<string, unknown>;
+  const strictParsed = parseGradingResult(value);
+  const breakdownSource = Array.isArray(record.breakdown) ? record.breakdown : [];
+  const sparringQuestions = Array.isArray(record.sparringQuestions)
+    ? (record.sparringQuestions as GradingResultData['sparringQuestions'])
+    : undefined;
+
+  const baseResult: SubmissionResult = strictParsed
+    ? {
+        ...strictParsed,
+      }
+    : {
+        totalScore: typeof record.totalScore === 'number' ? record.totalScore : 0,
+        maxScore: typeof record.maxScore === 'number' ? record.maxScore : 100,
+        breakdown: breakdownSource
+          .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+          .map((item) => ({
+            criteriaId: typeof item.criteriaId === 'string' ? item.criteriaId : '',
+            name: typeof item.name === 'string' ? item.name : '',
+            score: typeof item.score === 'number' ? item.score : 0,
+            feedback: typeof item.feedback === 'string' ? item.feedback : '',
+          })),
+        overallFeedback:
+          typeof record.overallFeedback === 'string' ||
+          (record.overallFeedback && typeof record.overallFeedback === 'object' && !Array.isArray(record.overallFeedback))
+            ? (record.overallFeedback as GradingResultData['overallFeedback'])
+            : '',
+        ...(sparringQuestions ? { sparringQuestions } : {}),
+      };
+
+  return {
+    ...baseResult,
+    ...(typeof record.id === 'string' ? { id: record.id } : {}),
+    ...(typeof record._normalizedScore === 'number'
+      ? { normalizedScore: record._normalizedScore }
+      : typeof record.normalizedScore === 'number'
+        ? { normalizedScore: record.normalizedScore }
+        : {}),
+  };
+}
+
+function toFeedbackChatResult(result: SubmissionResult): {
+  totalScore?: number;
+  maxScore?: number;
+  overallFeedback?: string;
+  breakdown?: Array<{ criteriaId?: string; name?: string; score: number; maxScore?: number; feedback: string }>;
+} {
+  return {
+    totalScore: result.totalScore,
+    maxScore: result.maxScore,
+    overallFeedback: typeof result.overallFeedback === 'string' ? result.overallFeedback : result.overallFeedback.summary,
+    breakdown: result.breakdown,
+  };
+}
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -82,7 +146,7 @@ interface SubmissionState {
   file: { id: string; name: string; size: number } | null;
   session: {
     id: string;
-    result: Record<string, unknown> | null;
+    result: SubmissionResult | null;
     thoughtSummary?: string;
     thinkingProcess?: string; // Feature 012
     gradingRationale?: string; // Feature 012
@@ -100,7 +164,7 @@ type Action =
   | { type: 'analysis_started'; sessionId: string }
   | {
       type: 'analysis_completed';
-      result: Record<string, unknown>;
+      result: SubmissionResult;
       thoughtSummary?: string;
       thinkingProcess?: string;
       gradingRationale?: string;
@@ -121,7 +185,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
     case 'analysis_completed':
       // Check if there are sparring questions
-      const hasSparring = action.result.sparringQuestions && action.result.sparringQuestions.length > 0;
+      const hasSparring = (action.result.sparringQuestions?.length ?? 0) > 0;
       return {
         ...state,
         phase: hasSparring ? 'sparring' : 'submit',
@@ -306,7 +370,7 @@ export default function SubmitAssignment() {
       draftSubmission?.sessionId || draftSubmission?.aiAnalysisResult
         ? {
             id: draftSubmission.sessionId || '',
-            result: draftSubmission.aiAnalysisResult,
+            result: parseSubmissionResult(draftSubmission.aiAnalysisResult),
             thoughtSummary: draftSubmission.thoughtSummary || undefined,
             thinkingProcess: draftSubmission.thinkingProcess || undefined,
             gradingRationale: draftSubmission.gradingRationale || undefined,
@@ -322,92 +386,6 @@ export default function SubmitAssignment() {
     // ANALYZED means grading finished but student may still need to click final submit.
     lastSubmittedSessionId: isPersistedSubmitted ? draftSubmission.sessionId || null : null,
   });
-
-  // Debounced auto-save of chatMessagesMap to draft (persist across page refresh)
-  const chatSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Build the save payload (shared between debounce and beforeunload)
-  const buildChatSavePayload = useCallback(() => {
-    const chatMessagesMap = state.session?.chatMessagesMap;
-    const hasChatMessages =
-      !!chatMessagesMap &&
-      Object.keys(chatMessagesMap).length > 0 &&
-      Object.values(chatMessagesMap).some((msgs) => msgs && msgs.length > 1);
-
-    if (!hasChatMessages && !sparringState) return null;
-
-    return {
-      // CRITICAL: Include fileMetadata + sessionId so saveDraftSubmission can create
-      // a new DRAFT version if the existing submission is SUBMITTED/ANALYZED.
-      // Without these, saveDraftSubmission silently returns null for non-DRAFT submissions.
-      ...(state.file
-        ? {
-            fileMetadata: {
-              fileId: state.file.id,
-              fileName: state.file.name,
-              fileSize: state.file.size,
-            },
-          }
-        : {}),
-      sessionId: state.session?.id || undefined,
-      draftUiState: {
-        sparringState,
-        ...(chatMessagesMap ? { chatMessagesMap } : {}),
-      },
-      lastState: state.phase === 'sparring' ? 'sparring' : 'completed',
-    };
-  }, [state.session?.chatMessagesMap, state.phase, state.file, state.session?.id, sparringState]);
-
-  useEffect(() => {
-    const payload = buildChatSavePayload();
-    if (!payload) return;
-
-    // Debounce: save 2 seconds after last message change
-    if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
-    chatSaveTimerRef.current = setTimeout(async () => {
-      try {
-        await fetch(`/api/student/assignments/${assignment.id}/draft`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } catch (err) {
-        console.error('Failed to save chat messages to draft:', err);
-      }
-    }, 2000);
-
-    return () => {
-      if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
-    };
-  }, [
-    state.session?.chatMessagesMap,
-    state.session?.result,
-    assignment.id,
-    sparringState,
-    state.phase,
-    buildChatSavePayload,
-  ]);
-
-  // beforeunload: flush pending saves immediately via sendBeacon to prevent data loss
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Cancel the debounce timer since we're saving immediately
-      if (chatSaveTimerRef.current) {
-        clearTimeout(chatSaveTimerRef.current);
-        chatSaveTimerRef.current = null;
-      }
-
-      const payload = buildChatSavePayload();
-      if (!payload) return;
-
-      // Use sendBeacon for reliable delivery during page unload
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      navigator.sendBeacon(`/api/student/assignments/${assignment.id}/draft`, blob);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [assignment.id, buildChatSavePayload]);
 
   // Auto-transition from 'sparring' → 'submit' when all questions are completed
   // Previously triggered by a manual button in FeedbackChat; now driven by sparringState
@@ -541,17 +519,25 @@ export default function SubmitAssignment() {
         const result = data.data.gradingResults?.find((r: { result?: unknown }) => r.result);
         if (result?.result) {
           // Extract thought summary from grading result
-          const thoughtSummary = result.thoughtSummary;
-          const thinkingProcess = result.thinkingProcess; // Feature 012
-          const gradingRationale = result.gradingRationale; // Feature 012
+          const thoughtSummary = typeof result.thoughtSummary === 'string' ? result.thoughtSummary : undefined;
+          const thinkingProcess = typeof result.thinkingProcess === 'string' ? result.thinkingProcess : undefined; // Feature 012
+          const gradingRationale = typeof result.gradingRationale === 'string' ? result.gradingRationale : undefined; // Feature 012
+          const parsedResult = parseSubmissionResult({
+            ...(typeof result.result === 'object' && result.result !== null && !Array.isArray(result.result)
+              ? result.result
+              : {}),
+            _normalizedScore: typeof result.normalizedScore === 'number' ? result.normalizedScore : undefined,
+          });
+
+          if (!parsedResult) {
+            dispatch({ type: 'error', message: t('grading:messages.gradingFailed') });
+            return true;
+          }
 
           // Store both result and normalizedScore
           dispatch({
             type: 'analysis_completed',
-            result: {
-              ...result.result,
-              _normalizedScore: result.normalizedScore, // Store normalized score with result
-            },
+            result: parsedResult,
             thoughtSummary,
             thinkingProcess,
             gradingRationale,
@@ -608,11 +594,7 @@ export default function SubmitAssignment() {
   }, [state.loading, state.session?.id]);
 
   // AI SDK UI Hook for Streaming Bridge
-  const {
-    messages,
-    sendMessage,
-    isLoading: isChatLoading,
-  } = useChat({
+  const { messages, sendMessage, status: chatStatus } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/grading/bridge',
     }),
@@ -626,6 +608,8 @@ export default function SubmitAssignment() {
     },
   });
 
+  const isChatLoading = chatStatus === 'submitted' || chatStatus === 'streaming';
+
   // Sync streaming messages to local state for display
   useEffect(() => {
     if (messages.length > 0) {
@@ -636,7 +620,7 @@ export default function SubmitAssignment() {
         // Update thought stream
         // Strictly prioritize 'parts' to separate text from tool calls
         let thought = '';
-        const parts = (lastMessage as { parts?: Array<{ type?: string; text?: string }> }).parts;
+        const parts = lastMessage.parts;
 
         if (parts && Array.isArray(parts)) {
           // Only extract text parts, ignoring tool-invocations
@@ -644,9 +628,6 @@ export default function SubmitAssignment() {
             .filter((p: { type?: string; text?: string }) => p.type === 'text')
             .map((p: { type?: string; text?: string }) => p.text)
             .join('');
-        } else {
-          // Fallback only if parts structure is missing
-          thought = lastMessage.content || '';
         }
 
         // Clean up thought content: remove raw tool call logs if they leaked into text
@@ -668,8 +649,7 @@ export default function SubmitAssignment() {
       // Trigger the bridge API
       sendMessage(
         {
-          role: 'user',
-          content: 'Start grading stream',
+          text: 'Start grading stream',
         },
         {
           body: {
@@ -1236,7 +1216,7 @@ export default function SubmitAssignment() {
                       sparringQuestions={activeSparringQuestions}
                       assignmentId={assignment.id}
                       sessionId={state.session.id}
-                      result={state.session.result}
+                      result={toFeedbackChatResult(state.session.result)}
                       studentName={student.name}
                       studentPicture={student.picture}
                       fileId={state.file?.id}
@@ -1516,7 +1496,7 @@ export default function SubmitAssignment() {
                       sparringQuestions={activeSparringQuestions}
                       assignmentId={assignment.id}
                       sessionId={state.session.id}
-                      result={state.session.result}
+                      result={toFeedbackChatResult(state.session.result)}
                       studentName={student.name}
                       studentPicture={student.picture}
                       fileId={state.file?.id}

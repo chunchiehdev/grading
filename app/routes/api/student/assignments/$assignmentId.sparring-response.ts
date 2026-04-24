@@ -6,6 +6,7 @@ import { generateDialecticalFeedback } from '@/services/dialectical-feedback.ser
 import { checkAIAccess } from '@/services/ai-access.server';
 import { updateSubmissionSparringResponses } from '@/services/submission.server';
 import type { SparringQuestion } from '@/types/grading';
+import type { Prisma } from '@/types/database';
 
 interface SparringResponseRecord {
   questionIndex: number;
@@ -16,6 +17,10 @@ interface SparringResponseRecord {
   dialecticalFeedback?: string;
   studentDecision?: string;
   decisionAt?: string;
+}
+
+function toPrismaJsonObject(record: SparringResponseRecord): Prisma.JsonObject {
+  return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined)) as Prisma.JsonObject;
 }
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -231,7 +236,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         existingResponses.push(responseData);
       }
 
-      await updateSubmissionSparringResponses(submission.id, existingResponses);
+      await updateSubmissionSparringResponses(
+        submission.id,
+        existingResponses.map(toPrismaJsonObject) as Prisma.JsonArray
+      );
 
       logger.info(
         {
@@ -260,7 +268,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         decisionAt,
       };
 
-      await updateSubmissionSparringResponses(submission.id, existingResponses);
+      await updateSubmissionSparringResponses(
+        submission.id,
+        existingResponses.map(toPrismaJsonObject) as Prisma.JsonArray
+      );
 
       logger.info(
         {

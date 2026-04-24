@@ -6,6 +6,37 @@ import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
 import { normalizeDraftPhase, parseDraftUiState } from '@/utils/draft-ui-state';
 
+function parseNullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function parseFileMetadata(value: unknown): {
+  fileId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+} | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.fileId !== 'string' ||
+    typeof candidate.fileName !== 'string' ||
+    typeof candidate.fileSize !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    fileId: candidate.fileId,
+    fileName: candidate.fileName,
+    fileSize: candidate.fileSize,
+    mimeType: typeof candidate.mimeType === 'string' ? candidate.mimeType : 'application/octet-stream',
+  };
+}
+
 /**
  * GET /api/student/assignments/[assignmentId]/draft
  * Retrieves existing draft submission data for the student
@@ -76,8 +107,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const contentType = request.headers.get('content-type') || '';
     let body: Record<string, unknown>;
 
-    if (contentType.includes('application/json')) {
+    if (contentType.includes('application/json') || contentType.includes('text/plain')) {
       body = await request.json();
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      body = Object.fromEntries((await request.formData()).entries());
+      if (body.payload && typeof body.payload === 'string') {
+        try {
+          const parsedPayload = JSON.parse(body.payload);
+          if (parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload)) {
+            body = parsedPayload as Record<string, unknown>;
+          }
+        } catch (e) {
+          logger.warn({ err: e }, 'Could not parse draft beacon payload JSON:');
+        }
+      }
     } else {
       const formData = await request.formData();
       body = Object.fromEntries(formData.entries());
@@ -109,13 +152,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const draftData = {
       assignmentAreaId: assignmentId,
       studentId: student.id,
-      fileMetadata: body.fileMetadata || null,
-      sessionId: body.sessionId || null,
-      aiAnalysisResult: body.aiAnalysisResult || null,
+      fileMetadata: parseFileMetadata(body.fileMetadata),
+      sessionId: parseNullableString(body.sessionId),
+      aiAnalysisResult: body.aiAnalysisResult ?? null,
       draftUiState: parseDraftUiState(body.draftUiState) || null,
-      thoughtSummary: body.thoughtSummary ?? null,
-      thinkingProcess: body.thinkingProcess ?? null,
-      gradingRationale: body.gradingRationale ?? null,
+      thoughtSummary: parseNullableString(body.thoughtSummary),
+      thinkingProcess: parseNullableString(body.thinkingProcess),
+      gradingRationale: parseNullableString(body.gradingRationale),
       lastState: normalizeDraftPhase(body.lastState),
     };
 
