@@ -67,6 +67,7 @@
       "actions": {
         "comment": "註解",
         "cancel": "取消",
+        "delete": "刪除註解",
         "saving": "儲存中...",
         "saveComment": "儲存註解"
       },
@@ -76,11 +77,13 @@
         "placeholder": "請輸入你對這段 AI 回饋的註解"
       },
       "messages": {
-        "saved": "註解已儲存"
+        "saved": "註解已儲存",
+        "deleted": "註解已刪除"
       },
       "errors": {
         "invalidSelection": "無法建立註解，請重新圈選文字後再試一次",
-        "saveFailed": "儲存註解失敗"
+        "saveFailed": "儲存註解失敗",
+        "deleteFailed": "刪除註解失敗"
       }
     }
   },

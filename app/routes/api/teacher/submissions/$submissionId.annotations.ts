@@ -1,7 +1,11 @@
 import { type ActionFunctionArgs } from 'react-router';
 import { z } from 'zod';
 import { requireTeacher } from '@/services/auth.server';
-import { createSubmissionAiFeedbackComment, getSubmissionByIdForTeacher } from '@/services/submission.server';
+import {
+  createSubmissionAiFeedbackComment,
+  deleteSubmissionAiFeedbackComment,
+  getSubmissionByIdForTeacher,
+} from '@/services/submission.server';
 import { markdownToPlainText } from '@/utils/markdown-plain-text';
 
 const CreateSubmissionAnnotationSchema = z
@@ -18,6 +22,10 @@ const CreateSubmissionAnnotationSchema = z
     message: 'Annotation offsets are invalid',
     path: ['endOffset'],
   });
+
+const DeleteSubmissionAnnotationSchema = z.object({
+  annotationId: z.string().trim().min(1).max(255),
+});
 
 function getOverallFeedbackPlainText(rawAiAnalysisResult: unknown): string | null {
   if (!rawAiAnalysisResult || typeof rawAiAnalysisResult !== 'object' || Array.isArray(rawAiAnalysisResult)) {
@@ -53,7 +61,7 @@ function isAnnotationAlignedWithFeedback(
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  if (request.method !== 'POST') {
+  if (request.method !== 'POST' && request.method !== 'DELETE') {
     return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
   }
 
@@ -66,6 +74,27 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   try {
     const payload = await request.json();
+
+    if (request.method === 'DELETE') {
+      const parsed = DeleteSubmissionAnnotationSchema.safeParse(payload);
+
+      if (!parsed.success) {
+        return Response.json({ success: false, error: 'Invalid annotation payload' }, { status: 400 });
+      }
+
+      const submission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
+      if (!submission) {
+        return Response.json({ success: false, error: 'Submission not found or unauthorized' }, { status: 404 });
+      }
+
+      const deleted = await deleteSubmissionAiFeedbackComment(submissionId, teacher.id, parsed.data.annotationId);
+      if (!deleted) {
+        return Response.json({ success: false, error: 'Annotation not found' }, { status: 404 });
+      }
+
+      return Response.json({ success: true });
+    }
+
     const parsed = CreateSubmissionAnnotationSchema.safeParse(payload);
 
     if (!parsed.success) {

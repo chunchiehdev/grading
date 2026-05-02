@@ -67,6 +67,7 @@
       "actions": {
         "comment": "Annotate",
         "cancel": "Cancel",
+        "delete": "Delete annotation",
         "saving": "Saving...",
         "saveComment": "Save Annotation"
       },
@@ -76,11 +77,13 @@
         "placeholder": "Leave an annotation for this AI feedback"
       },
       "messages": {
-        "saved": "Annotation saved"
+        "saved": "Annotation saved",
+        "deleted": "Annotation deleted"
       },
       "errors": {
         "invalidSelection": "Unable to create annotation. Please reselect the text and try again.",
-        "saveFailed": "Failed to save annotation"
+        "saveFailed": "Failed to save annotation",
+        "deleteFailed": "Failed to delete annotation"
       }
     }
   },

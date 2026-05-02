@@ -14,7 +14,7 @@ import { Markdown } from '@/components/ui/markdown';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -117,6 +117,7 @@ export function AnnotatableFeedback({
   const [draftComment, setDraftComment] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(comments[0]?.annotationId ?? null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   useEffect(() => {
     setSavedComments(comments);
@@ -312,6 +313,38 @@ export function AnnotatableFeedback({
     }
   };
 
+  const handleDeleteComment = async (annotationId: string) => {
+    setDeletingCommentId(annotationId);
+
+    try {
+      const response = await fetch(`/api/teacher/submissions/${submissionId}/annotations`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ annotationId }),
+      });
+
+      const payload = (await response.json()) as {
+        success: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to delete annotation');
+      }
+
+      setSavedComments((previous) => previous.filter((comment) => comment.annotationId !== annotationId));
+      setSelectedCommentId((current) => (current === annotationId ? null : current));
+      toast.success(t('result.annotations.messages.deleted'));
+    } catch (error) {
+      console.error('Failed to delete AI feedback comment:', error);
+      toast.error(t('result.annotations.errors.deleteFailed'));
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div ref={wrapperRef} className="relative">
@@ -354,34 +387,52 @@ export function AnnotatableFeedback({
           </div>
           <div className="space-y-2">
             {savedComments.map((comment) => (
-              <button
+              <div
                 key={comment.id}
-                type="button"
-                onClick={() => {
-                  setSelectedCommentId(comment.annotationId);
-                  annotatorRef.current?.setSelected(comment.annotationId);
-                }}
                 className={cn(
-                  'w-full rounded-xl border px-3 py-3 text-left transition-colors',
+                  'rounded-xl border px-3 py-3 transition-colors',
                   selectedCommentId === comment.annotationId
                     ? 'border-[#E07A5F]/40 bg-[#E07A5F]/10 shadow-sm'
-                    : 'border-border/50 bg-background hover:bg-muted/40'
+                    : 'border-border/50 bg-background'
                 )}
               >
                 <div className="flex items-start gap-2">
-                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#E07A5F]/12 text-[#E07A5F]">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] text-muted-foreground">
-                      &quot;
-                      {comment.quote}
-                      &quot;
-                    </p>
-                    <p className="mt-1 text-sm whitespace-pre-wrap text-foreground">{comment.comment}</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCommentId(comment.annotationId);
+                      annotatorRef.current?.setSelected(comment.annotationId);
+                    }}
+                    className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                  >
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#E07A5F]/12 text-[#E07A5F]">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        &quot;
+                        {comment.quote}
+                        &quot;
+                      </p>
+                      <p className="mt-1 text-sm whitespace-pre-wrap text-foreground">{comment.comment}</p>
+                    </div>
+                  </button>
+
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      disabled={deletingCommentId === comment.annotationId}
+                      onClick={() => void handleDeleteComment(comment.annotationId)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">{t('result.annotations.actions.delete')}</span>
+                    </Button>
+                  )}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>

@@ -1098,6 +1098,27 @@ export async function createSubmissionAiFeedbackComment(
   }
 }
 
+export async function deleteSubmissionAiFeedbackComment(
+  submissionId: string,
+  teacherId: string,
+  annotationId: string
+): Promise<boolean> {
+  try {
+    const deleted = await db.submissionAiFeedbackComment.deleteMany({
+      where: {
+        submissionId,
+        teacherId,
+        annotationId,
+      },
+    });
+
+    return deleted.count > 0;
+  } catch (error) {
+    console.error('❌ Error deleting submission AI feedback comment:', error);
+    return false;
+  }
+}
+
 /**
  * Gets a specific submission (student authorization required)
  * @param {string} submissionId - Submission ID
