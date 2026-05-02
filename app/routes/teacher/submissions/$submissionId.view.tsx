@@ -3,7 +3,7 @@ import { useLoaderData, useActionData, useParams, Form, useNavigate, useRouteErr
 import { ClientOnly } from '@/components/ui/client-only';
 import { useState, useEffect, useRef } from 'react';
 import { requireTeacher } from '@/services/auth.server';
-import { getSubmissionByIdForTeacher } from '@/services/submission.server';
+import { getSubmissionByIdForTeacher, listSubmissionAiFeedbackComments } from '@/services/submission.server';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { PDFViewerWithNavigation } from '@/components/pdf/PDFViewerWithNavigation';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@/components/grading/CompactInfoComponents';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import type { TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
+import type { SubmissionAiFeedbackCommentView, TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -289,6 +289,22 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   // Import date formatting utilities
   const { formatDateForDisplay } = await import('@/lib/date.server');
   const rubricCriteria = extractRubricCriteria(rawSubmission.assignmentArea.rubric.criteria);
+  const rawAiFeedbackComments = await listSubmissionAiFeedbackComments(submissionId, teacher.id);
+  const aiFeedbackComments: SubmissionAiFeedbackCommentView[] = rawAiFeedbackComments.map((comment) => ({
+    id: comment.id,
+    annotationId: comment.annotationId,
+    submissionId: comment.submissionId,
+    teacherId: comment.teacherId,
+    teacherName: comment.teacher.name,
+    targetType: comment.targetType,
+    targetId: comment.targetId,
+    quote: comment.quote,
+    startOffset: comment.startOffset,
+    endOffset: comment.endOffset,
+    comment: comment.comment,
+    createdAt: comment.createdAt.toISOString(),
+    updatedAt: comment.updatedAt.toISOString(),
+  }));
   const parsedHumanCriteriaScores = HumanCriteriaScoreSchema.safeParse(rawSubmission.humanCriteriaScores);
   const normalizedSparringDecision =
     rawSubmission.sparringDecision === 'adopt' || rawSubmission.sparringDecision === 'keep'
@@ -347,6 +363,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
         : chatHistorySparringFallback.convergenceAt,
       sparringDecisionLatencyMs: rawSubmission.sparringDecisionLatencyMs ?? chatHistorySparringFallback.latencyMs,
       sparringRoundsBeforeDecision: rawSubmission.sparringRoundsBeforeDecision ?? chatHistorySparringFallback.rounds,
+      aiFeedbackComments,
     },
     navigation: {
       backUrl: `/teacher/courses/${rawSubmission.assignmentArea.course.id}/assignments/${rawSubmission.assignmentArea.id}/submissions`,
@@ -633,6 +650,7 @@ export default function TeacherSubmissionView() {
             {/* AI Analysis Details */}
             {submission.grading.aiAnalysisResult && (
               <GradingResultDisplay
+                submissionId={params.submissionId}
                 result={submission.grading.aiAnalysisResult}
                 normalizedScore={submission.grading.normalizedScore}
                 thinkingProcess={submission.grading.thinkingProcess}
@@ -640,6 +658,7 @@ export default function TeacherSubmissionView() {
                 gradingRationale={submission.grading.gradingRationale}
                 studentName={submission.student.name}
                 studentPicture={submission.student.picture}
+                aiFeedbackComments={submission.grading.aiFeedbackComments}
               />
             )}
 
@@ -828,6 +847,7 @@ export default function TeacherSubmissionView() {
             {/* AI Analysis Details */}
             {submission.grading.aiAnalysisResult && (
               <GradingResultDisplay
+                submissionId={params.submissionId}
                 result={submission.grading.aiAnalysisResult}
                 normalizedScore={submission.grading.normalizedScore}
                 thinkingProcess={submission.grading.thinkingProcess}
@@ -835,6 +855,7 @@ export default function TeacherSubmissionView() {
                 gradingRationale={submission.grading.gradingRationale}
                 studentName={submission.student.name}
                 studentPicture={submission.student.picture}
+                aiFeedbackComments={submission.grading.aiFeedbackComments}
               />
             )}
 

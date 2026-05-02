@@ -79,6 +79,7 @@
     "@react-router/express": "^7.5.2",
     "@react-router/node": "^7.5.2",
     "@react-router/serve": "^7.5.2",
+    "@recogito/text-annotator": "^3.4.10",
     "@socket.io/redis-adapter": "^8.3.0",
     "@tanstack/react-query": "^5.74.11",
     "@tanstack/react-query-devtools": "^5.74.11",

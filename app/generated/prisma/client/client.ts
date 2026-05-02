@@ -74,6 +74,11 @@ export type AssignmentArea = Prisma.AssignmentAreaModel
  */
 export type Submission = Prisma.SubmissionModel
 /**
+ * Model SubmissionAiFeedbackComment
+ * 
+ */
+export type SubmissionAiFeedbackComment = Prisma.SubmissionAiFeedbackCommentModel
+/**
  * Model Rubric
  * 
  */

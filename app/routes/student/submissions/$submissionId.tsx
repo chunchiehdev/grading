@@ -7,8 +7,9 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw, Home } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import type { GradingResultData } from '@/types/grading';
+import type { SubmissionAiFeedbackCommentView } from '@/types/student';
 
 function getRubricMaxScore(rawCriteria: unknown): number | null {
   if (!Array.isArray(rawCriteria) || rawCriteria.length === 0) {
@@ -67,6 +68,23 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     teacherScore !== null && totalMaxScore && totalMaxScore > 0
       ? Math.round((teacherScore / totalMaxScore) * 1000) / 10
       : null;
+  const aiFeedbackComments: SubmissionAiFeedbackCommentView[] = (submission.aiFeedbackComments ?? []).map(
+    (comment) => ({
+      id: comment.id,
+      annotationId: comment.annotationId,
+      submissionId: comment.submissionId,
+      teacherId: comment.teacherId,
+      teacherName: comment.teacher.name,
+      targetType: comment.targetType,
+      targetId: comment.targetId,
+      quote: comment.quote,
+      startOffset: comment.startOffset,
+      endOffset: comment.endOffset,
+      comment: comment.comment,
+      createdAt: comment.createdAt.toISOString(),
+      updatedAt: comment.updatedAt.toISOString(),
+    })
+  );
 
   return {
     student: { name: student.name, picture: student.picture },
@@ -76,6 +94,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       formattedHumanRatedAt,
       teacherScore,
       teacherScorePercent,
+      aiFeedbackComments,
     },
   };
 }
@@ -89,7 +108,7 @@ export default function StudentSubmissionDetail() {
 
   // Check if submission is past due date
   const isOverdue = a.dueDate ? new Date() > new Date(a.dueDate) : false;
-  
+
   return (
     <div className="h-full w-full flex flex-col">
       {/* Desktop & Mobile unified layout */}
@@ -126,8 +145,8 @@ export default function StudentSubmissionDetail() {
                       <TooltipTrigger asChild>
                         <span>
                           <Link to={isOverdue ? '#' : `/student/assignments/${submission.assignmentAreaId}/submit`}>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               disabled={isOverdue}
                               className="w-full sm:w-auto border-2 border-[#2B2B2B] dark:border-gray-200"
                             >
@@ -151,7 +170,6 @@ export default function StudentSubmissionDetail() {
 
           {/* AI分析結果 */}
           <section>
-            
             <div>
               {submission.aiAnalysisResult ? (
                 <GradingResultDisplay
@@ -161,6 +179,9 @@ export default function StudentSubmissionDetail() {
                   gradingRationale={submission.gradingRationale}
                   studentName={student.name}
                   studentPicture={student.picture}
+                  submissionId={submission.id}
+                  aiFeedbackComments={submission.aiFeedbackComments}
+                  annotationMode="readonly"
                 />
               ) : (
                 <div className="border-2 border-[#2B2B2B] p-12 text-center dark:border-gray-200">
@@ -182,35 +203,35 @@ export default function StudentSubmissionDetail() {
               <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200 space-y-4">
                 {teacherScore !== null && (
                   <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
-                    {t('submissions:submissionDetail.teacherScore')}
-                  </p>
-                  <p className="font-serif text-3xl font-light text-[#2B2B2B] dark:text-gray-100">
-                    {submission.teacherScorePercent ?? teacherScore}
-                  </p>
-                  {submission.formattedHumanRatedAt && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {t('submissions:submissionDetail.teacherReviewedAt')} {submission.formattedHumanRatedAt}
+                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                      {t('submissions:submissionDetail.teacherScore')}
                     </p>
-                  )}
+                    <p className="font-serif text-3xl font-light text-[#2B2B2B] dark:text-gray-100">
+                      {submission.teacherScorePercent ?? teacherScore}
+                    </p>
+                    {submission.formattedHumanRatedAt && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        {t('submissions:submissionDetail.teacherReviewedAt')} {submission.formattedHumanRatedAt}
+                      </p>
+                    )}
                   </div>
                 )}
 
                 {teacherScore !== null && <div className="border-t border-gray-200 dark:border-gray-700" />}
 
                 <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
-                  {t('submissions:submissionDetail.teacherFeedback')}
-                </p>
-                {hasTeacherFeedback ? (
-                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                    {submission.teacherFeedback}
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                    {t('submissions:submissionDetail.teacherFeedback')}
                   </p>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {t('submissions:submissionDetail.teacherFeedbackPending')}
-                  </p>
-                )}
+                  {hasTeacherFeedback ? (
+                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      {submission.teacherFeedback}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {t('submissions:submissionDetail.teacherFeedbackPending')}
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
@@ -227,21 +248,9 @@ export function ErrorBoundary() {
 
   // 404 - Submission not found
   if (isRouteErrorResponse(error) && error.status === 404) {
-    return (
-      <ErrorPage
-        statusCode={404}
-        messageKey="errors.404.submission"
-        returnTo="/student"
-      />
-    );
+    return <ErrorPage statusCode={404} messageKey="errors.404.submission" returnTo="/student" />;
   }
 
   // Generic error
-  return (
-    <ErrorPage
-      statusCode="errors.generic.title"
-      messageKey="errors.generic.submission"
-      returnTo="/student"
-    />
-  );
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.submission" returnTo="/student" />;
 }

@@ -223,6 +223,7 @@ export type UserWhereInput = {
   submissions?: Prisma.SubmissionListRelationFilter
   enrollments?: Prisma.EnrollmentListRelationFilter
   usedInvitations?: Prisma.InvitationCodeListRelationFilter
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentListRelationFilter
   chats?: Prisma.ChatListRelationFilter
   agentChatSessions?: Prisma.AgentChatSessionListRelationFilter
   notifications?: Prisma.NotificationListRelationFilter
@@ -252,6 +253,7 @@ export type UserOrderByWithRelationInput = {
   submissions?: Prisma.SubmissionOrderByRelationAggregateInput
   enrollments?: Prisma.EnrollmentOrderByRelationAggregateInput
   usedInvitations?: Prisma.InvitationCodeOrderByRelationAggregateInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentOrderByRelationAggregateInput
   chats?: Prisma.ChatOrderByRelationAggregateInput
   agentChatSessions?: Prisma.AgentChatSessionOrderByRelationAggregateInput
   notifications?: Prisma.NotificationOrderByRelationAggregateInput
@@ -284,6 +286,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   submissions?: Prisma.SubmissionListRelationFilter
   enrollments?: Prisma.EnrollmentListRelationFilter
   usedInvitations?: Prisma.InvitationCodeListRelationFilter
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentListRelationFilter
   chats?: Prisma.ChatListRelationFilter
   agentChatSessions?: Prisma.AgentChatSessionListRelationFilter
   notifications?: Prisma.NotificationListRelationFilter
@@ -343,6 +346,7 @@ export type UserCreateInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -372,6 +376,7 @@ export type UserUncheckedCreateInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -401,6 +406,7 @@ export type UserUpdateInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -430,6 +436,7 @@ export type UserUncheckedUpdateInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -580,6 +587,20 @@ export type UserUpdateOneRequiredWithoutSubmissionsNestedInput = {
   upsert?: Prisma.UserUpsertWithoutSubmissionsInput
   connect?: Prisma.UserWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutSubmissionsInput, Prisma.UserUpdateWithoutSubmissionsInput>, Prisma.UserUncheckedUpdateWithoutSubmissionsInput>
+}
+
+export type UserCreateNestedOneWithoutAiFeedbackCommentsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAiFeedbackCommentsInput, Prisma.UserUncheckedCreateWithoutAiFeedbackCommentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAiFeedbackCommentsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutAiFeedbackCommentsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAiFeedbackCommentsInput, Prisma.UserUncheckedCreateWithoutAiFeedbackCommentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAiFeedbackCommentsInput
+  upsert?: Prisma.UserUpsertWithoutAiFeedbackCommentsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAiFeedbackCommentsInput, Prisma.UserUpdateWithoutAiFeedbackCommentsInput>, Prisma.UserUncheckedUpdateWithoutAiFeedbackCommentsInput>
 }
 
 export type UserCreateNestedOneWithoutRubricsInput = {
@@ -800,6 +821,7 @@ export type UserCreateWithoutCoursesInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -828,6 +850,7 @@ export type UserUncheckedCreateWithoutCoursesInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -872,6 +895,7 @@ export type UserUpdateWithoutCoursesInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -900,6 +924,7 @@ export type UserUncheckedUpdateWithoutCoursesInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -928,6 +953,7 @@ export type UserCreateWithoutAssistantClassesInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -956,6 +982,7 @@ export type UserUncheckedCreateWithoutAssistantClassesInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1000,6 +1027,7 @@ export type UserUpdateWithoutAssistantClassesInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1028,6 +1056,7 @@ export type UserUncheckedUpdateWithoutAssistantClassesInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1056,6 +1085,7 @@ export type UserCreateWithoutSubmissionsInput = {
   assistantClasses?: Prisma.ClassCreateNestedManyWithoutAssistantInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1084,6 +1114,7 @@ export type UserUncheckedCreateWithoutSubmissionsInput = {
   assistantClasses?: Prisma.ClassUncheckedCreateNestedManyWithoutAssistantInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1128,6 +1159,7 @@ export type UserUpdateWithoutSubmissionsInput = {
   assistantClasses?: Prisma.ClassUpdateManyWithoutAssistantNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1154,6 +1186,139 @@ export type UserUncheckedUpdateWithoutSubmissionsInput = {
   courses?: Prisma.CourseUncheckedUpdateManyWithoutTeacherNestedInput
   teacherRubrics?: Prisma.RubricUncheckedUpdateManyWithoutTeacherNestedInput
   assistantClasses?: Prisma.ClassUncheckedUpdateManyWithoutAssistantNestedInput
+  enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+  usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
+  chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
+  agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
+  authoredPosts?: Prisma.CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+  authoredComments?: Prisma.CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+  postLikes?: Prisma.CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+  commentLikes?: Prisma.CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+  commentGradings?: Prisma.CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
+}
+
+export type UserCreateWithoutAiFeedbackCommentsInput = {
+  id?: string
+  email: string
+  role?: $Enums.UserRole
+  hasSelectedRole?: boolean
+  name: string
+  picture: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  aiEnabled?: boolean
+  rubrics?: Prisma.RubricCreateNestedManyWithoutUserInput
+  gradingSessions?: Prisma.GradingSessionCreateNestedManyWithoutUserInput
+  uploadedFiles?: Prisma.UploadedFileCreateNestedManyWithoutUserInput
+  courses?: Prisma.CourseCreateNestedManyWithoutTeacherInput
+  teacherRubrics?: Prisma.RubricCreateNestedManyWithoutTeacherInput
+  assistantClasses?: Prisma.ClassCreateNestedManyWithoutAssistantInput
+  submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
+  enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
+  usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  chats?: Prisma.ChatCreateNestedManyWithoutUserInput
+  agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
+  authoredPosts?: Prisma.CoursePostCreateNestedManyWithoutAuthorInput
+  authoredComments?: Prisma.CoursePostCommentCreateNestedManyWithoutAuthorInput
+  postLikes?: Prisma.CoursePostLikeCreateNestedManyWithoutUserInput
+  commentLikes?: Prisma.CoursePostCommentLikeCreateNestedManyWithoutUserInput
+  commentGradings?: Prisma.CommentGradingResultCreateNestedManyWithoutGraderInput
+}
+
+export type UserUncheckedCreateWithoutAiFeedbackCommentsInput = {
+  id?: string
+  email: string
+  role?: $Enums.UserRole
+  hasSelectedRole?: boolean
+  name: string
+  picture: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  aiEnabled?: boolean
+  rubrics?: Prisma.RubricUncheckedCreateNestedManyWithoutUserInput
+  gradingSessions?: Prisma.GradingSessionUncheckedCreateNestedManyWithoutUserInput
+  uploadedFiles?: Prisma.UploadedFileUncheckedCreateNestedManyWithoutUserInput
+  courses?: Prisma.CourseUncheckedCreateNestedManyWithoutTeacherInput
+  teacherRubrics?: Prisma.RubricUncheckedCreateNestedManyWithoutTeacherInput
+  assistantClasses?: Prisma.ClassUncheckedCreateNestedManyWithoutAssistantInput
+  submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
+  enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+  usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
+  agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
+  authoredPosts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+  authoredComments?: Prisma.CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+  postLikes?: Prisma.CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+  commentLikes?: Prisma.CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+  commentGradings?: Prisma.CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
+}
+
+export type UserCreateOrConnectWithoutAiFeedbackCommentsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAiFeedbackCommentsInput, Prisma.UserUncheckedCreateWithoutAiFeedbackCommentsInput>
+}
+
+export type UserUpsertWithoutAiFeedbackCommentsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAiFeedbackCommentsInput, Prisma.UserUncheckedUpdateWithoutAiFeedbackCommentsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAiFeedbackCommentsInput, Prisma.UserUncheckedCreateWithoutAiFeedbackCommentsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAiFeedbackCommentsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAiFeedbackCommentsInput, Prisma.UserUncheckedUpdateWithoutAiFeedbackCommentsInput>
+}
+
+export type UserUpdateWithoutAiFeedbackCommentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  hasSelectedRole?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  picture?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  aiEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  rubrics?: Prisma.RubricUpdateManyWithoutUserNestedInput
+  gradingSessions?: Prisma.GradingSessionUpdateManyWithoutUserNestedInput
+  uploadedFiles?: Prisma.UploadedFileUpdateManyWithoutUserNestedInput
+  courses?: Prisma.CourseUpdateManyWithoutTeacherNestedInput
+  teacherRubrics?: Prisma.RubricUpdateManyWithoutTeacherNestedInput
+  assistantClasses?: Prisma.ClassUpdateManyWithoutAssistantNestedInput
+  submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
+  enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
+  usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
+  agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
+  authoredPosts?: Prisma.CoursePostUpdateManyWithoutAuthorNestedInput
+  authoredComments?: Prisma.CoursePostCommentUpdateManyWithoutAuthorNestedInput
+  postLikes?: Prisma.CoursePostLikeUpdateManyWithoutUserNestedInput
+  commentLikes?: Prisma.CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+  commentGradings?: Prisma.CommentGradingResultUpdateManyWithoutGraderNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAiFeedbackCommentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  hasSelectedRole?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  picture?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  aiEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  rubrics?: Prisma.RubricUncheckedUpdateManyWithoutUserNestedInput
+  gradingSessions?: Prisma.GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+  uploadedFiles?: Prisma.UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+  courses?: Prisma.CourseUncheckedUpdateManyWithoutTeacherNestedInput
+  teacherRubrics?: Prisma.RubricUncheckedUpdateManyWithoutTeacherNestedInput
+  assistantClasses?: Prisma.ClassUncheckedUpdateManyWithoutAssistantNestedInput
+  submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
@@ -1184,6 +1349,7 @@ export type UserCreateWithoutRubricsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1212,6 +1378,7 @@ export type UserUncheckedCreateWithoutRubricsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1245,6 +1412,7 @@ export type UserCreateWithoutTeacherRubricsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1273,6 +1441,7 @@ export type UserUncheckedCreateWithoutTeacherRubricsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1317,6 +1486,7 @@ export type UserUpdateWithoutRubricsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1345,6 +1515,7 @@ export type UserUncheckedUpdateWithoutRubricsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1384,6 +1555,7 @@ export type UserUpdateWithoutTeacherRubricsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1412,6 +1584,7 @@ export type UserUncheckedUpdateWithoutTeacherRubricsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1440,6 +1613,7 @@ export type UserCreateWithoutGradingSessionsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1468,6 +1642,7 @@ export type UserUncheckedCreateWithoutGradingSessionsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1512,6 +1687,7 @@ export type UserUpdateWithoutGradingSessionsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1540,6 +1716,7 @@ export type UserUncheckedUpdateWithoutGradingSessionsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1568,6 +1745,7 @@ export type UserCreateWithoutUploadedFilesInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1596,6 +1774,7 @@ export type UserUncheckedCreateWithoutUploadedFilesInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1640,6 +1819,7 @@ export type UserUpdateWithoutUploadedFilesInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1668,6 +1848,7 @@ export type UserUncheckedUpdateWithoutUploadedFilesInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1696,6 +1877,7 @@ export type UserCreateWithoutEnrollmentsInput = {
   assistantClasses?: Prisma.ClassCreateNestedManyWithoutAssistantInput
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1724,6 +1906,7 @@ export type UserUncheckedCreateWithoutEnrollmentsInput = {
   assistantClasses?: Prisma.ClassUncheckedCreateNestedManyWithoutAssistantInput
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1768,6 +1951,7 @@ export type UserUpdateWithoutEnrollmentsInput = {
   assistantClasses?: Prisma.ClassUpdateManyWithoutAssistantNestedInput
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1796,6 +1980,7 @@ export type UserUncheckedUpdateWithoutEnrollmentsInput = {
   assistantClasses?: Prisma.ClassUncheckedUpdateManyWithoutAssistantNestedInput
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1824,6 +2009,7 @@ export type UserCreateWithoutUsedInvitationsInput = {
   assistantClasses?: Prisma.ClassCreateNestedManyWithoutAssistantInput
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -1852,6 +2038,7 @@ export type UserUncheckedCreateWithoutUsedInvitationsInput = {
   assistantClasses?: Prisma.ClassUncheckedCreateNestedManyWithoutAssistantInput
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -1896,6 +2083,7 @@ export type UserUpdateWithoutUsedInvitationsInput = {
   assistantClasses?: Prisma.ClassUpdateManyWithoutAssistantNestedInput
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -1924,6 +2112,7 @@ export type UserUncheckedUpdateWithoutUsedInvitationsInput = {
   assistantClasses?: Prisma.ClassUncheckedUpdateManyWithoutAssistantNestedInput
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -1953,6 +2142,7 @@ export type UserCreateWithoutChatsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
   authoredPosts?: Prisma.CoursePostCreateNestedManyWithoutAuthorInput
@@ -1981,6 +2171,7 @@ export type UserUncheckedCreateWithoutChatsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
   authoredPosts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2025,6 +2216,7 @@ export type UserUpdateWithoutChatsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
   authoredPosts?: Prisma.CoursePostUpdateManyWithoutAuthorNestedInput
@@ -2053,6 +2245,7 @@ export type UserUncheckedUpdateWithoutChatsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
   authoredPosts?: Prisma.CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2081,6 +2274,7 @@ export type UserCreateWithoutNotificationsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   authoredPosts?: Prisma.CoursePostCreateNestedManyWithoutAuthorInput
@@ -2109,6 +2303,7 @@ export type UserUncheckedCreateWithoutNotificationsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   authoredPosts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2153,6 +2348,7 @@ export type UserUpdateWithoutNotificationsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   authoredPosts?: Prisma.CoursePostUpdateManyWithoutAuthorNestedInput
@@ -2181,6 +2377,7 @@ export type UserUncheckedUpdateWithoutNotificationsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   authoredPosts?: Prisma.CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2209,6 +2406,7 @@ export type UserCreateWithoutAuthoredPostsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -2237,6 +2435,7 @@ export type UserUncheckedCreateWithoutAuthoredPostsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -2281,6 +2480,7 @@ export type UserUpdateWithoutAuthoredPostsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -2309,6 +2509,7 @@ export type UserUncheckedUpdateWithoutAuthoredPostsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -2337,6 +2538,7 @@ export type UserCreateWithoutAuthoredCommentsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -2365,6 +2567,7 @@ export type UserUncheckedCreateWithoutAuthoredCommentsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -2409,6 +2612,7 @@ export type UserUpdateWithoutAuthoredCommentsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -2437,6 +2641,7 @@ export type UserUncheckedUpdateWithoutAuthoredCommentsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -2465,6 +2670,7 @@ export type UserCreateWithoutCommentGradingsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -2493,6 +2699,7 @@ export type UserUncheckedCreateWithoutCommentGradingsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -2537,6 +2744,7 @@ export type UserUpdateWithoutCommentGradingsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -2565,6 +2773,7 @@ export type UserUncheckedUpdateWithoutCommentGradingsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -2593,6 +2802,7 @@ export type UserCreateWithoutPostLikesInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -2621,6 +2831,7 @@ export type UserUncheckedCreateWithoutPostLikesInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -2665,6 +2876,7 @@ export type UserUpdateWithoutPostLikesInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -2693,6 +2905,7 @@ export type UserUncheckedUpdateWithoutPostLikesInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -2721,6 +2934,7 @@ export type UserCreateWithoutCommentLikesInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
@@ -2749,6 +2963,7 @@ export type UserUncheckedCreateWithoutCommentLikesInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
@@ -2793,6 +3008,7 @@ export type UserUpdateWithoutCommentLikesInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
@@ -2821,6 +3037,7 @@ export type UserUncheckedUpdateWithoutCommentLikesInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   agentChatSessions?: Prisma.AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
@@ -2849,6 +3066,7 @@ export type UserCreateWithoutAgentChatSessionsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutUserInput
   authoredPosts?: Prisma.CoursePostCreateNestedManyWithoutAuthorInput
@@ -2877,6 +3095,7 @@ export type UserUncheckedCreateWithoutAgentChatSessionsInput = {
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
   enrollments?: Prisma.EnrollmentUncheckedCreateNestedManyWithoutStudentInput
   usedInvitations?: Prisma.InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutTeacherInput
   chats?: Prisma.ChatUncheckedCreateNestedManyWithoutUserInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutUserInput
   authoredPosts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2921,6 +3140,7 @@ export type UserUpdateWithoutAgentChatSessionsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutUserNestedInput
   authoredPosts?: Prisma.CoursePostUpdateManyWithoutAuthorNestedInput
@@ -2949,6 +3169,7 @@ export type UserUncheckedUpdateWithoutAgentChatSessionsInput = {
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
   enrollments?: Prisma.EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
   usedInvitations?: Prisma.InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutTeacherNestedInput
   chats?: Prisma.ChatUncheckedUpdateManyWithoutUserNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutUserNestedInput
   authoredPosts?: Prisma.CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2973,6 +3194,7 @@ export type UserCountOutputType = {
   submissions: number
   enrollments: number
   usedInvitations: number
+  aiFeedbackComments: number
   chats: number
   agentChatSessions: number
   notifications: number
@@ -2993,6 +3215,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   submissions?: boolean | UserCountOutputTypeCountSubmissionsArgs
   enrollments?: boolean | UserCountOutputTypeCountEnrollmentsArgs
   usedInvitations?: boolean | UserCountOutputTypeCountUsedInvitationsArgs
+  aiFeedbackComments?: boolean | UserCountOutputTypeCountAiFeedbackCommentsArgs
   chats?: boolean | UserCountOutputTypeCountChatsArgs
   agentChatSessions?: boolean | UserCountOutputTypeCountAgentChatSessionsArgs
   notifications?: boolean | UserCountOutputTypeCountNotificationsArgs
@@ -3079,6 +3302,13 @@ export type UserCountOutputTypeCountUsedInvitationsArgs<ExtArgs extends runtime.
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountAiFeedbackCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubmissionAiFeedbackCommentWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountChatsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ChatWhereInput
 }
@@ -3152,6 +3382,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   submissions?: boolean | Prisma.User$submissionsArgs<ExtArgs>
   enrollments?: boolean | Prisma.User$enrollmentsArgs<ExtArgs>
   usedInvitations?: boolean | Prisma.User$usedInvitationsArgs<ExtArgs>
+  aiFeedbackComments?: boolean | Prisma.User$aiFeedbackCommentsArgs<ExtArgs>
   chats?: boolean | Prisma.User$chatsArgs<ExtArgs>
   agentChatSessions?: boolean | Prisma.User$agentChatSessionsArgs<ExtArgs>
   notifications?: boolean | Prisma.User$notificationsArgs<ExtArgs>
@@ -3210,6 +3441,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   submissions?: boolean | Prisma.User$submissionsArgs<ExtArgs>
   enrollments?: boolean | Prisma.User$enrollmentsArgs<ExtArgs>
   usedInvitations?: boolean | Prisma.User$usedInvitationsArgs<ExtArgs>
+  aiFeedbackComments?: boolean | Prisma.User$aiFeedbackCommentsArgs<ExtArgs>
   chats?: boolean | Prisma.User$chatsArgs<ExtArgs>
   agentChatSessions?: boolean | Prisma.User$agentChatSessionsArgs<ExtArgs>
   notifications?: boolean | Prisma.User$notificationsArgs<ExtArgs>
@@ -3235,6 +3467,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     submissions: Prisma.$SubmissionPayload<ExtArgs>[]
     enrollments: Prisma.$EnrollmentPayload<ExtArgs>[]
     usedInvitations: Prisma.$InvitationCodePayload<ExtArgs>[]
+    aiFeedbackComments: Prisma.$SubmissionAiFeedbackCommentPayload<ExtArgs>[]
     chats: Prisma.$ChatPayload<ExtArgs>[]
     agentChatSessions: Prisma.$AgentChatSessionPayload<ExtArgs>[]
     notifications: Prisma.$NotificationPayload<ExtArgs>[]
@@ -3657,6 +3890,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   submissions<T extends Prisma.User$submissionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$submissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   enrollments<T extends Prisma.User$enrollmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   usedInvitations<T extends Prisma.User$usedInvitationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$usedInvitationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  aiFeedbackComments<T extends Prisma.User$aiFeedbackCommentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$aiFeedbackCommentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionAiFeedbackCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   chats<T extends Prisma.User$chatsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$chatsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   agentChatSessions<T extends Prisma.User$agentChatSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$agentChatSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   notifications<T extends Prisma.User$notificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -4304,6 +4538,30 @@ export type User$usedInvitationsArgs<ExtArgs extends runtime.Types.Extensions.In
   take?: number
   skip?: number
   distinct?: Prisma.InvitationCodeScalarFieldEnum | Prisma.InvitationCodeScalarFieldEnum[]
+}
+
+/**
+ * User.aiFeedbackComments
+ */
+export type User$aiFeedbackCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionAiFeedbackComment
+   */
+  select?: Prisma.SubmissionAiFeedbackCommentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionAiFeedbackComment
+   */
+  omit?: Prisma.SubmissionAiFeedbackCommentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionAiFeedbackCommentInclude<ExtArgs> | null
+  where?: Prisma.SubmissionAiFeedbackCommentWhereInput
+  orderBy?: Prisma.SubmissionAiFeedbackCommentOrderByWithRelationInput | Prisma.SubmissionAiFeedbackCommentOrderByWithRelationInput[]
+  cursor?: Prisma.SubmissionAiFeedbackCommentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubmissionAiFeedbackCommentScalarFieldEnum | Prisma.SubmissionAiFeedbackCommentScalarFieldEnum[]
 }
 
 /**

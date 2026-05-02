@@ -59,7 +59,30 @@
     "student": "Student",
     "studentAlt": "Student",
     "defaultStudentInitial": "S",
-    "chatSystemTriggerText": "Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way."
+    "chatSystemTriggerText": "Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.",
+    "annotations": {
+      "teacherTitle": "Annotations",
+      "studentTitle": "Teacher Annotations",
+      "hint": "Select an annotation to jump to the related AI feedback passage.",
+      "actions": {
+        "comment": "Annotate",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "saveComment": "Save Annotation"
+      },
+      "dialog": {
+        "title": "Add Annotation",
+        "noSelection": "No selection",
+        "placeholder": "Leave an annotation for this AI feedback"
+      },
+      "messages": {
+        "saved": "Annotation saved"
+      },
+      "errors": {
+        "invalidSelection": "Unable to create annotation. Please reselect the text and try again.",
+        "saveFailed": "Failed to save annotation"
+      }
+    }
   },
   "resultCard": {
     "noResults": "No grading results",

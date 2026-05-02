@@ -16,6 +16,22 @@ export interface StudentInfo {
   picture?: string;
 }
 
+export interface SubmissionAiFeedbackCommentView {
+  id: string;
+  annotationId: string;
+  submissionId: string;
+  teacherId: string;
+  teacherName: string;
+  targetType: string;
+  targetId: string;
+  quote: string;
+  startOffset: number;
+  endOffset: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Submission information with all related data
  * Extended to include teacher view fields (normalizedScore, usedContext) for unified handling
@@ -42,6 +58,24 @@ export interface SubmissionInfo {
   thoughtSummary: string | null; // Feature 005 & 012: AI confidence summary
   thinkingProcess: string | null; // Feature 012: AI detailed thinking process
   gradingRationale: string | null; // Feature 012: AI grading rationale
+  aiFeedbackComments?: Array<{
+    id: string;
+    annotationId: string;
+    submissionId: string;
+    teacherId: string;
+    targetType: string;
+    targetId: string;
+    quote: string;
+    startOffset: number;
+    endOffset: number;
+    comment: string;
+    createdAt: Date;
+    updatedAt: Date;
+    teacher: {
+      id: string;
+      name: string;
+    };
+  }>;
   sparringDecision?: string | null;
   sparringDecisionReason?: string | null;
   sparringDecisionAt?: Date | null;

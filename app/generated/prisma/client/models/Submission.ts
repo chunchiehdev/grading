@@ -457,6 +457,7 @@ export type SubmissionWhereInput = {
   previousVersion?: Prisma.XOR<Prisma.SubmissionNullableScalarRelationFilter, Prisma.SubmissionWhereInput> | null
   nextVersions?: Prisma.SubmissionListRelationFilter
   comment?: Prisma.XOR<Prisma.CoursePostCommentNullableScalarRelationFilter, Prisma.CoursePostCommentWhereInput> | null
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentListRelationFilter
 }
 
 export type SubmissionOrderByWithRelationInput = {
@@ -499,6 +500,7 @@ export type SubmissionOrderByWithRelationInput = {
   previousVersion?: Prisma.SubmissionOrderByWithRelationInput
   nextVersions?: Prisma.SubmissionOrderByRelationAggregateInput
   comment?: Prisma.CoursePostCommentOrderByWithRelationInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentOrderByRelationAggregateInput
 }
 
 export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
@@ -544,6 +546,7 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   previousVersion?: Prisma.XOR<Prisma.SubmissionNullableScalarRelationFilter, Prisma.SubmissionWhereInput> | null
   nextVersions?: Prisma.SubmissionListRelationFilter
   comment?: Prisma.XOR<Prisma.CoursePostCommentNullableScalarRelationFilter, Prisma.CoursePostCommentWhereInput> | null
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentListRelationFilter
 }, "id">
 
 export type SubmissionOrderByWithAggregationInput = {
@@ -665,6 +668,7 @@ export type SubmissionCreateInput = {
   previousVersion?: Prisma.SubmissionCreateNestedOneWithoutNextVersionsInput
   nextVersions?: Prisma.SubmissionCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateInput = {
@@ -704,6 +708,7 @@ export type SubmissionUncheckedCreateInput = {
   updatedAt?: Date | string
   nextVersions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUpdateInput = {
@@ -743,6 +748,7 @@ export type SubmissionUpdateInput = {
   previousVersion?: Prisma.SubmissionUpdateOneWithoutNextVersionsNestedInput
   nextVersions?: Prisma.SubmissionUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateInput = {
@@ -782,6 +788,7 @@ export type SubmissionUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   nextVersions?: Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateManyInput = {
@@ -1028,6 +1035,11 @@ export type SubmissionSumOrderByAggregateInput = {
   humanScore?: Prisma.SortOrder
 }
 
+export type SubmissionScalarRelationFilter = {
+  is?: Prisma.SubmissionWhereInput
+  isNot?: Prisma.SubmissionWhereInput
+}
+
 export type SubmissionCreateNestedManyWithoutStudentInput = {
   create?: Prisma.XOR<Prisma.SubmissionCreateWithoutStudentInput, Prisma.SubmissionUncheckedCreateWithoutStudentInput> | Prisma.SubmissionCreateWithoutStudentInput[] | Prisma.SubmissionUncheckedCreateWithoutStudentInput[]
   connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutStudentInput | Prisma.SubmissionCreateOrConnectWithoutStudentInput[]
@@ -1190,6 +1202,20 @@ export type SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput = {
   deleteMany?: Prisma.SubmissionScalarWhereInput | Prisma.SubmissionScalarWhereInput[]
 }
 
+export type SubmissionCreateNestedOneWithoutAiFeedbackCommentsInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutAiFeedbackCommentsInput, Prisma.SubmissionUncheckedCreateWithoutAiFeedbackCommentsInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutAiFeedbackCommentsInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutAiFeedbackCommentsNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutAiFeedbackCommentsInput, Prisma.SubmissionUncheckedCreateWithoutAiFeedbackCommentsInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutAiFeedbackCommentsInput
+  upsert?: Prisma.SubmissionUpsertWithoutAiFeedbackCommentsInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutAiFeedbackCommentsInput, Prisma.SubmissionUpdateWithoutAiFeedbackCommentsInput>, Prisma.SubmissionUncheckedUpdateWithoutAiFeedbackCommentsInput>
+}
+
 export type SubmissionCreateNestedOneWithoutCommentInput = {
   create?: Prisma.XOR<Prisma.SubmissionCreateWithoutCommentInput, Prisma.SubmissionUncheckedCreateWithoutCommentInput>
   connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutCommentInput
@@ -1242,6 +1268,7 @@ export type SubmissionCreateWithoutStudentInput = {
   previousVersion?: Prisma.SubmissionCreateNestedOneWithoutNextVersionsInput
   nextVersions?: Prisma.SubmissionCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutStudentInput = {
@@ -1280,6 +1307,7 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   updatedAt?: Date | string
   nextVersions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutStudentInput = {
@@ -1384,6 +1412,7 @@ export type SubmissionCreateWithoutAssignmentAreaInput = {
   previousVersion?: Prisma.SubmissionCreateNestedOneWithoutNextVersionsInput
   nextVersions?: Prisma.SubmissionCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutAssignmentAreaInput = {
@@ -1422,6 +1451,7 @@ export type SubmissionUncheckedCreateWithoutAssignmentAreaInput = {
   updatedAt?: Date | string
   nextVersions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutAssignmentAreaInput = {
@@ -1486,6 +1516,7 @@ export type SubmissionCreateWithoutNextVersionsInput = {
   assignmentArea: Prisma.AssignmentAreaCreateNestedOneWithoutSubmissionsInput
   previousVersion?: Prisma.SubmissionCreateNestedOneWithoutNextVersionsInput
   comment?: Prisma.CoursePostCommentCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutNextVersionsInput = {
@@ -1524,6 +1555,7 @@ export type SubmissionUncheckedCreateWithoutNextVersionsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   comment?: Prisma.CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutNextVersionsInput = {
@@ -1567,6 +1599,7 @@ export type SubmissionCreateWithoutPreviousVersionInput = {
   assignmentArea: Prisma.AssignmentAreaCreateNestedOneWithoutSubmissionsInput
   nextVersions?: Prisma.SubmissionCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutPreviousVersionInput = {
@@ -1605,6 +1638,7 @@ export type SubmissionUncheckedCreateWithoutPreviousVersionInput = {
   updatedAt?: Date | string
   nextVersions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
   comment?: Prisma.CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutPreviousVersionInput = {
@@ -1664,6 +1698,7 @@ export type SubmissionUpdateWithoutNextVersionsInput = {
   assignmentArea?: Prisma.AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
   previousVersion?: Prisma.SubmissionUpdateOneWithoutNextVersionsNestedInput
   comment?: Prisma.CoursePostCommentUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutNextVersionsInput = {
@@ -1702,6 +1737,7 @@ export type SubmissionUncheckedUpdateWithoutNextVersionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   comment?: Prisma.CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUpsertWithWhereUniqueWithoutPreviousVersionInput = {
@@ -1718,6 +1754,178 @@ export type SubmissionUpdateWithWhereUniqueWithoutPreviousVersionInput = {
 export type SubmissionUpdateManyWithWhereWithoutPreviousVersionInput = {
   where: Prisma.SubmissionScalarWhereInput
   data: Prisma.XOR<Prisma.SubmissionUpdateManyMutationInput, Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionInput>
+}
+
+export type SubmissionCreateWithoutAiFeedbackCommentsInput = {
+  id?: string
+  version?: number
+  isLatest?: boolean
+  filePath: string
+  uploadedAt?: Date | string
+  sessionId?: string | null
+  aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  thoughtSummary?: string | null
+  thinkingProcess?: string | null
+  gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
+  finalScore?: number | null
+  normalizedScore?: number | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
+  status?: $Enums.SubmissionStatus
+  isDeleted?: boolean
+  deletedAt?: Date | string | null
+  deletedBy?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  assignmentArea: Prisma.AssignmentAreaCreateNestedOneWithoutSubmissionsInput
+  previousVersion?: Prisma.SubmissionCreateNestedOneWithoutNextVersionsInput
+  nextVersions?: Prisma.SubmissionCreateNestedManyWithoutPreviousVersionInput
+  comment?: Prisma.CoursePostCommentCreateNestedOneWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutAiFeedbackCommentsInput = {
+  id?: string
+  studentId: string
+  assignmentAreaId: string
+  version?: number
+  isLatest?: boolean
+  previousVersionId?: string | null
+  filePath: string
+  uploadedAt?: Date | string
+  sessionId?: string | null
+  aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  thoughtSummary?: string | null
+  thinkingProcess?: string | null
+  gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
+  finalScore?: number | null
+  normalizedScore?: number | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
+  status?: $Enums.SubmissionStatus
+  isDeleted?: boolean
+  deletedAt?: Date | string | null
+  deletedBy?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  nextVersions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+  comment?: Prisma.CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutAiFeedbackCommentsInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutAiFeedbackCommentsInput, Prisma.SubmissionUncheckedCreateWithoutAiFeedbackCommentsInput>
+}
+
+export type SubmissionUpsertWithoutAiFeedbackCommentsInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutAiFeedbackCommentsInput, Prisma.SubmissionUncheckedUpdateWithoutAiFeedbackCommentsInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutAiFeedbackCommentsInput, Prisma.SubmissionUncheckedCreateWithoutAiFeedbackCommentsInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutAiFeedbackCommentsInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutAiFeedbackCommentsInput, Prisma.SubmissionUncheckedUpdateWithoutAiFeedbackCommentsInput>
+}
+
+export type SubmissionUpdateWithoutAiFeedbackCommentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  isLatest?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  filePath?: Prisma.StringFieldUpdateOperationsInput | string
+  uploadedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  assignmentArea?: Prisma.AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
+  previousVersion?: Prisma.SubmissionUpdateOneWithoutNextVersionsNestedInput
+  nextVersions?: Prisma.SubmissionUpdateManyWithoutPreviousVersionNestedInput
+  comment?: Prisma.CoursePostCommentUpdateOneWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutAiFeedbackCommentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  assignmentAreaId?: Prisma.StringFieldUpdateOperationsInput | string
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  isLatest?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  previousVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  filePath?: Prisma.StringFieldUpdateOperationsInput | string
+  uploadedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  nextVersions?: Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+  comment?: Prisma.CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateWithoutCommentInput = {
@@ -1756,6 +1964,7 @@ export type SubmissionCreateWithoutCommentInput = {
   assignmentArea: Prisma.AssignmentAreaCreateNestedOneWithoutSubmissionsInput
   previousVersion?: Prisma.SubmissionCreateNestedOneWithoutNextVersionsInput
   nextVersions?: Prisma.SubmissionCreateNestedManyWithoutPreviousVersionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutCommentInput = {
@@ -1794,6 +2003,7 @@ export type SubmissionUncheckedCreateWithoutCommentInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   nextVersions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedCreateNestedManyWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutCommentInput = {
@@ -1848,6 +2058,7 @@ export type SubmissionUpdateWithoutCommentInput = {
   assignmentArea?: Prisma.AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
   previousVersion?: Prisma.SubmissionUpdateOneWithoutNextVersionsNestedInput
   nextVersions?: Prisma.SubmissionUpdateManyWithoutPreviousVersionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutCommentInput = {
@@ -1886,6 +2097,7 @@ export type SubmissionUncheckedUpdateWithoutCommentInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   nextVersions?: Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateManyStudentInput = {
@@ -1960,6 +2172,7 @@ export type SubmissionUpdateWithoutStudentInput = {
   previousVersion?: Prisma.SubmissionUpdateOneWithoutNextVersionsNestedInput
   nextVersions?: Prisma.SubmissionUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutStudentInput = {
@@ -1998,6 +2211,7 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   nextVersions?: Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
@@ -2108,6 +2322,7 @@ export type SubmissionUpdateWithoutAssignmentAreaInput = {
   previousVersion?: Prisma.SubmissionUpdateOneWithoutNextVersionsNestedInput
   nextVersions?: Prisma.SubmissionUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutAssignmentAreaInput = {
@@ -2146,6 +2361,7 @@ export type SubmissionUncheckedUpdateWithoutAssignmentAreaInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   nextVersions?: Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateManyWithoutAssignmentAreaInput = {
@@ -2256,6 +2472,7 @@ export type SubmissionUpdateWithoutPreviousVersionInput = {
   assignmentArea?: Prisma.AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
   nextVersions?: Prisma.SubmissionUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutPreviousVersionInput = {
@@ -2294,6 +2511,7 @@ export type SubmissionUncheckedUpdateWithoutPreviousVersionInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   nextVersions?: Prisma.SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
   comment?: Prisma.CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
+  aiFeedbackComments?: Prisma.SubmissionAiFeedbackCommentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateManyWithoutPreviousVersionInput = {
@@ -2339,10 +2557,12 @@ export type SubmissionUncheckedUpdateManyWithoutPreviousVersionInput = {
 
 export type SubmissionCountOutputType = {
   nextVersions: number
+  aiFeedbackComments: number
 }
 
 export type SubmissionCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   nextVersions?: boolean | SubmissionCountOutputTypeCountNextVersionsArgs
+  aiFeedbackComments?: boolean | SubmissionCountOutputTypeCountAiFeedbackCommentsArgs
 }
 
 /**
@@ -2360,6 +2580,13 @@ export type SubmissionCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.E
  */
 export type SubmissionCountOutputTypeCountNextVersionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.SubmissionWhereInput
+}
+
+/**
+ * SubmissionCountOutputType without action
+ */
+export type SubmissionCountOutputTypeCountAiFeedbackCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubmissionAiFeedbackCommentWhereInput
 }
 
 
@@ -2403,6 +2630,7 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   previousVersion?: boolean | Prisma.Submission$previousVersionArgs<ExtArgs>
   nextVersions?: boolean | Prisma.Submission$nextVersionsArgs<ExtArgs>
   comment?: boolean | Prisma.Submission$commentArgs<ExtArgs>
+  aiFeedbackComments?: boolean | Prisma.Submission$aiFeedbackCommentsArgs<ExtArgs>
   _count?: boolean | Prisma.SubmissionCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["submission"]>
 
@@ -2530,6 +2758,7 @@ export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   previousVersion?: boolean | Prisma.Submission$previousVersionArgs<ExtArgs>
   nextVersions?: boolean | Prisma.Submission$nextVersionsArgs<ExtArgs>
   comment?: boolean | Prisma.Submission$commentArgs<ExtArgs>
+  aiFeedbackComments?: boolean | Prisma.Submission$aiFeedbackCommentsArgs<ExtArgs>
   _count?: boolean | Prisma.SubmissionCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SubmissionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2551,6 +2780,7 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     previousVersion: Prisma.$SubmissionPayload<ExtArgs> | null
     nextVersions: Prisma.$SubmissionPayload<ExtArgs>[]
     comment: Prisma.$CoursePostCommentPayload<ExtArgs> | null
+    aiFeedbackComments: Prisma.$SubmissionAiFeedbackCommentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2986,6 +3216,7 @@ export interface Prisma__SubmissionClient<T, Null = never, ExtArgs extends runti
   previousVersion<T extends Prisma.Submission$previousVersionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$previousVersionArgs<ExtArgs>>): Prisma.Prisma__SubmissionClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   nextVersions<T extends Prisma.Submission$nextVersionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$nextVersionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   comment<T extends Prisma.Submission$commentArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$commentArgs<ExtArgs>>): Prisma.Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  aiFeedbackComments<T extends Prisma.Submission$aiFeedbackCommentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$aiFeedbackCommentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionAiFeedbackCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3504,6 +3735,30 @@ export type Submission$commentArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   include?: Prisma.CoursePostCommentInclude<ExtArgs> | null
   where?: Prisma.CoursePostCommentWhereInput
+}
+
+/**
+ * Submission.aiFeedbackComments
+ */
+export type Submission$aiFeedbackCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionAiFeedbackComment
+   */
+  select?: Prisma.SubmissionAiFeedbackCommentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionAiFeedbackComment
+   */
+  omit?: Prisma.SubmissionAiFeedbackCommentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionAiFeedbackCommentInclude<ExtArgs> | null
+  where?: Prisma.SubmissionAiFeedbackCommentWhereInput
+  orderBy?: Prisma.SubmissionAiFeedbackCommentOrderByWithRelationInput | Prisma.SubmissionAiFeedbackCommentOrderByWithRelationInput[]
+  cursor?: Prisma.SubmissionAiFeedbackCommentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubmissionAiFeedbackCommentScalarFieldEnum | Prisma.SubmissionAiFeedbackCommentScalarFieldEnum[]
 }
 
 /**

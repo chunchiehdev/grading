@@ -54,6 +54,7 @@ export const ModelName = {
   Class: 'Class',
   AssignmentArea: 'AssignmentArea',
   Submission: 'Submission',
+  SubmissionAiFeedbackComment: 'SubmissionAiFeedbackComment',
   Rubric: 'Rubric',
   GradingSession: 'GradingSession',
   UploadedFile: 'UploadedFile',
@@ -190,6 +191,24 @@ export const SubmissionScalarFieldEnum = {
 } as const
 
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
+
+
+export const SubmissionAiFeedbackCommentScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  teacherId: 'teacherId',
+  targetType: 'targetType',
+  targetId: 'targetId',
+  annotationId: 'annotationId',
+  quote: 'quote',
+  startOffset: 'startOffset',
+  endOffset: 'endOffset',
+  comment: 'comment',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SubmissionAiFeedbackCommentScalarFieldEnum = (typeof SubmissionAiFeedbackCommentScalarFieldEnum)[keyof typeof SubmissionAiFeedbackCommentScalarFieldEnum]
 
 
 export const RubricScalarFieldEnum = {

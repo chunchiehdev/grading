@@ -21,7 +21,9 @@ export interface TeacherInfo {
  */
 export type { CourseInfo } from '@/services/course.server';
 export type { SubmissionInfo } from '@/types/student';
+export type { SubmissionAiFeedbackCommentView } from '@/types/student';
 export type { RubricResponse } from '@/types/rubric';
+import type { SubmissionAiFeedbackCommentView } from '@/types/student';
 
 /**
  * Analytics types (inferred from analytics.server.ts return values)
@@ -152,6 +154,8 @@ export interface TeacherSubmissionView {
     sparringDecisionLatencyMs: number | null;
     /** Meaningful user rounds before decision */
     sparringRoundsBeforeDecision: number | null;
+    /** Teacher annotations on AI feedback */
+    aiFeedbackComments: SubmissionAiFeedbackCommentView[];
   };
   /** Navigation URLs pre-computed for UI */
   navigation: {

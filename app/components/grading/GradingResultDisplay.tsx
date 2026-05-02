@@ -11,6 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
 import { useRef, useState } from 'react';
+import { AnnotatableFeedback } from './AnnotatableFeedback';
+import type { SubmissionAiFeedbackCommentView } from '@/types/teacher';
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
 
@@ -25,6 +27,9 @@ interface GradingResultDisplayProps {
   isLoading?: boolean;
   studentName?: string;
   studentPicture?: string | null;
+  submissionId?: string;
+  aiFeedbackComments?: SubmissionAiFeedbackCommentView[];
+  annotationMode?: 'editable' | 'readonly';
 }
 
 interface ChatMessagePart {
@@ -37,7 +42,6 @@ interface ChatMessage {
   content?: string;
   parts?: ChatMessagePart[];
 }
-
 
 // Removed ScoreCard; score info will be integrated in a simple header.
 
@@ -80,6 +84,9 @@ export function GradingResultDisplay({
   isLoading,
   studentName,
   studentPicture,
+  submissionId,
+  aiFeedbackComments = [],
+  annotationMode = 'editable',
 }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
   const chatHeaderRef = useRef<HTMLDivElement | null>(null);
@@ -96,43 +103,54 @@ export function GradingResultDisplay({
   if (!activeThinkingProcess && thoughtSummary && thoughtSummary !== gradingRationale) {
     activeThinkingProcess = thoughtSummary;
   }
-  
+
   const showThinkingArea = isLoading || (activeThinkingProcess && activeThinkingProcess.length > 0);
 
-  const safeResult = result ? {
-    totalScore: result.totalScore || 0,
-    maxScore: result.maxScore || 100,
-    breakdown: result.breakdown || [],
-    chatHistory: result.chatHistory || [],
-    overallFeedback: result.overallFeedback || t('result.noFeedback'),
-  } : null;
+  const safeResult = result
+    ? {
+        totalScore: result.totalScore || 0,
+        maxScore: result.maxScore || 100,
+        breakdown: result.breakdown || [],
+        chatHistory: result.chatHistory || [],
+        overallFeedback: result.overallFeedback || t('result.noFeedback'),
+      }
+    : null;
 
   // Use normalized score (100-point scale) if available, otherwise calculate from result
-  const displayScore = safeResult 
-    ? (normalizedScore ?? ((safeResult.totalScore / safeResult.maxScore) * 100))
-    : 0;
+  const displayScore = safeResult ? (normalizedScore ?? (safeResult.totalScore / safeResult.maxScore) * 100) : 0;
+  const overallFeedbackComments = aiFeedbackComments.filter(
+    (comment) => comment.targetType === 'overall' && comment.targetId === 'overall-feedback'
+  );
 
   return (
     <div className={cn('space-y-6 pb-6', className)}>
-      
       {/* Top: Streaming Thinking Process */}
       {showThinkingArea && (
-        <Collapsible 
+        <Collapsible
           open={isLoading ? true : undefined}
-          defaultOpen={isLoading} 
+          defaultOpen={isLoading}
           className="animate-in fade-in duration-500 mb-6 group"
         >
-           <div className="flex items-center py-2">
+          <div className="flex items-center py-2">
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground"
+              >
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                 {isLoading ? (
                   <span className="flex items-center gap-1 text-[#E07A5F] animate-pulse">
                     <span>{t('thinkingProcess.thinking', '正在思考')}</span>
                     <span className="flex gap-[2px] pt-[6px]">
                       <span className="w-1 h-1 bg-current rounded-full animate-dot" />
-                      <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '300ms' }} />
+                      <span
+                        className="w-1 h-1 bg-current rounded-full animate-dot"
+                        style={{ animationDelay: '150ms' }}
+                      />
+                      <span
+                        className="w-1 h-1 bg-current rounded-full animate-dot"
+                        style={{ animationDelay: '300ms' }}
+                      />
                     </span>
                   </span>
                 ) : (
@@ -140,15 +158,15 @@ export function GradingResultDisplay({
                 )}
               </Button>
             </CollapsibleTrigger>
-           </div>
-           
-           <CollapsibleContent>
+          </div>
+
+          <CollapsibleContent>
             <div className="pb-4 pt-2">
               {/* Vertical Timeline Container */}
               <div className="relative pl-6">
                 {/* Vertical Line - 左側貫穿的灰色線條，對齊上方的下拉按鈕 */}
                 <div className="absolute left-2 top-0 bottom-0 w-px bg-border" />
-                
+
                 {/* Content */}
                 <div className="text-sm text-muted-foreground/90 leading-relaxed">
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
@@ -163,7 +181,7 @@ export function GradingResultDisplay({
                 </div>
               </div>
             </div>
-           </CollapsibleContent>
+          </CollapsibleContent>
         </Collapsible>
       )}
 
@@ -173,14 +191,27 @@ export function GradingResultDisplay({
           {/* Compact score header - 100-point scale */}
           <div className="p-2 flex items-center gap-3 h-10">
             <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
-            <span className="text-sm text-muted-foreground">{t('result.outOfScore', { max: 100, defaultValue: '/ {{max}}' })}</span>
+            <span className="text-sm text-muted-foreground">
+              {t('result.outOfScore', { max: 100, defaultValue: '/ {{max}}' })}
+            </span>
           </div>
 
           {/* Overall Feedback (compact) */}
           <section className="p-2 space-y-2">
             <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
             <div className="text-sm text-muted-foreground">
-              <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
+              {submissionId && typeof safeResult.overallFeedback === 'string' ? (
+                <AnnotatableFeedback
+                  submissionId={submissionId}
+                  targetType="overall"
+                  targetId="overall-feedback"
+                  content={safeResult.overallFeedback}
+                  comments={overallFeedbackComments}
+                  readOnly={annotationMode === 'readonly'}
+                />
+              ) : (
+                <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
+              )}
             </div>
           </section>
 
@@ -196,89 +227,108 @@ export function GradingResultDisplay({
           </section>
 
           {/* Chat History — collapsible, default open */}
-          {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (() => {
-            const triggerTexts = new Set([
-              normalizeChatTypography(systemTriggerText).trim(),
-              normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
-            ]);
-            const filteredChat = safeResult.chatHistory.filter((msg: ChatMessage) => {
-              const text = normalizeChatTypography(extractChatMessageText(msg)).trim();
-              return text && !triggerTexts.has(text);
-            });
-            if (filteredChat.length === 0) return null;
-            const studentInitial = studentName?.[0]?.toUpperCase() || t('result.defaultStudentInitial', 'S');
-            return (
-              <Collapsible
-                open={isChatOpen}
-                onOpenChange={(nextOpen) => {
-                  setIsChatOpen(nextOpen);
-                  if (!nextOpen) {
-                    requestAnimationFrame(() => {
-                      chatHeaderRef.current?.scrollIntoView({ block: 'nearest' });
-                    });
-                  }
-                }}
-                className="group/chat"
-              >
-                <div ref={chatHeaderRef} className="flex items-center py-2">
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-[#E07A5F]">
-                      <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]/chat:rotate-180" />
-                      <span>{t('result.chatHistory', '對談紀錄')}</span>
-                    </Button>
-                  </CollapsibleTrigger>
-                </div>
-                <CollapsibleContent>
-                  <div className="space-y-3 pt-2 pb-1 px-1">
-                    {filteredChat.map((msg: ChatMessage, i: number) => {
-                      const text = normalizeChatTypography(extractChatMessageText(msg));
-                      const isUser = msg.role === 'user';
-                      return (
-                        <div key={i} className={cn('flex gap-2.5', isUser ? 'flex-row-reverse' : 'flex-row')}>
-                          <Avatar className={cn('h-7 w-7 shrink-0 mt-0.5', isUser ? 'ring-2 ring-primary/20' : 'ring-2 ring-[#E07A5F]/20')}>
-                            {isUser ? (
-                              <>
-                                {studentPicture && <AvatarImage src={studentPicture} alt={studentName || t('result.studentAlt', 'Student')} />}
-                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                                  {studentInitial}
+          {safeResult.chatHistory &&
+            safeResult.chatHistory.length > 0 &&
+            (() => {
+              const triggerTexts = new Set([
+                normalizeChatTypography(systemTriggerText).trim(),
+                normalizeChatTypography(
+                  '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。'
+                ).trim(),
+              ]);
+              const filteredChat = safeResult.chatHistory.filter((msg: ChatMessage) => {
+                const text = normalizeChatTypography(extractChatMessageText(msg)).trim();
+                return text && !triggerTexts.has(text);
+              });
+              if (filteredChat.length === 0) return null;
+              const studentInitial = studentName?.[0]?.toUpperCase() || t('result.defaultStudentInitial', 'S');
+              return (
+                <Collapsible
+                  open={isChatOpen}
+                  onOpenChange={(nextOpen) => {
+                    setIsChatOpen(nextOpen);
+                    if (!nextOpen) {
+                      requestAnimationFrame(() => {
+                        chatHeaderRef.current?.scrollIntoView({ block: 'nearest' });
+                      });
+                    }
+                  }}
+                  className="group/chat"
+                >
+                  <div ref={chatHeaderRef} className="flex items-center py-2">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-[#E07A5F]"
+                      >
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]/chat:rotate-180" />
+                        <span>{t('result.chatHistory', '對談紀錄')}</span>
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                  <CollapsibleContent>
+                    <div className="space-y-3 pt-2 pb-1 px-1">
+                      {filteredChat.map((msg: ChatMessage, i: number) => {
+                        const text = normalizeChatTypography(extractChatMessageText(msg));
+                        const isUser = msg.role === 'user';
+                        return (
+                          <div key={i} className={cn('flex gap-2.5', isUser ? 'flex-row-reverse' : 'flex-row')}>
+                            <Avatar
+                              className={cn(
+                                'h-7 w-7 shrink-0 mt-0.5',
+                                isUser ? 'ring-2 ring-primary/20' : 'ring-2 ring-[#E07A5F]/20'
+                              )}
+                            >
+                              {isUser ? (
+                                <>
+                                  {studentPicture && (
+                                    <AvatarImage
+                                      src={studentPicture}
+                                      alt={studentName || t('result.studentAlt', 'Student')}
+                                    />
+                                  )}
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                                    {studentInitial}
+                                  </AvatarFallback>
+                                </>
+                              ) : (
+                                <AvatarFallback className="bg-[#E07A5F]/10 p-1">
+                                  <img src="/rubric.svg" alt="" className="h-full w-full" />
                                 </AvatarFallback>
-                              </>
-                            ) : (
-                              <AvatarFallback className="bg-[#E07A5F]/10 p-1">
-                                <img src="/rubric.svg" alt="" className="h-full w-full" />
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div className={cn('flex flex-col max-w-[80%]', isUser ? 'items-end' : 'items-start')}>
-                            {isUser && (
-                              <span className="text-[11px] text-muted-foreground/60 mb-1 px-1">
-                                {studentName || t('result.student', '學生')}
-                              </span>
-                            )}
-                            <div className={cn(
-                              'px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed',
-                              isUser
-                                ? 'bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] rounded-tr-sm'
-                                : 'bg-muted/60 border border-border/40 text-foreground rounded-tl-sm',
-                            )}>
-                              <div className={cn(
-                                'prose prose-sm max-w-none prose-p:my-1 prose-p:leading-relaxed',
-                                isUser
-                                  ? '[&_*]:text-[hsl(var(--accent-emphasis-foreground))]'
-                                  : 'dark:prose-invert',
-                              )}>
-                                <Markdown>{text}</Markdown>
+                              )}
+                            </Avatar>
+                            <div className={cn('flex flex-col max-w-[80%]', isUser ? 'items-end' : 'items-start')}>
+                              {isUser && (
+                                <span className="text-[11px] text-muted-foreground/60 mb-1 px-1">
+                                  {studentName || t('result.student', '學生')}
+                                </span>
+                              )}
+                              <div
+                                className={cn(
+                                  'px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed',
+                                  isUser
+                                    ? 'bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] rounded-tr-sm'
+                                    : 'bg-muted/60 border border-border/40 text-foreground rounded-tl-sm'
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    'prose prose-sm max-w-none prose-p:my-1 prose-p:leading-relaxed',
+                                    isUser ? '[&_*]:text-[hsl(var(--accent-emphasis-foreground))]' : 'dark:prose-invert'
+                                  )}
+                                >
+                                  <Markdown>{text}</Markdown>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })()}
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })()}
         </>
       ) : (
         /* Empty State if not loading and no result */

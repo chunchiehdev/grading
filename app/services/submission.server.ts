@@ -16,6 +16,28 @@ export interface CreateSubmissionData {
 // Re-export types for backwards compatibility
 export type { SubmissionInfo, StudentAssignmentInfo };
 
+export interface CreateSubmissionAiFeedbackCommentData {
+  targetType: string;
+  targetId: string;
+  annotationId: string;
+  quote: string;
+  startOffset: number;
+  endOffset: number;
+  comment: string;
+}
+
+export interface SubmissionAiFeedbackCommentInfo extends CreateSubmissionAiFeedbackCommentData {
+  id: string;
+  submissionId: string;
+  teacherId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  teacher: {
+    id: string;
+    name: string;
+  };
+}
+
 /**
  * Creates a new submission for a student
  * @param {string} studentId - The student's user ID
@@ -984,11 +1006,94 @@ export async function getSubmissionByIdForTeacher(
             rubric: true,
           },
         },
+        aiFeedbackComments: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
     return submission;
   } catch (error) {
     console.error('❌ Error fetching submission for teacher:', error);
+    return null;
+  }
+}
+
+export async function listSubmissionAiFeedbackComments(
+  submissionId: string,
+  teacherId: string
+): Promise<SubmissionAiFeedbackCommentInfo[]> {
+  try {
+    const submission = await getSubmissionByIdForTeacher(submissionId, teacherId);
+    if (!submission) {
+      return [];
+    }
+
+    return await db.submissionAiFeedbackComment.findMany({
+      where: {
+        submissionId,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error listing submission AI feedback comments:', error);
+    return [];
+  }
+}
+
+export async function createSubmissionAiFeedbackComment(
+  submissionId: string,
+  teacherId: string,
+  data: CreateSubmissionAiFeedbackCommentData
+): Promise<SubmissionAiFeedbackCommentInfo | null> {
+  try {
+    const submission = await getSubmissionByIdForTeacher(submissionId, teacherId);
+    if (!submission) {
+      return null;
+    }
+
+    return await db.submissionAiFeedbackComment.create({
+      data: {
+        submissionId,
+        teacherId,
+        targetType: data.targetType,
+        targetId: data.targetId,
+        annotationId: data.annotationId,
+        quote: data.quote,
+        startOffset: data.startOffset,
+        endOffset: data.endOffset,
+        comment: data.comment,
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error creating submission AI feedback comment:', error);
     return null;
   }
 }
@@ -1021,6 +1126,19 @@ export async function getSubmissionById(submissionId: string, studentId: string)
               },
             },
             rubric: true,
+          },
+        },
+        aiFeedbackComments: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
           },
         },
       },
@@ -1459,7 +1577,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
           fileMetadata,
           sessionId,
           aiAnalysisResult: newVersion.aiAnalysisResult,
-            draftUiState: parseDraftUiState(newVersion.draftUiState) ?? null,
+          draftUiState: parseDraftUiState(newVersion.draftUiState) ?? null,
           thoughtSummary: newVersion.thoughtSummary,
           lastState,
           status: newVersion.status,

@@ -63,7 +63,7 @@ export default [
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
     route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
     route('rubrics/:rubricId/edit', './routes/teacher/rubrics/$rubricId.edit.tsx'),
-    
+
     // Course Community routes
     route('courses/:courseId/community', './routes/teacher/courses/$courseId.community.tsx'),
     route('courses/:courseId/posts/:postId', './routes/teacher/courses/$courseId.posts.$postId.tsx'),
@@ -87,7 +87,7 @@ export default [
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
     route('submissions/:submissionId/history', './routes/student/submissions/$submissionId.history.tsx'),
     route('submissions/compare', './routes/student/submissions/compare.tsx'),
-    
+
     // Course Community routes
     route('courses/:courseId/posts/:postId', './routes/student/courses/$courseId.posts.$postId.tsx'),
     route('courses/:courseId/community', './routes/student/courses/$courseId.community.tsx'),
@@ -114,8 +114,6 @@ export default [
   // Report download API route
   route('/api/reports/download', './api/reports/download.ts'),
 
-
-
   // Rubric API routes
   route('/api/rubrics', './api/rubrics/index.ts'),
 
@@ -135,13 +133,13 @@ export default [
   route('/api/admin/cleanup-jobs', './api/admin/cleanup-jobs.ts'),
   route('/api/admin/users', './api/admin/users.ts'),
   route('/api/admin/users/:userId', './api/admin/users/$userId.ts'),
-  
+
   // Admin Analytics API routes
   route('/api/admin/analytics/overview', './api/admin/analytics/overview.ts'),
   route('/api/admin/analytics/chat-sessions', './api/admin/analytics/chat-sessions.ts'),
   route('/api/admin/analytics/grading-sessions', './api/admin/analytics/grading-sessions.ts'),
   route('/api/admin/analytics/insights', './api/admin/analytics/insights.ts'),
-  
+
   // Auth API routes
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
@@ -183,15 +181,22 @@ export default [
   route('/api/student/submit', './api/student/submit.ts'),
   route('/api/student/assignments', './api/student/assignments/index.ts'),
   route('/api/student/assignments/:assignmentId/draft', './api/student/assignments/$assignmentId/draft.ts'),
-  route('/api/student/assignments/:assignmentId/sparring-response', './routes/api/student/assignments/$assignmentId.sparring-response.ts'),
+  route(
+    '/api/student/assignments/:assignmentId/sparring-response',
+    './routes/api/student/assignments/$assignmentId.sparring-response.ts'
+  ),
   route('/api/student/submissions/:submissionId/history', './routes/api/student/submissions/$submissionId.history.ts'),
 
   // Teacher Submission History API
   route('/api/teacher/submissions/:submissionId/history', './routes/api/teacher/submissions/$submissionId.history.ts'),
+  route(
+    '/api/teacher/submissions/:submissionId/annotations',
+    './routes/api/teacher/submissions/$submissionId.annotations.ts'
+  ),
 
   // Submission Version Comparison API
   route('/api/submissions/compare', './routes/api/submissions/compare.ts'),
-  
+
   // Submission Deletion API (Teacher only)
   route('/api/submissions/:submissionId/delete', './routes/api/submissions/$submissionId/delete.ts'),
 
@@ -206,7 +211,10 @@ export default [
   route('/api/posts/:postId', './routes/api.posts.$postId.ts'),
   route('/api/posts/:postId/comments', './routes/api.posts.$postId.comments.ts'),
   route('/api/posts/:postId/like', './routes/api.posts.$postId.like.ts'),
-  route('/api/posts/:postId/attachments/:fileId/download', './routes/api.posts.$postId.attachments.$fileId.download.ts'),
+  route(
+    '/api/posts/:postId/attachments/:fileId/download',
+    './routes/api.posts.$postId.attachments.$fileId.download.ts'
+  ),
   route('/api/comments/:commentId/grade', './routes/api.comments.$commentId.grade.ts'),
 
   // File proxy route (for serving MinIO files to browsers)
@@ -226,14 +234,13 @@ export default [
   // Notification API routes
   route('/api/notifications/recent', './api/notifications/recent.ts'),
   route('/api/notifications/mark-read', './api/notifications/mark-read.ts'),
-  
+
   // Invitation API routes
   route('/api/invitations/validate', './api/invitations/validate.ts'),
-  
+
   // Message API routes (for individual message queries)
   route('/api/messages/:messageId', './api/messages/$messageId.ts'),
 
   // Test routes
   route('/test-sse', './routes/test-sse.tsx'),
-
 ] satisfies RouteConfig;

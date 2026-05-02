@@ -395,6 +395,7 @@ export const ModelName = {
   Class: 'Class',
   AssignmentArea: 'AssignmentArea',
   Submission: 'Submission',
+  SubmissionAiFeedbackComment: 'SubmissionAiFeedbackComment',
   Rubric: 'Rubric',
   GradingSession: 'GradingSession',
   UploadedFile: 'UploadedFile',
@@ -428,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
+    modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "submissionAiFeedbackComment" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -799,6 +800,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.SubmissionCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.SubmissionCountAggregateOutputType> | number
+        }
+      }
+    }
+    SubmissionAiFeedbackComment: {
+      payload: Prisma.$SubmissionAiFeedbackCommentPayload<ExtArgs>
+      fields: Prisma.SubmissionAiFeedbackCommentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionAiFeedbackCommentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionAiFeedbackCommentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionAiFeedbackCommentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionAiFeedbackCommentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionAiFeedbackCommentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionAiFeedbackCommentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionAiFeedbackCommentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionAiFeedbackCommentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionAiFeedbackCommentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>
+        }
+        update: {
+          args: Prisma.SubmissionAiFeedbackCommentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionAiFeedbackCommentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionAiFeedbackCommentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionAiFeedbackCommentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionAiFeedbackCommentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionAiFeedbackCommentPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionAiFeedbackCommentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionAiFeedbackComment>
+        }
+        groupBy: {
+          args: Prisma.SubmissionAiFeedbackCommentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionAiFeedbackCommentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionAiFeedbackCommentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionAiFeedbackCommentCountAggregateOutputType> | number
         }
       }
     }
@@ -2275,6 +2350,24 @@ export const SubmissionScalarFieldEnum = {
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
 
 
+export const SubmissionAiFeedbackCommentScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  teacherId: 'teacherId',
+  targetType: 'targetType',
+  targetId: 'targetId',
+  annotationId: 'annotationId',
+  quote: 'quote',
+  startOffset: 'startOffset',
+  endOffset: 'endOffset',
+  comment: 'comment',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SubmissionAiFeedbackCommentScalarFieldEnum = (typeof SubmissionAiFeedbackCommentScalarFieldEnum)[keyof typeof SubmissionAiFeedbackCommentScalarFieldEnum]
+
+
 export const RubricScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -2911,6 +3004,7 @@ export type GlobalOmitConfig = {
   class?: Prisma.ClassOmit
   assignmentArea?: Prisma.AssignmentAreaOmit
   submission?: Prisma.SubmissionOmit
+  submissionAiFeedbackComment?: Prisma.SubmissionAiFeedbackCommentOmit
   rubric?: Prisma.RubricOmit
   gradingSession?: Prisma.GradingSessionOmit
   uploadedFile?: Prisma.UploadedFileOmit
