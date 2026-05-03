@@ -383,7 +383,6 @@ export function AnnotatableFeedback({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {readOnly ? t('result.annotations.studentTitle') : t('result.annotations.teacherTitle')}
             </p>
-            <p className="text-xs text-muted-foreground/80">{t('result.annotations.hint')}</p>
           </div>
           <div className="space-y-2">
             {savedComments.map((comment) => (
