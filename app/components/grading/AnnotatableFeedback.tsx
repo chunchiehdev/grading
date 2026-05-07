@@ -483,11 +483,17 @@ export function AnnotatableFeedback({
       const annotationExistsInDom = Boolean(getAnnotationSpan(container, annotationId));
 
       if (!previous) {
-        if (annotationExistsInDom) {
-          annotator.updateAnnotation(entry.annotation);
-        } else {
-          annotator.addAnnotation(entry.annotation);
+        if (!annotationExistsInDom) {
+          try {
+            annotator.addAnnotation(entry.annotation);
+          } catch (err) {
+            console.warn('[annotations] failed to add annotation', annotationId, err);
+          }
         }
+        // If already in DOM, skip — it was correctly placed by setAnnotations or a
+        // prior updateAnnotation call. Calling updateAnnotation again here would
+        // cause the library to re-resolve the range from scratch and can throw
+        // "Cannot read properties of undefined (reading 'startContainer')".
         continue;
       }
 
@@ -497,7 +503,11 @@ export function AnnotatableFeedback({
         previous.startOffset !== entry.comment.startOffset ||
         previous.endOffset !== entry.comment.endOffset
       ) {
-        annotator.updateAnnotation(entry.annotation);
+        try {
+          annotator.updateAnnotation(entry.annotation);
+        } catch (err) {
+          console.warn('[annotations] failed to update annotation', annotationId, err);
+        }
       }
     }
 
@@ -579,7 +589,11 @@ export function AnnotatableFeedback({
     };
 
     annotator.on('createAnnotation', handleCreateAnnotation);
-    annotator.setAnnotations(savedAnnotationEntriesRef.current, true);
+    try {
+      annotator.setAnnotations(savedAnnotationEntriesRef.current, true);
+    } catch (err) {
+      console.warn('[annotations] setAnnotations failed for one or more annotations', err);
+    }
     appliedAnnotationsRef.current = savedAnnotationMapRef.current;
     annotatorRef.current = annotator;
 
@@ -701,9 +715,24 @@ export function AnnotatableFeedback({
         throw new Error(payload.error || 'Failed to save comment');
       }
 
-      annotatorRef.current?.updateAnnotation(toDisplayAnnotation(payload.data, sourceId, textNormalization));
-      setSavedComments((prev) => [...prev, payload.data as SubmissionAiFeedbackCommentView]);
-      setSelectedCommentId(payload.data.annotationId);
+      const savedComment = payload.data as SubmissionAiFeedbackCommentView;
+      const savedAnnotation = toDisplayAnnotation(savedComment, sourceId, textNormalization);
+
+      // Promote the pending annotation to its final state in the annotator.
+      // Pre-populate appliedAnnotationsRef so syncSavedAnnotations (triggered by
+      // setSavedComments below) skips calling updateAnnotation a second time.
+      try {
+        annotatorRef.current?.updateAnnotation(savedAnnotation);
+      } catch (err) {
+        console.warn('[annotations] annotator update failed (comment was saved)', err);
+      }
+      appliedAnnotationsRef.current = {
+        ...appliedAnnotationsRef.current,
+        [savedComment.annotationId]: { comment: savedComment, annotation: savedAnnotation },
+      };
+
+      setSavedComments((prev) => [...prev, savedComment]);
+      setSelectedCommentId(savedComment.annotationId);
       setPendingAnnotation(null);
       setButtonPosition(null);
       setDraftComment('');
@@ -788,7 +817,22 @@ export function AnnotatableFeedback({
       }
 
       const updatedComment = payload.data;
-      annotatorRef.current?.updateAnnotation(toDisplayAnnotation(updatedComment, sourceId, textNormalization));
+      const updatedAnnotation = toDisplayAnnotation(updatedComment, sourceId, textNormalization);
+
+      // Update the annotator DOM highlight. Do this before setSavedComments so
+      // syncSavedAnnotations (triggered by the state update below) sees the
+      // appliedAnnotationsRef already matches and skips a second updateAnnotation call,
+      // which would otherwise corrupt the library's internal range state.
+      try {
+        annotatorRef.current?.updateAnnotation(updatedAnnotation);
+      } catch (err) {
+        console.warn('[annotations] annotator update failed (comment was saved)', err);
+      }
+      appliedAnnotationsRef.current = {
+        ...appliedAnnotationsRef.current,
+        [annotationId]: { comment: updatedComment, annotation: updatedAnnotation },
+      };
+
       setSavedComments((prev) =>
         prev.map((comment) => (comment.annotationId === annotationId ? updatedComment : comment))
       );
