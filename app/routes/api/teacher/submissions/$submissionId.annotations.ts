@@ -4,26 +4,33 @@ import { requireTeacher } from '@/services/auth.server';
 import {
   createSubmissionAiFeedbackComment,
   deleteSubmissionAiFeedbackComment,
+  updateSubmissionAiFeedbackComment,
   getSubmissionByIdForTeacher,
 } from '@/services/submission.server';
 import { markdownToPlainText } from '@/utils/markdown-plain-text';
+import { db } from '@/lib/db.server';
 
-const CreateSubmissionAnnotationSchema = z
+const CreateAnnotationSchema = z
   .object({
-    targetType: z.literal('overall'),
-    targetId: z.literal('overall-feedback'),
+    targetType: z.enum(['overall', 'submission']),
+    targetId: z.string().trim().min(1).max(255),
     annotationId: z.string().trim().min(1).max(255),
     quote: z.string().trim().min(1).max(5000),
     startOffset: z.number().int().min(0),
     endOffset: z.number().int().min(0),
     comment: z.string().trim().min(1).max(5000),
   })
-  .refine((value) => value.endOffset > value.startOffset, {
+  .refine((v) => v.endOffset > v.startOffset, {
     message: 'Annotation offsets are invalid',
     path: ['endOffset'],
   });
 
-const DeleteSubmissionAnnotationSchema = z.object({
+const UpdateAnnotationSchema = z.object({
+  annotationId: z.string().trim().min(1).max(255),
+  comment: z.string().trim().min(1).max(5000),
+});
+
+const DeleteAnnotationSchema = z.object({
   annotationId: z.string().trim().min(1).max(255),
 });
 
@@ -31,37 +38,64 @@ function getOverallFeedbackPlainText(rawAiAnalysisResult: unknown): string | nul
   if (!rawAiAnalysisResult || typeof rawAiAnalysisResult !== 'object' || Array.isArray(rawAiAnalysisResult)) {
     return null;
   }
-
   const overallFeedback = (rawAiAnalysisResult as { overallFeedback?: unknown }).overallFeedback;
-  if (typeof overallFeedback !== 'string' || !overallFeedback.trim()) {
-    return null;
-  }
-
+  if (typeof overallFeedback !== 'string' || !overallFeedback.trim()) return null;
   return markdownToPlainText(overallFeedback);
 }
 
-function isAnnotationAlignedWithFeedback(
-  overallFeedback: string,
+function normalizeAnnotationText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function isAnnotationAlignedWithText(
+  sourceText: string,
   quote: string,
   startOffset: number,
   endOffset: number
-) {
-  if (startOffset < 0 || startOffset >= endOffset) {
-    return false;
+): boolean {
+  if (startOffset < 0 || startOffset >= endOffset) return false;
+  if (endOffset > sourceText.length) return false;
+
+  const normalizedQuote = normalizeAnnotationText(quote);
+  if (!normalizedQuote) return false;
+
+  const textAtOffset = normalizeAnnotationText(sourceText.slice(startOffset, endOffset));
+  if (textAtOffset === normalizedQuote) return true;
+
+  const nearbyText = normalizeAnnotationText(sourceText.slice(Math.max(0, startOffset - 20), endOffset + 20));
+  return nearbyText.includes(normalizedQuote);
+}
+
+async function resolveSourceText(
+  targetType: string,
+  submission: { aiAnalysisResult: unknown; filePath: string | null }
+): Promise<{ text: string | null; error?: string }> {
+  if (targetType === 'overall') {
+    const text = getOverallFeedbackPlainText(submission.aiAnalysisResult);
+    return text ? { text } : { text: null, error: 'Overall feedback is not annotatable' };
   }
 
-  const normalizedFeedback = overallFeedback.replace(/\s+/g, ' ').trim();
-  const normalizedQuote = quote.replace(/\s+/g, ' ').trim();
+  if (targetType === 'submission') {
+    if (!submission.filePath) return { text: null, error: 'No file attached to this submission' };
 
-  if (!normalizedQuote) {
-    return false;
+    const uploadedFile = await db.uploadedFile.findUnique({
+      where: { id: submission.filePath },
+      select: { parsedContent: true, parseStatus: true },
+    });
+
+    if (uploadedFile?.parseStatus !== 'COMPLETED' || !uploadedFile.parsedContent) {
+      return { text: null, error: 'Submission text is not available for annotation' };
+    }
+
+    return { text: uploadedFile.parsedContent };
   }
 
-  return normalizedFeedback.includes(normalizedQuote);
+  return { text: null, error: 'Unknown target type' };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  if (request.method !== 'POST' && request.method !== 'DELETE') {
+  const allowed = ['POST', 'PATCH', 'DELETE'];
+  if (!allowed.includes(request.method)) {
     return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
   }
 
@@ -75,11 +109,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     const payload = await request.json();
 
+    // DELETE
     if (request.method === 'DELETE') {
-      const parsed = DeleteSubmissionAnnotationSchema.safeParse(payload);
-
+      const parsed = DeleteAnnotationSchema.safeParse(payload);
       if (!parsed.success) {
-        return Response.json({ success: false, error: 'Invalid annotation payload' }, { status: 400 });
+        return Response.json({ success: false, error: 'Invalid payload' }, { status: 400 });
       }
 
       const submission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
@@ -95,10 +129,53 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return Response.json({ success: true });
     }
 
-    const parsed = CreateSubmissionAnnotationSchema.safeParse(payload);
+    // PATCH (edit comment text only)
+    if (request.method === 'PATCH') {
+      const parsed = UpdateAnnotationSchema.safeParse(payload);
+      if (!parsed.success) {
+        return Response.json({ success: false, error: 'Invalid payload' }, { status: 400 });
+      }
 
+      const submission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
+      if (!submission) {
+        return Response.json({ success: false, error: 'Submission not found or unauthorized' }, { status: 404 });
+      }
+
+      const updated = await updateSubmissionAiFeedbackComment(
+        submissionId,
+        teacher.id,
+        parsed.data.annotationId,
+        parsed.data.comment
+      );
+
+      if (!updated) {
+        return Response.json({ success: false, error: 'Annotation not found' }, { status: 404 });
+      }
+
+      return Response.json({
+        success: true,
+        data: {
+          id: updated.id,
+          annotationId: updated.annotationId,
+          submissionId: updated.submissionId,
+          teacherId: updated.teacherId,
+          teacherName: updated.teacher.name,
+          targetType: updated.targetType,
+          targetId: updated.targetId,
+          quote: updated.quote,
+          startOffset: updated.startOffset,
+          endOffset: updated.endOffset,
+          comment: updated.comment,
+          createdAt: updated.createdAt.toISOString(),
+          updatedAt: updated.updatedAt.toISOString(),
+        },
+      });
+    }
+
+    // POST (create)
+    const parsed = CreateAnnotationSchema.safeParse(payload);
     if (!parsed.success) {
-      return Response.json({ success: false, error: 'Invalid annotation payload' }, { status: 400 });
+      return Response.json({ success: false, error: 'Invalid payload' }, { status: 400 });
     }
 
     const submission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
@@ -106,21 +183,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return Response.json({ success: false, error: 'Submission not found or unauthorized' }, { status: 404 });
     }
 
-    const overallFeedback = getOverallFeedbackPlainText(submission.aiAnalysisResult);
-    if (!overallFeedback) {
-      return Response.json({ success: false, error: 'Overall feedback is not annotatable' }, { status: 400 });
+    const { text: sourceText, error: sourceError } = await resolveSourceText(parsed.data.targetType, submission);
+    if (!sourceText) {
+      return Response.json({ success: false, error: sourceError ?? 'Annotation target unavailable' }, { status: 400 });
     }
 
-    if (
-      !isAnnotationAlignedWithFeedback(
-        overallFeedback,
-        parsed.data.quote,
-        parsed.data.startOffset,
-        parsed.data.endOffset
-      )
-    ) {
+    if (!isAnnotationAlignedWithText(sourceText, parsed.data.quote, parsed.data.startOffset, parsed.data.endOffset)) {
       return Response.json(
-        { success: false, error: 'Annotation range does not match current overall feedback' },
+        { success: false, error: 'Annotation range does not match current content' },
         { status: 400 }
       );
     }
@@ -149,7 +219,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
   } catch (error) {
-    console.error('Failed to create submission annotation:', error);
-    return Response.json({ success: false, error: 'Failed to create annotation' }, { status: 500 });
+    console.error('Failed to handle annotation request:', error);
+    return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

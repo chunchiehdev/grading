@@ -1119,6 +1119,34 @@ export async function deleteSubmissionAiFeedbackComment(
   }
 }
 
+export async function updateSubmissionAiFeedbackComment(
+  submissionId: string,
+  teacherId: string,
+  annotationId: string,
+  comment: string
+): Promise<SubmissionAiFeedbackCommentInfo | null> {
+  try {
+    const existing = await db.submissionAiFeedbackComment.findFirst({
+      where: { submissionId, teacherId, annotationId },
+    });
+
+    if (!existing) return null;
+
+    return await db.submissionAiFeedbackComment.update({
+      where: { id: existing.id },
+      data: { comment },
+      include: {
+        teacher: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error updating submission AI feedback comment:', error);
+    return null;
+  }
+}
+
 /**
  * Gets a specific submission (student authorization required)
  * @param {string} submissionId - Submission ID

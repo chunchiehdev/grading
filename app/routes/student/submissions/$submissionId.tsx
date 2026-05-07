@@ -2,9 +2,11 @@ import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link, useRouteError, isRouteErrorResponse } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
+import { db } from '@/lib/db.server';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
+import { AnnotatableFeedback } from '@/components/grading/AnnotatableFeedback';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
@@ -47,6 +49,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   if (!submission) {
     throw new Response('Submission not found', { status: 404 });
   }
+
+  const uploadedFile = submission.filePath
+    ? await db.uploadedFile.findUnique({
+        where: { id: submission.filePath },
+        select: { parsedContent: true, parseStatus: true },
+      })
+    : null;
+  const submissionText =
+    uploadedFile?.parseStatus === 'COMPLETED' && uploadedFile.parsedContent ? uploadedFile.parsedContent : null;
 
   // Format date on server to avoid hydration mismatch
   const { formatDateForDisplay } = await import('@/lib/date.server');
@@ -95,6 +106,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       teacherScore,
       teacherScorePercent,
       aiFeedbackComments,
+      submissionText,
     },
   };
 }
@@ -105,6 +117,9 @@ export default function StudentSubmissionDetail() {
   const a = submission.assignmentArea;
   const teacherScore = submission.teacherScore;
   const hasTeacherFeedback = Boolean(submission.teacherFeedback?.trim());
+  const submissionComments = submission.aiFeedbackComments.filter(
+    (comment) => comment.targetType === 'submission' && comment.targetId === 'submission-text'
+  );
 
   // Check if submission is past due date
   const isOverdue = a.dueDate ? new Date() > new Date(a.dueDate) : false;
@@ -168,6 +183,31 @@ export default function StudentSubmissionDetail() {
             </div>
           </div>
 
+          <section>
+            <h2 className="mb-4 font-serif text-lg lg:text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+              {t('submissions:submissionDetail.submittedContentTitle')}
+            </h2>
+
+            <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200">
+              {submission.submissionText ? (
+                <AnnotatableFeedback
+                  submissionId={submission.id}
+                  targetType="submission"
+                  targetId="submission-text"
+                  content={submission.submissionText}
+                  comments={submissionComments}
+                  readOnly
+                  contentFormat="plainText"
+                  annotationLayout="stacked"
+                />
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
+                  {t('submissions:submissionDetail.submittedContentUnavailable')}
+                </p>
+              )}
+            </div>
+          </section>
+
           {/* AI分析結果 */}
           <section>
             <div>
@@ -179,9 +219,6 @@ export default function StudentSubmissionDetail() {
                   gradingRationale={submission.gradingRationale}
                   studentName={student.name}
                   studentPicture={student.picture}
-                  submissionId={submission.id}
-                  aiFeedbackComments={submission.aiFeedbackComments}
-                  annotationMode="readonly"
                 />
               ) : (
                 <div className="border-2 border-[#2B2B2B] p-12 text-center dark:border-gray-200">

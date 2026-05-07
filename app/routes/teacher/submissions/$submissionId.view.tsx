@@ -1,15 +1,22 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { useLoaderData, useActionData, useParams, Form, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
+import {
+  useLoaderData,
+  useActionData,
+  useParams,
+  Form,
+  useNavigate,
+  useRouteError,
+  isRouteErrorResponse,
+} from 'react-router';
 import { ClientOnly } from '@/components/ui/client-only';
 import { useState, useEffect, useRef } from 'react';
 import { requireTeacher } from '@/services/auth.server';
 import { getSubmissionByIdForTeacher, listSubmissionAiFeedbackComments } from '@/services/submission.server';
+import { db } from '@/lib/db.server';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { PDFViewerWithNavigation } from '@/components/pdf/PDFViewerWithNavigation';
-import {
-  StudentInfoCompact,
-  AssignmentInfoCompact,
-} from '@/components/grading/CompactInfoComponents';
+import { AnnotatableFeedback } from '@/components/grading/AnnotatableFeedback';
+import { StudentInfoCompact, AssignmentInfoCompact } from '@/components/grading/CompactInfoComponents';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { SubmissionAiFeedbackCommentView, TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
@@ -30,12 +37,10 @@ import {
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-
 interface LoaderData {
   teacher: TeacherInfo;
   submission: TeacherSubmissionView;
 }
-
 
 interface ActionData {
   success?: boolean;
@@ -146,13 +151,11 @@ function extractSparringFromChatHistory(rawAiAnalysisResult: unknown): {
     };
   }
 
-  const decisionMessage = [...payload.chatHistory]
-    .reverse()
-    .find((message) => {
-      if (!message || typeof message !== 'object') return false;
-      const m = message as { studentDecision?: string };
-      return m.studentDecision === 'adopt' || m.studentDecision === 'keep';
-    }) as {
+  const decisionMessage = [...payload.chatHistory].reverse().find((message) => {
+    if (!message || typeof message !== 'object') return false;
+    const m = message as { studentDecision?: string };
+    return m.studentDecision === 'adopt' || m.studentDecision === 'keep';
+  }) as {
     studentDecision?: 'adopt' | 'keep';
     studentDecisionReason?: string;
     decisionLatencyMs?: number;
@@ -246,7 +249,6 @@ function SparringInsightsCard({
             {t('submissions:teacher.submissionView.sparring.latencyLabel')}
           </p>
           <p className="mt-1 text-base font-semibold text-foreground">{formatLatency(latencyMs, t)}</p>
-          
         </div>
         <div className="rounded-xl bg-background/85 px-3 py-3 shadow-sm">
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -289,6 +291,17 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   // Import date formatting utilities
   const { formatDateForDisplay } = await import('@/lib/date.server');
   const rubricCriteria = extractRubricCriteria(rawSubmission.assignmentArea.rubric.criteria);
+
+  // Fetch parsed submission text (filePath stores the uploaded_files ID)
+  const uploadedFile = rawSubmission.filePath
+    ? await db.uploadedFile.findUnique({
+        where: { id: rawSubmission.filePath },
+        select: { parsedContent: true, parseStatus: true },
+      })
+    : null;
+  const submissionText =
+    uploadedFile?.parseStatus === 'COMPLETED' && uploadedFile.parsedContent ? uploadedFile.parsedContent : null;
+
   const rawAiFeedbackComments = await listSubmissionAiFeedbackComments(submissionId, teacher.id);
   const aiFeedbackComments: SubmissionAiFeedbackCommentView[] = rawAiFeedbackComments.map((comment) => ({
     id: comment.id,
@@ -344,9 +357,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       humanCriteriaScores: parsedHumanCriteriaScores.success ? parsedHumanCriteriaScores.data : [],
       humanRaterId: rawSubmission.humanRaterId ?? null,
       humanRatedAt: rawSubmission.humanRatedAt?.toISOString() ?? null,
-      formattedHumanRatedAt: rawSubmission.humanRatedAt
-        ? formatDateForDisplay(rawSubmission.humanRatedAt)
-        : null,
+      formattedHumanRatedAt: rawSubmission.humanRatedAt ? formatDateForDisplay(rawSubmission.humanRatedAt) : null,
       rubricCriteria,
       aiAnalysisResult: rawSubmission.aiAnalysisResult,
       usedContext: rawSubmission.usedContext ?? null, // Feature 004
@@ -364,6 +375,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       sparringDecisionLatencyMs: rawSubmission.sparringDecisionLatencyMs ?? chatHistorySparringFallback.latencyMs,
       sparringRoundsBeforeDecision: rawSubmission.sparringRoundsBeforeDecision ?? chatHistorySparringFallback.rounds,
       aiFeedbackComments,
+      submissionText,
     },
     navigation: {
       backUrl: `/teacher/courses/${rawSubmission.assignmentArea.course.id}/assignments/${rawSubmission.assignmentArea.id}/submissions`,
@@ -473,16 +485,14 @@ export default function TeacherSubmissionView() {
   const [criterionScores, setCriterionScores] = useState<Record<string, string>>(() => {
     const scores: Record<string, string> = {};
     for (const criterion of submission.grading.rubricCriteria) {
-      const existing = submission.grading.humanCriteriaScores.find(
-        (item) => item.criteriaId === criterion.criteriaId
-      );
+      const existing = submission.grading.humanCriteriaScores.find((item) => item.criteriaId === criterion.criteriaId);
       scores[criterion.criteriaId] = existing ? String(existing.score) : '';
     }
     return scores;
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('pdf'); // Mobile tab navigation
-  
+
   // Delete confirmation dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -525,9 +535,9 @@ export default function TeacherSubmissionView() {
       const response = await fetch(`/api/submissions/${params.submissionId}/delete`, {
         method: 'DELETE',
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         toast.success(t('submissions:teacher.submissionView.delete.success'));
         // Navigate back to assignment submissions list
@@ -546,10 +556,7 @@ export default function TeacherSubmissionView() {
   };
 
   // Full screen layout - bypasses parent container constraints
-  const rubricMaxScore = submission.grading.rubricCriteria.reduce(
-    (sum, criterion) => sum + criterion.maxScore,
-    0
-  );
+  const rubricMaxScore = submission.grading.rubricCriteria.reduce((sum, criterion) => sum + criterion.maxScore, 0);
 
   const computedHumanScore = submission.grading.rubricCriteria.reduce((sum, criterion) => {
     const raw = criterionScores[criterion.criteriaId];
@@ -575,26 +582,37 @@ export default function TeacherSubmissionView() {
             {/* Desktop: Empty spacer to balance the layout */}
             <div className="hidden lg:block lg:w-32"></div>
           </div>
-          
+
           {/* Center: Student Info (Desktop only) */}
           <div className="hidden lg:flex items-center gap-6 flex-1 justify-center">
             <StudentInfoCompact student={submission.student} />
             <div className="h-6 w-px bg-border" />
             <AssignmentInfoCompact assignment={submission.assignment} />
           </div>
-          
+
           {/* Right: Action Buttons */}
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.location.href = `/teacher/submissions/${params.submissionId}/history`}
+              onClick={() => (window.location.href = `/teacher/submissions/${params.submissionId}/history`)}
               className="text-xs lg:text-sm"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4">
-                <path d="M3 3v5h5"/>
-                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
-                <path d="M12 7v5l4 2"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4"
+              >
+                <path d="M3 3v5h5" />
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+                <path d="M12 7v5l4 2" />
               </svg>
               {t('submissions:history')}
             </Button>
@@ -613,12 +631,24 @@ export default function TeacherSubmissionView() {
 
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
-        {/* Left: PDF Viewer */}
-        {/* Mobile: full width, Desktop: 70% */}
-        <div 
-          className="w-full lg:w-[50%] border-r-0 lg:border-r overflow-hidden flex flex-col h-[50vh] lg:h-auto bg-muted/10 hide-scrollbar"
-        >
-          {submission.grading.filePath ? (
+        {/* Left: Student submission — text view (annotatable) if available, PDF fallback */}
+        <div className="w-full lg:w-1/2 border-r overflow-hidden flex flex-col h-[50vh] lg:h-auto bg-muted/10 hide-scrollbar">
+          {submission.grading.submissionText ? (
+            <div className="flex-1 overflow-y-auto p-3 xl:p-4 hide-scrollbar">
+              <ClientOnly fallback={<div />}>
+                <AnnotatableFeedback
+                  submissionId={params.submissionId!}
+                  targetType="submission"
+                  targetId="submission-text"
+                  content={submission.grading.submissionText}
+                  contentFormat="plainText"
+                  comments={submission.grading.aiFeedbackComments.filter(
+                    (c) => c.targetType === 'submission' && c.targetId === 'submission-text'
+                  )}
+                />
+              </ClientOnly>
+            </div>
+          ) : submission.grading.filePath ? (
             <ClientOnly
               fallback={
                 <div className="flex items-center justify-center h-full">
@@ -634,7 +664,7 @@ export default function TeacherSubmissionView() {
                 fileName={`${submission.student.name}-${submission.assignment.name}.pdf`}
               />
             </ClientOnly>
-          ) : ( 
+          ) : (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">{t('submissions:teacher.submissionView.pdf.noFile')}</p>
             </div>
@@ -643,9 +673,7 @@ export default function TeacherSubmissionView() {
 
         {/* Right: Grading Sidebar */}
         {/* Mobile: full width, Desktop: 30% */}
-        <aside 
-          className="w-full lg:w-[50%] overflow-y-auto flex-1 lg:flex-initial bg-background hide-scrollbar"
-        >
+        <aside className="w-full lg:w-1/2 overflow-y-auto flex-1 lg:flex-initial bg-background hide-scrollbar">
           <div className="p-6 space-y-6">
             {/* AI Analysis Details */}
             {submission.grading.aiAnalysisResult && (
@@ -712,21 +740,24 @@ export default function TeacherSubmissionView() {
                                 }}
                               >
                                 <SelectTrigger className="w-24">
-                                  <SelectValue placeholder={t('submissions:teacher.submissionView.feedback.levelPlaceholder')} />
+                                  <SelectValue
+                                    placeholder={t('submissions:teacher.submissionView.feedback.levelPlaceholder')}
+                                  />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: Math.floor(criterion.maxScore) }, (_, idx) => idx + 1).map((level) => (
-                                    <SelectItem key={`${criterion.criteriaId}-${level}`} value={String(level)}>
-                                      {t('submissions:teacher.submissionView.feedback.levelOption', { level })}
-                                    </SelectItem>
-                                  ))}
+                                  {Array.from({ length: Math.floor(criterion.maxScore) }, (_, idx) => idx + 1).map(
+                                    (level) => (
+                                      <SelectItem key={`${criterion.criteriaId}-${level}`} value={String(level)}>
+                                        {t('submissions:teacher.submissionView.feedback.levelOption', { level })}
+                                      </SelectItem>
+                                    )
+                                  )}
                                 </SelectContent>
                               </Select>
                             </div>
 
                             {criterion.levels.length > 0 && (
                               <div className="rounded-lg bg-muted/30 px-3 py-2 space-y-1.5">
-                                
                                 {[...criterion.levels]
                                   .sort((a, b) => b.score - a.score)
                                   .map((level) => {
@@ -734,12 +765,17 @@ export default function TeacherSubmissionView() {
                                     return (
                                       <div
                                         key={`${criterion.criteriaId}-desc-${level.score}`}
-                                        className={selected
-                                          ? 'text-xs text-[#8C3218] font-semibold bg-[#FFE1D6] rounded-md px-2 py-1'
-                                          : 'text-xs text-muted-foreground px-2 py-1'
+                                        className={
+                                          selected
+                                            ? 'text-xs text-[#8C3218] font-semibold bg-[#FFE1D6] rounded-md px-2 py-1'
+                                            : 'text-xs text-muted-foreground px-2 py-1'
                                         }
                                       >
-                                        <span className="inline-block min-w-12">{t('submissions:teacher.submissionView.feedback.levelOption', { level: level.score })}</span>
+                                        <span className="inline-block min-w-12">
+                                          {t('submissions:teacher.submissionView.feedback.levelOption', {
+                                            level: level.score,
+                                          })}
+                                        </span>
                                         <span>{level.description}</span>
                                       </div>
                                     );
@@ -817,9 +853,24 @@ export default function TeacherSubmissionView() {
             </TabsTrigger>
           </TabsList>
         </div>
-        
-        <TabsContent value="pdf" className="flex-1 overflow-hidden m-0 p-0">
-          {submission.grading.filePath ? (
+
+        <TabsContent value="pdf" className="flex-1 overflow-y-auto m-0 p-0">
+          {submission.grading.submissionText ? (
+            <div className="p-4">
+              <ClientOnly fallback={<div />}>
+                <AnnotatableFeedback
+                  submissionId={params.submissionId!}
+                  targetType="submission"
+                  targetId="submission-text"
+                  content={submission.grading.submissionText}
+                  contentFormat="plainText"
+                  comments={submission.grading.aiFeedbackComments.filter(
+                    (c) => c.targetType === 'submission' && c.targetId === 'submission-text'
+                  )}
+                />
+              </ClientOnly>
+            </div>
+          ) : submission.grading.filePath ? (
             <ClientOnly
               fallback={
                 <div className="flex items-center justify-center h-full">
@@ -909,14 +960,18 @@ export default function TeacherSubmissionView() {
                                 }}
                               >
                                 <SelectTrigger className="w-24">
-                                  <SelectValue placeholder={t('submissions:teacher.submissionView.feedback.levelPlaceholder')} />
+                                  <SelectValue
+                                    placeholder={t('submissions:teacher.submissionView.feedback.levelPlaceholder')}
+                                  />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: Math.floor(criterion.maxScore) }, (_, idx) => idx + 1).map((level) => (
-                                    <SelectItem key={`${criterion.criteriaId}-mobile-${level}`} value={String(level)}>
-                                      {t('submissions:teacher.submissionView.feedback.levelOption', { level })}
-                                    </SelectItem>
-                                  ))}
+                                  {Array.from({ length: Math.floor(criterion.maxScore) }, (_, idx) => idx + 1).map(
+                                    (level) => (
+                                      <SelectItem key={`${criterion.criteriaId}-mobile-${level}`} value={String(level)}>
+                                        {t('submissions:teacher.submissionView.feedback.levelOption', { level })}
+                                      </SelectItem>
+                                    )
+                                  )}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -933,12 +988,17 @@ export default function TeacherSubmissionView() {
                                     return (
                                       <div
                                         key={`${criterion.criteriaId}-mobile-desc-${level.score}`}
-                                        className={selected
-                                          ? 'text-xs text-[#8C3218] font-semibold bg-[#FFE1D6] rounded-md px-2 py-1'
-                                          : 'text-xs text-muted-foreground px-2 py-1'
+                                        className={
+                                          selected
+                                            ? 'text-xs text-[#8C3218] font-semibold bg-[#FFE1D6] rounded-md px-2 py-1'
+                                            : 'text-xs text-muted-foreground px-2 py-1'
                                         }
                                       >
-                                        <span className="inline-block min-w-12">{t('submissions:teacher.submissionView.feedback.levelOption', { level: level.score })}</span>
+                                        <span className="inline-block min-w-12">
+                                          {t('submissions:teacher.submissionView.feedback.levelOption', {
+                                            level: level.score,
+                                          })}
+                                        </span>
                                         <span>{level.description}</span>
                                       </div>
                                     );
@@ -1003,23 +1063,13 @@ export default function TeacherSubmissionView() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('submissions:teacher.submissionView.delete.dialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('submissions:teacher.submissionView.delete.dialogDescription')}
-            </DialogDescription>
+            <DialogDescription>{t('submissions:teacher.submissionView.delete.dialogDescription')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-              disabled={isDeleting}
-            >
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
               {t('common:cancel')}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting
                 ? t('submissions:teacher.submissionView.delete.deleting')
                 : t('submissions:teacher.submissionView.delete.confirm')}
@@ -1041,12 +1091,8 @@ export function ErrorBoundary() {
       <div className="flex min-h-screen w-full items-center justify-center px-4">
         <div className="space-y-6 text-center">
           <div className="space-y-3">
-            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-              404
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {t('common:errors.404.submission')}
-            </p>
+            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">404</h1>
+            <p className="text-gray-600 dark:text-gray-400">{t('common:errors.404.submission')}</p>
           </div>
           <a
             href="/teacher"
@@ -1068,9 +1114,7 @@ export function ErrorBoundary() {
           <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
             {t('common:errors.generic.title')}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('common:errors.generic.submission')}
-          </p>
+          <p className="text-gray-600 dark:text-gray-400">{t('common:errors.generic.submission')}</p>
         </div>
         <a
           href="/teacher"

@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
 import { useRef, useState } from 'react';
-import { AnnotatableFeedback } from './AnnotatableFeedback';
 import type { SubmissionAiFeedbackCommentView } from '@/types/teacher';
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
@@ -84,9 +83,6 @@ export function GradingResultDisplay({
   isLoading,
   studentName,
   studentPicture,
-  submissionId,
-  aiFeedbackComments = [],
-  annotationMode = 'editable',
 }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
   const chatHeaderRef = useRef<HTMLDivElement | null>(null);
@@ -118,10 +114,6 @@ export function GradingResultDisplay({
 
   // Use normalized score (100-point scale) if available, otherwise calculate from result
   const displayScore = safeResult ? (normalizedScore ?? (safeResult.totalScore / safeResult.maxScore) * 100) : 0;
-  const overallFeedbackComments = aiFeedbackComments.filter(
-    (comment) => comment.targetType === 'overall' && comment.targetId === 'overall-feedback'
-  );
-
   return (
     <div className={cn('space-y-6 pb-6', className)}>
       {/* Top: Streaming Thinking Process */}
@@ -200,15 +192,8 @@ export function GradingResultDisplay({
           <section className="p-2 space-y-2">
             <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
             <div className="text-sm text-muted-foreground">
-              {submissionId && typeof safeResult.overallFeedback === 'string' ? (
-                <AnnotatableFeedback
-                  submissionId={submissionId}
-                  targetType="overall"
-                  targetId="overall-feedback"
-                  content={safeResult.overallFeedback}
-                  comments={overallFeedbackComments}
-                  readOnly={annotationMode === 'readonly'}
-                />
+              {typeof safeResult.overallFeedback === 'string' ? (
+                <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
               ) : (
                 <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
               )}

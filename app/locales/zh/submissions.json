@@ -32,6 +32,8 @@
   },
   "submissionDetail": {
     "submittedAt": "提交時間：",
+    "submittedContentTitle": "你提交的作業內容",
+    "submittedContentUnavailable": "目前無法顯示你提交的文字內容，因此暫時無法對照老師的段落註解。",
     "assignmentDescription": "作業說明",
     "overdueTooltip": "作業已逾期，無法重新提交",
     "teacherReview": "教師評分與回饋",

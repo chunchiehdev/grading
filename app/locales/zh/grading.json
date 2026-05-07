@@ -63,13 +63,21 @@
     "annotations": {
       "teacherTitle": "註解",
       "studentTitle": "教師註解",
+      "submissionTitle": "學生的作業內容",
       "hint": "點選註解即可定位到對應的 AI 回饋段落。",
       "actions": {
         "comment": "註解",
         "cancel": "取消",
+        "startMode": "新增註解",
+        "cancelMode": "取消註解模式",
         "delete": "刪除註解",
         "saving": "儲存中...",
-        "saveComment": "儲存註解"
+        "saveComment": "儲存註解",
+        "saveEdit": "儲存修改"
+      },
+      "mode": {
+        "help": "點擊按鈕後，反白文字即可新增註解。",
+        "banner": "請反白想要註解的文字，完成後會自動開啟輸入視窗。"
       },
       "dialog": {
         "title": "新增註解",
@@ -78,12 +86,14 @@
       },
       "messages": {
         "saved": "註解已儲存",
-        "deleted": "註解已刪除"
+        "deleted": "註解已刪除",
+        "updated": "註解已更新"
       },
       "errors": {
         "invalidSelection": "無法建立註解，請重新圈選文字後再試一次",
         "saveFailed": "儲存註解失敗",
-        "deleteFailed": "刪除註解失敗"
+        "deleteFailed": "刪除註解失敗",
+        "updateFailed": "更新註解失敗"
       }
     }
   },

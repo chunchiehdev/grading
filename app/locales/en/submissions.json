@@ -32,6 +32,8 @@
   },
   "submissionDetail": {
     "submittedAt": "Submitted At:",
+    "submittedContentTitle": "Your Submitted Work",
+    "submittedContentUnavailable": "Your submission text is not available yet, so teacher annotations cannot be aligned to the original passages right now.",
     "assignmentDescription": "Assignment Description",
     "overdueTooltip": "Assignment is overdue, cannot resubmit",
     "teacherReview": "Teacher Review",

@@ -63,13 +63,21 @@
     "annotations": {
       "teacherTitle": "Annotations",
       "studentTitle": "Teacher Annotations",
+      "submissionTitle": "Student Submission",
       "hint": "Select an annotation to jump to the related AI feedback passage.",
       "actions": {
         "comment": "Annotate",
         "cancel": "Cancel",
+        "startMode": "New annotation",
+        "cancelMode": "Exit annotation mode",
         "delete": "Delete annotation",
         "saving": "Saving...",
-        "saveComment": "Save Annotation"
+        "saveComment": "Save Annotation",
+        "saveEdit": "Save edit"
+      },
+      "mode": {
+        "help": "Click the button, then highlight text to add an annotation.",
+        "banner": "Highlight the text you want to annotate. The comment form will open automatically."
       },
       "dialog": {
         "title": "Add Annotation",
@@ -78,12 +86,14 @@
       },
       "messages": {
         "saved": "Annotation saved",
-        "deleted": "Annotation deleted"
+        "deleted": "Annotation deleted",
+        "updated": "Annotation updated"
       },
       "errors": {
         "invalidSelection": "Unable to create annotation. Please reselect the text and try again.",
         "saveFailed": "Failed to save annotation",
-        "deleteFailed": "Failed to delete annotation"
+        "deleteFailed": "Failed to delete annotation",
+        "updateFailed": "Failed to update annotation"
       }
     }
   },

@@ -156,6 +156,8 @@ export interface TeacherSubmissionView {
     sparringRoundsBeforeDecision: number | null;
     /** Teacher annotations on AI feedback */
     aiFeedbackComments: SubmissionAiFeedbackCommentView[];
+    /** Extracted plain text of the student's submitted PDF, null if unavailable */
+    submissionText: string | null;
   };
   /** Navigation URLs pre-computed for UI */
   navigation: {
