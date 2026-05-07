@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, MessageSquare, Trash2 } from 'lucide-react';
+import { Check, MessageSquare, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -847,15 +847,22 @@ export function AnnotatableFeedback({
             <Button
               type="button"
               size="sm"
-              variant={isAnnotationMode ? 'secondary' : 'outline'}
+              variant={isAnnotationMode ? 'secondary' : 'default'}
               className={cn(
                 'absolute right-3 top-3 z-10 h-8 px-2.5 text-xs shadow-sm',
+                !isAnnotationMode && 'bg-[#E07A5F] text-white hover:bg-[#D2691E]',
                 isAnnotationMode && 'border-[#E07A5F]/40 bg-[#E07A5F]/10 text-[#8C3218] hover:bg-[#E07A5F]/15'
               )}
               onClick={isAnnotationMode ? handleCancelAnnotationMode : handleEnterAnnotationMode}
             >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              {t('result.annotations.actions.startMode')}
+              {isAnnotationMode ? (
+                <X className="mr-1.5 h-3.5 w-3.5" />
+              ) : (
+                <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {isAnnotationMode
+                ? t('result.annotations.actions.cancelMode')
+                : t('result.annotations.actions.startMode')}
             </Button>
           )}
 

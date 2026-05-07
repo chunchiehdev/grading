@@ -128,9 +128,9 @@ export default function StudentSubmissionDetail() {
     <div className="h-full w-full flex flex-col">
       {/* Desktop & Mobile unified layout */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6 lg:space-y-8">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8 space-y-8 lg:space-y-10">
           {/* 頂部作業資訊 - Architectural Editorial Minimalism */}
-          <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200">
+          <div className="p-4 lg:p-6 dark:border-gray-200">
             <div className="space-y-4">
               <div>
                 <h1 className="mb-2 font-serif text-xl lg:text-2xl xl:text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
@@ -183,12 +183,12 @@ export default function StudentSubmissionDetail() {
             </div>
           </div>
 
-          <section>
-            <h2 className="mb-4 font-serif text-lg lg:text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+          <section className="space-y-4">
+            <h2 className="font-serif text-lg lg:text-xl font-light text-[#2B2B2B] dark:text-gray-100">
               {t('submissions:submissionDetail.submittedContentTitle')}
             </h2>
 
-            <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200">
+            <div className="p-4 lg:p-6 dark:border-gray-200">
               {submission.submissionText ? (
                 <AnnotatableFeedback
                   submissionId={submission.id}
@@ -198,10 +198,10 @@ export default function StudentSubmissionDetail() {
                   comments={submissionComments}
                   readOnly
                   contentFormat="plainText"
-                  annotationLayout="stacked"
+                  annotationLayout="side"
                 />
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
+                <p className="text-sm leading-relaxed text-gray-500 whitespace-pre-wrap dark:text-gray-400">
                   {t('submissions:submissionDetail.submittedContentUnavailable')}
                 </p>
               )}
@@ -209,7 +209,7 @@ export default function StudentSubmissionDetail() {
           </section>
 
           {/* AI分析結果 */}
-          <section>
+          <section className="space-y-4">
             <div>
               {submission.aiAnalysisResult ? (
                 <GradingResultDisplay
@@ -232,12 +232,12 @@ export default function StudentSubmissionDetail() {
 
           {/* 教師評分與回饋 */}
           {(teacherScore !== null || hasTeacherFeedback) && (
-            <section>
-              <h2 className="mb-4 font-serif text-lg lg:text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+            <section className="space-y-4">
+              <h2 className="font-serif text-lg lg:text-xl font-light text-[#2B2B2B] dark:text-gray-100">
                 {t('submissions:submissionDetail.teacherReview')}
               </h2>
 
-              <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200 space-y-4">
+              <div className="p-4 lg:p-6 dark:border-gray-200 space-y-4">
                 {teacherScore !== null && (
                   <div>
                     <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
