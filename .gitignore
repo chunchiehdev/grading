@@ -17,6 +17,7 @@ work/
 
 logs/
 sec/
+test-artifacts/
 
 # cicd/
 
@@ -27,4 +28,3 @@ sec/
 version.json
 
 .opencode/
-
