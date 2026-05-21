@@ -82,7 +82,7 @@
       "dialog": {
         "title": "Add Annotation",
         "noSelection": "No selection",
-        "placeholder": "Leave an annotation for this AI feedback"
+        "placeholder": "Leave an annotation for this student submission passage"
       },
       "messages": {
         "saved": "Annotation saved",

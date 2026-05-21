@@ -82,7 +82,7 @@
       "dialog": {
         "title": "新增註解",
         "noSelection": "尚未選取文字",
-        "placeholder": "請輸入你對這段 AI 回饋的註解"
+        "placeholder": "請輸入你對這段學生作業的註解"
       },
       "messages": {
         "saved": "註解已儲存",

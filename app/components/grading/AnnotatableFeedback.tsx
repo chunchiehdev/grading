@@ -1098,9 +1098,6 @@ export function AnnotatableFeedback({
               <div className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap">
                 {getPendingAnnotationQuote(pendingAnnotation) || t('result.annotations.dialog.noSelection')}
               </div>
-              <DialogDescription className="text-xs text-muted-foreground">
-                {t('result.annotations.dialog.placeholder')}
-              </DialogDescription>
               <Textarea
                 value={draftComment}
                 onChange={(e) => setDraftComment(e.target.value)}
