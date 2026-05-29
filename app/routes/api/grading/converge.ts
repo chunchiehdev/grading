@@ -176,7 +176,7 @@ Rules:
 
     const google = createGoogleGenerativeAI({ apiKey });
     const generation = await generateText({
-      model: google('gemini-3.1-flash-lite-preview'),
+      model: google('gemini-3.1-flash-lite'),
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.2,
@@ -224,7 +224,7 @@ Rules:
             ...metaObject,
             geminiCalls: currentCalls + 1,
             geminiTokens: currentGeminiTokens + totalTokens,
-            lastModel: 'gemini-3.1-flash-lite-preview',
+            lastModel: 'gemini-3.1-flash-lite',
             lastCalledAt: new Date().toISOString(),
           };
 

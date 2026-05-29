@@ -445,7 +445,7 @@ export async function processGradingResult(
           gradingRationale, // New Field
           provider: 'gemini-agent',
           metadata: {
-            model: 'gemini-3.1-flash-lite-preview-agent',
+            model: 'gemini-3.1-flash-lite-agent',
             tokens: agentResult.totalTokens,
             duration: agentResult.executionTimeMs,
             agentSteps: agentResult.steps.length,
@@ -511,7 +511,7 @@ export async function processGradingResult(
           thoughtSummary: sdkResult.thoughtSummary,
           provider: sdkResult.provider,
           metadata: {
-            model: sdkResult.provider === 'gemini' ? 'gemini-3.1-flash-lite-preview' : 'gpt-4o-mini',
+            model: sdkResult.provider === 'gemini' ? 'gemini-3.1-flash-lite' : 'gpt-4o-mini',
             tokens: sdkResult.usage.totalTokens,
             duration: sdkResult.responseTimeMs,
           },

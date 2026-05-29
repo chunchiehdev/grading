@@ -14,7 +14,7 @@
 - 測試作業：`7a7eb3d9-18d3-4eab-bdac-66b33d43c2e5`
 - 評分規準：`9cce9db0-b9e4-4679-bc18-628a2d80bab7`
 - 測試檔案：`8753a976-9947-4cce-86d1-ad4a512e19d7`
-- 使用模型：`gemini-3.1-flash-lite-preview`
+- 使用模型：`gemini-3.1-flash-lite`
 - 測試腳本：`test/load/ai-grading-concurrent.js`
 - 輪詢逾時設定：`180 秒`
 

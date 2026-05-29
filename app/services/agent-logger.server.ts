@@ -57,7 +57,7 @@ export async function saveAgentExecution(
         toolCalls: toolCalls as any,
         confidenceScore,
         requiresReview,
-        agentModel: 'gemini-3.1-flash-lite-preview',
+        agentModel: 'gemini-3.1-flash-lite',
         agentExecutionTime: executionTimeMs,
         gradingTokens: totalTokens,
       },

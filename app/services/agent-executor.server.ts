@@ -24,7 +24,7 @@ import { redis } from '@/lib/redis';
 
 function createGeminiModel(apiKey: string) {
   const gemini = createGoogleGenerativeAI({ apiKey });
-  return gemini('gemini-3.1-flash-lite-preview');
+  return gemini('gemini-3.1-flash-lite');
 }
 import type {
   AgentGradingParams,
@@ -784,7 +784,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
                meta: {
                  executionTimeMs: directExecutionTimeMs,
                  totalTokens: usage?.totalTokens || 0,
-                  modelName: 'gemini-3.1-flash-lite-preview',
+                  modelName: 'gemini-3.1-flash-lite',
                  sparringQuestionsCount: mappedData.sparringQuestions?.length || 0,
                  mode: 'direct',
                }
@@ -1388,7 +1388,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           meta: {
             executionTimeMs,
             totalTokens,
-            modelName: 'gemini-3.1-flash-lite-preview',
+            modelName: 'gemini-3.1-flash-lite',
             sparringQuestionsCount: finalResult?.sparringQuestions?.length || 0,
           }
         })
