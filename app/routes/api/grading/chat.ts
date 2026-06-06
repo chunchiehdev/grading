@@ -43,8 +43,8 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const { messages: rawMessages, context } = await request.json() as { 
-      messages: any[],
+    const { messages: rawMessages, context } = (await request.json()) as {
+      messages: any[];
       context?: {
         rubricCriterionName?: string;
         rubricCriterionDesc?: string;
@@ -63,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
         fileId?: string;
         assignmentId?: string;
         gradingSessionId?: string;
-      }
+      };
     };
 
     const requestLocale = getServerLocale(request);
@@ -87,7 +87,10 @@ export async function action({ request }: ActionFunctionArgs) {
       return { role: msg.role, content: String(msg.content || '') };
     });
 
-    let model: ReturnType<ReturnType<typeof createOpenAI>['chat']> | ReturnType<ReturnType<typeof createGoogleGenerativeAI>> | null = null;
+    let model:
+      | ReturnType<ReturnType<typeof createOpenAI>['chat']>
+      | ReturnType<ReturnType<typeof createGoogleGenerativeAI>>
+      | null = null;
     let provider: 'vllm' | 'gemini' = 'vllm';
     let selectedKeyId: string | null = null;
     let selectedModelName = VLLM_CONFIG.modelName;
@@ -147,7 +150,7 @@ export async function action({ request }: ActionFunctionArgs) {
             {
               status: healthResponse.status,
             },
-            '[Chat API] vLLM health check failed, fallback to Gemini',
+            '[Chat API] vLLM health check failed, fallback to Gemini'
           );
           await selectGeminiModel();
         }
@@ -156,7 +159,7 @@ export async function action({ request }: ActionFunctionArgs) {
           {
             error: error instanceof Error ? error.message : String(error),
           },
-          '[Chat API] vLLM unavailable, fallback to Gemini',
+          '[Chat API] vLLM unavailable, fallback to Gemini'
         );
         await selectGeminiModel();
       }
@@ -173,10 +176,10 @@ export async function action({ request }: ActionFunctionArgs) {
     const rubricCriterionName = context?.rubricCriterionName || '批判性反思';
     const rubricCriterionDesc = context?.rubricCriterionDesc || '';
     const rubricCriterionLevels = context?.rubricCriterionLevels || [
-      { score: 4, description: "批判性地檢視既有知識，質疑假設，並因經驗而提出新觀點。" },
-      { score: 3, description: "主動且謹慎地思考既有知識，並能把經驗轉化為對知識的新理解。" },
-      { score: 2, description: "能使用既有知識，但未嘗試去評估/鑑定它；展現了理解，但沒有連結到個人其他經驗或反應。" },
-      { score: 1, description: "自動/表面的回應，幾乎沒有意識/深思熟慮，或未參考既有知識；沒有嘗試去理解就直接回應。" }
+      { score: 4, description: '批判性地檢視既有知識，質疑假設，並因經驗而提出新觀點。' },
+      { score: 3, description: '主動且謹慎地思考既有知識，並能把經驗轉化為對知識的新理解。' },
+      { score: 2, description: '能使用既有知識，但未嘗試去評估/鑑定它；展現了理解，但沒有連結到個人其他經驗或反應。' },
+      { score: 1, description: '自動/表面的回應，幾乎沒有意識/深思熟慮，或未參考既有知識；沒有嘗試去理解就直接回應。' },
     ];
 
     const levelsText = rubricCriterionLevels
@@ -189,12 +192,14 @@ export async function action({ request }: ActionFunctionArgs) {
         : ` (Initial system estimate: ${context.currentKemberLevel.label}. You should still judge independently from the assignment content below.)`
       : '';
 
-    const responseLanguageInstruction = uiLanguage === 'zh'
-      ? '【回覆語言】你必須全程使用繁體中文回覆學生。不要切換到英文。'
-      : '[Response language] You must reply in English for the entire conversation. Do not switch to Chinese.';
+    const responseLanguageInstruction =
+      uiLanguage === 'zh'
+        ? '【回覆語言】你必須全程使用繁體中文回覆學生。不要切換到英文。'
+        : '[Response language] You must reply in English for the entire conversation. Do not switch to Chinese.';
 
-    const kemberLevelHint = uiLanguage === 'zh'
-      ? `
+    const kemberLevelHint =
+      uiLanguage === 'zh'
+        ? `
 【你的任務：評估學生的 Kember Level】
 請你仔細閱讀上方「學生完整作業內容」，根據「${rubricCriterionName} 的標準」中的四個等級描述，自行判斷學生目前的反思深度落在哪個等級 ${gradedLevelRef}。
 
@@ -206,7 +211,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 在 Stage 2 中，請明確告訴學生你評估他目前落在哪個 Level（例如「我覺得你現在大概是 L2 的思維...」），以及要往上一個 Level 需要的具體轉變。
 `
-      : `
+        : `
 [Your task: assess the student's Kember Level]
 Read the student's full assignment content above and determine the current reflection level using the four level descriptions in "${rubricCriterionName}".${gradedLevelRef}
 
@@ -218,7 +223,6 @@ When assessing, pay attention to:
 
 In Stage 2, explicitly tell the student which level they are currently showing (for example, "I think you're currently around L2...") and what concrete change is needed to move up one level.
 `;
-
 
     const sparContext = context?.sparringQuestion
       ? uiLanguage === 'zh'
@@ -234,12 +238,15 @@ In Stage 2, explicitly tell the student which level they are currently showing (
 `
       : '';
 
-    logger.info({
-      studentMaxChars: CHAT_CONTENT_LIMITS.studentMaxChars,
-      referenceMaxCharsPerFile: CHAT_CONTENT_LIMITS.referenceMaxCharsPerFile,
-      referenceMaxFiles: CHAT_CONTENT_LIMITS.referenceMaxFiles,
-      referenceTotalMaxChars: CHAT_CONTENT_LIMITS.referenceTotalMaxChars,
-    }, '[Chat API] Using chat content limits');
+    logger.info(
+      {
+        studentMaxChars: CHAT_CONTENT_LIMITS.studentMaxChars,
+        referenceMaxCharsPerFile: CHAT_CONTENT_LIMITS.referenceMaxCharsPerFile,
+        referenceMaxFiles: CHAT_CONTENT_LIMITS.referenceMaxFiles,
+        referenceTotalMaxChars: CHAT_CONTENT_LIMITS.referenceTotalMaxChars,
+      },
+      '[Chat API] Using chat content limits'
+    );
 
     // 取得學生完整作業內容（透過 fileId 查 UploadedFile.parsedContent）
     let studentContentSection = '';
@@ -252,18 +259,20 @@ In Stage 2, explicitly tell the student which level they are currently showing (
         if (uploadedFile?.parsedContent) {
           const truncated = uploadedFile.parsedContent.length > CHAT_CONTENT_LIMITS.studentMaxChars;
           const content = truncated
-            ? uploadedFile.parsedContent.substring(0, CHAT_CONTENT_LIMITS.studentMaxChars) + (uiLanguage === 'zh' ? '\n...（內容已截取）' : '\n...(content truncated)')
+            ? uploadedFile.parsedContent.substring(0, CHAT_CONTENT_LIMITS.studentMaxChars) +
+              (uiLanguage === 'zh' ? '\n...（內容已截取）' : '\n...(content truncated)')
             : uploadedFile.parsedContent;
-          studentContentSection = uiLanguage === 'zh'
-            ? `\n【學生完整作業內容】\n${content}\n`
-            : `\n[Student full assignment content]\n${content}\n`;
+          studentContentSection =
+            uiLanguage === 'zh'
+              ? `\n【學生完整作業內容】\n${content}\n`
+              : `\n[Student full assignment content]\n${content}\n`;
           logger.info(
             {
               fileId: context.fileId,
               contentLength: uploadedFile.parsedContent.length,
               truncated,
             },
-            '[Chat API] Loaded student content',
+            '[Chat API] Loaded student content'
           );
         }
       } catch (err) {
@@ -288,15 +297,17 @@ In Stage 2, explicitly tell the student which level they are currently showing (
         if (assignment) {
           // 作業描述
           if (assignment.description) {
-            assignmentDescSection = uiLanguage === 'zh'
-              ? `\n【老師指派的作業要求】\n作業名稱：${assignment.name}\n${assignment.description}\n`
-              : `\n[Teacher assignment requirements]\nAssignment: ${assignment.name}\n${assignment.description}\n`;
+            assignmentDescSection =
+              uiLanguage === 'zh'
+                ? `\n【老師指派的作業要求】\n作業名稱：${assignment.name}\n${assignment.description}\n`
+                : `\n[Teacher assignment requirements]\nAssignment: ${assignment.name}\n${assignment.description}\n`;
           }
           // 自訂評分指示
           if (assignment.customGradingPrompt) {
-            assignmentDescSection += uiLanguage === 'zh'
-              ? `\n【老師的額外指示】\n${assignment.customGradingPrompt}\n`
-              : `\n[Teacher additional instructions]\n${assignment.customGradingPrompt}\n`;
+            assignmentDescSection +=
+              uiLanguage === 'zh'
+                ? `\n【老師的額外指示】\n${assignment.customGradingPrompt}\n`
+                : `\n[Teacher additional instructions]\n${assignment.customGradingPrompt}\n`;
           }
           // 參考資料
           if (assignment.referenceFileIds) {
@@ -308,13 +319,13 @@ In Stage 2, explicitly tell the student which level they are currently showing (
                   select: { fileName: true, parsedContent: true },
                 });
                 const limitedRefFiles = refFiles
-                  .filter(f => f.parsedContent)
+                  .filter((f) => f.parsedContent)
                   .slice(0, CHAT_CONTENT_LIMITS.referenceMaxFiles);
 
                 let totalReferenceChars = 0;
                 let truncatedByTotalCount = 0;
                 const refContents = limitedRefFiles
-                  .map(f => {
+                  .map((f) => {
                     const raw = f.parsedContent!;
                     const remainingBudget = CHAT_CONTENT_LIMITS.referenceTotalMaxChars - totalReferenceChars;
 
@@ -323,13 +334,11 @@ In Stage 2, explicitly tell the student which level they are currently showing (
                       return null;
                     }
 
-                    const perFileBudget = Math.min(
-                      CHAT_CONTENT_LIMITS.referenceMaxCharsPerFile,
-                      remainingBudget,
-                    );
+                    const perFileBudget = Math.min(CHAT_CONTENT_LIMITS.referenceMaxCharsPerFile, remainingBudget);
                     const truncated = raw.length > perFileBudget;
                     const content = truncated
-                      ? raw.substring(0, perFileBudget) + (uiLanguage === 'zh' ? '\n...（參考資料已截取）' : '\n...(reference truncated)')
+                      ? raw.substring(0, perFileBudget) +
+                        (uiLanguage === 'zh' ? '\n...（參考資料已截取）' : '\n...(reference truncated)')
                       : raw;
 
                     totalReferenceChars += content.length;
@@ -337,9 +346,10 @@ In Stage 2, explicitly tell the student which level they are currently showing (
                   })
                   .filter((v): v is string => Boolean(v));
                 if (refContents.length > 0) {
-                  referenceSection = uiLanguage === 'zh'
-                    ? `\n【參考資料】\n${refContents.join('\n\n---\n\n')}\n`
-                    : `\n[Reference materials]\n${refContents.join('\n\n---\n\n')}\n`;
+                  referenceSection =
+                    uiLanguage === 'zh'
+                      ? `\n【參考資料】\n${refContents.join('\n\n---\n\n')}\n`
+                      : `\n[Reference materials]\n${refContents.join('\n\n---\n\n')}\n`;
                   logger.info(
                     {
                       assignmentId: context.assignmentId,
@@ -350,7 +360,7 @@ In Stage 2, explicitly tell the student which level they are currently showing (
                       truncatedByTotalLimit: truncatedByTotalCount,
                       totalReferenceChars,
                     },
-                    '[Chat API] Loaded reference materials',
+                    '[Chat API] Loaded reference materials'
                   );
                 }
               }
@@ -362,66 +372,101 @@ In Stage 2, explicitly tell the student which level they are currently showing (
       } catch (err) {
         logger.warn(
           { assignmentId: context.assignmentId, error: String(err) },
-          '[Chat API] Failed to load assignment context',
+          '[Chat API] Failed to load assignment context'
         );
       }
     }
 
     // ============================================================================
-    // THE 3-STEP Socratic Guidance System Prompt
+    // Challenge-based Dialogic Feedback System Prompt
+    // 依據論文 chapter02 §2-2 §2-3 的「挑戰式對話回饋」設計（追問 → 反例 → 決策 三階段，
+    // chapter02 L53 原文「將系統設計為以追問、反例與決策三階段引導學生重新檢視其書面論述」）
+    // 理論依據：
+    //   Sarkar (2024) AI as provocateur — AI 應挑戰而非順從
+    //   Limón (2001) 認知失衡 — 與既有信念衝突的訊息促成概念改變
+    //   Kapur (2008/2016) 生產性失敗 — 讓學生先卡住，反而促成深層學習與遷移
     // ============================================================================
     const systemPrompt = `
     ${responseLanguageInstruction}
 
-    你是一位採用蘇格拉底「認知師徒制」方法的教學助理。
-    你的目標是透過「多輪對話」，引導學生完成「${rubricCriterionName}」這項能力的自我反思與成長。
-      
+    你是一位採用「挑戰式對話回饋 (Challenge-based Dialogic Feedback)」的教學助理。
+    你的目標**不是順從地引導學生**，而是透過多輪對話**挑戰學生既有的論述與假設**，
+    引發認知失衡，促使其主動重整對「${rubricCriterionName}」的理解，並深化反思表現。
+
+    【設計理論依據】
+    - AI 不應扮演順從的助手，而應扮演「認知挑戰者 (AI as provocateur)」——
+      透過批評、反例、揭露假設與追問刺激學生思考 (Sarkar, 2024)
+    - 與既有信念衝突的訊息能引發認知失衡，是促成概念改變的關鍵機制 (Limón, 2001)
+    - 讓學生在挑戰中「先卡住一下」，反而能促成更深層的學習與知識遷移 ——
+      此即「生產性失敗 (productive failure)」設計原則 (Kapur, 2008, 2016)
+
     【作業背景與最初意圖】
     ${sparContext}
     ${assignmentDescSection}
     ${studentContentSection}
     ${referenceSection}
-      
+
     【評分維度：${rubricCriterionName} 的標準】
     ${rubricCriterionDesc ? `${rubricCriterionDesc}\n` : ''}${levelsText}
     ${kemberLevelHint}
-      
-    【你的對話指導原則：三步引導法 (3-Stage Guidance)】
-    為了避免一次給出太多資訊或直接給答案，你必須按照以下階段來引導對話。
-    請根據上面的 \`messages\` 歷史紀錄來判斷我們現在處於哪個階段，並執行對應策略：
-      
-    ---
-    ### 🔵 Stage 1: 確認目標 (Goal Confirmation)
-    **觸發時機：** 這是第一輪或是前幾輪對話，學生還不太懂你的問題，或者回答離題。
-    **你的行動：**
-    1. 澄清題意：「其實我想問的是...」
-    2. 分解問題：把大問題拆成具體小問題，例如「你提到的 X，跟你過去的經驗有什麼關係？」
-    3. **千萬不要：** 直接告訴他正確層級或完美答案。
-      
-    ---
-    ### 🟡 Stage 2: 評估現狀 (Assess Current State)
-    **觸發時機：** 學生已經針對問題給出了具體的想法或反思內容。
-    **你的行動：**
-    1. 根據上方的「評分標準」，在內心判斷他現在落在哪一個「等級」。
-    2. 直接指出他做得好的地方：「我看到你已經能把經驗和課本理論連結起來了（展現等級 3 的行為）...」
-    3. 溫和指出瓶頸：「不過在『挑戰既有假設』這部分，你的描述還停留在...」
-    4. **千萬不要：** 直接改寫他的句子。
-      
-    ---
-    ### 🟢 Stage 3: 下一步行動建議 (Suggest Next Step / Scaffolding)
-    **觸發時機：** 學生已經知道自己的不足，或者主動詢問「那我該怎麼改」。
-    **你的行動：**
-    1. 給予「鷹架 (Scaffolding)」：提供具體的思考方向或「修改前 vs 預期修改後」的比較範例。
-    2. 開放性結尾：「如果把重點放在 XXX，你覺得這句可以怎麼重寫會更深入？」
-    3. 鼓勵學生自己動手試試看。
-    ---
-      
-    【語言與語氣設定】
-    1. **口語化、溫暖、有同理心**。不要像機器人，像一個用心指導的學長姐。
-    2. 每次回覆 **最多 3-5 句話**。對話要簡潔，留空間給學生輸入。
-    3. 絕對 **不要** 輸出「我判斷現在是 Stage 2」這種內心思考，直接對學生講話。
 
+    【你的對話指導原則：追問 → 反例 → 決策 三階段】
+    本系統的挑戰式對話依循三階段結構（對應論文 chapter02 §2-2 設計）。
+    請根據 \`messages\` 歷史紀錄判斷當前階段，並執行對應策略：
 
+    ---
+    ### 🔴 Stage 1: 追問 (Probing) —— 揭露假設
+    **觸發時機：** 第一輪或前幾輪對話。
+    **你的行動：**
+    1. **揭露學生論述背後未檢視的假設** ——
+       「你的論述假設了 X，但這個假設一定成立嗎？」
+    2. **質疑前提與脈絡** ——
+       「你提到 Y，但 Y 的背景脈絡是什麼？在不同情境下還會成立嗎？」
+    3. **不要澄清題意給學生**。如果學生回答離題，用反問逼他正面面對問題本身，
+       不要替他重新整理問題或拆解問題。
+    4. **千萬不要：** 稱讚他的回答、直接告訴他正確層級、給出範本或標準答案。
+
+    ---
+    ### 🟠 Stage 2: 反例 (Counter-example) —— 引發認知失衡
+    **觸發時機：** 學生已針對 Stage 1 的追問回應，但論述仍停留於既有框架或出現內在矛盾。
+    **你的行動：**
+    1. **提出反例或衝突情境** ——
+       「如果按你的說法，那 Z 情況怎麼解釋？這跟你前面說的一致嗎？」
+    2. **指出論述中的內在衝突** ——
+       「你前面說 A，但後面又說 B，這兩者怎麼一致？」
+    3. 根據評分標準在內心判斷他目前的 Kember Level。
+    4. **明確告知 Kember Level 與差距** ——
+       「我看到你目前的反思大約落在 L2，你還停留在事件描述，沒有質疑既有假設。
+        要進入 L3，你需要把個人經驗連結到課本知識，並說明這個經驗讓你對某個概念
+        有了什麼新的理解。」
+    5. **千萬不要：** 用「你做得很好」「這個想法很棒」開頭、
+       直接改寫他的句子、給出「修改前 vs 修改後」對照範本。
+
+    ---
+    ### 🟢 Stage 3: 決策 (Decision) —— 邀請學生重整選擇
+    **觸發時機：** 學生已**經歷過反例衝擊**，感受到論述需要重整，主動詢問或表現出探索意圖。
+    **你的行動：**
+    1. **給「思考方向」而非範本** ——
+       「你可以從『這個經驗讓我對 X 的看法產生什麼質變』這個角度切入。」
+    2. **邀請學生自己做決定** ——
+       「面對 A、B 兩種詮釋方向，你會選擇哪一個？為什麼？」
+    3. **要求學生用自己的話重述新理解** ——
+       「用你的話試試看，如果要進入 L3，你會怎麼重新詮釋這個經驗？」
+    4. **絕對不提供「修改前 vs 修改後」對照**。讓學生自己嘗試重整後，
+       再進入下一輪挑戰（回到 Stage 1 或 Stage 2）。
+    5. **千萬不要：** 跳過 Stage 1、Stage 2 就直接進 Stage 3
+       （這會違反「生產性失敗：先卡住、再整合」的設計原則）。
+    ---
+
+    【語氣與語言設定】
+    1. **挑戰但不失尊重**。語氣冷靜、直接、學術，但避免人身攻擊或諷刺。
+       像一位嚴格但公正的學術指導者，而非順從的助手或溫暖的學長姐。
+    2. **不迎合、不過度肯定**。避免「你做得很好」「這個想法很棒」「我很喜歡你的想法」
+       這類迎合語句。**若要肯定，只能肯定具體論證的邏輯，不肯定學生的態度或努力**。
+    3. 每次回覆 **最多 3-5 句話**。對話要簡潔，**留空間給學生卡住、思考、回應**。
+    4. 絕對 **不要** 輸出「我判斷現在是 Stage 2」這種內心思考，直接對學生講話。
+    5. **如果學生迴避挑戰、反問你、或要求你給答案，不要妥協**。
+       重新用不同角度提出反例或追問，直到學生正面回應論述本身。
     `;
 
     // ── Debug: 輸出完整傳給模型的內容 ──────────────────────────────────
@@ -429,7 +474,9 @@ In Stage 2, explicitly tell the student which level they are currently showing (
     logger.info(`[Chat API] UI language: ${uiLanguage}`);
     logger.info('[Chat API] SYSTEM PROMPT:\n' + systemPrompt);
     logger.info('[Chat API] MESSAGES (' + messages.length + ' 條):\n' + JSON.stringify(messages, null, 2));
-    logger.info(`[Chat API] MODEL: ${selectedModelName} | provider: ${provider} | temperature: 0.7 | maxOutputTokens: 2048`);
+    logger.info(
+      `[Chat API] MODEL: ${selectedModelName} | provider: ${provider} | temperature: 0.7 | maxOutputTokens: 2048`
+    );
     logger.info('[Chat API] ===============================');
 
     // 啟動串流
@@ -447,21 +494,21 @@ In Stage 2, explicitly tell the student which level they are currently showing (
             provider,
             keyId: selectedKeyId,
           },
-          '[Chat API] Stream finished',
+          '[Chat API] Stream finished'
         );
         if (provider === 'gemini' && selectedKeyId) {
           const healthTracker = getKeyHealthTracker();
           await healthTracker.recordSuccess(selectedKeyId, 100);
         }
-      }
+      },
     });
 
     return result.toTextStreamResponse();
   } catch (error) {
     logger.error({ error: String(error) }, 'Chat endpoint error');
-    return new Response(JSON.stringify({ error: String(error) }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json' }
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }
