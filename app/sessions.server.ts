@@ -1,9 +1,8 @@
 import { createCookieSessionStorage } from 'react-router';
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE } from '@/constants/auth';
-import logger from '@/utils/logger';
 
 // Auth session storage
-export const sessionStorage = createCookieSessionStorage({
+const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: AUTH_COOKIE_NAME,
     httpOnly: true,

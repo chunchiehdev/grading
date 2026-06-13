@@ -1,56 +1,18 @@
-export type GradingStatus = 'idle' | 'processing' | 'completed' | 'error';
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  missingFields?: string[];
-  invalidFields?: {
-    field: string;
-    reason: string;
-  }[];
-}
-
-export interface GradingProgress {
-  percentage: number;
-  currentStep: string;
-  estimatedTimeLeft?: number;
-}
-
-export interface RubricCriteria {
-  id: string;
-  name: string;
-  description: string;
-  category?: string;
-  levels: {
-    score: number;
-    description: string;
-  }[];
-}
-
-export interface Rubric {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: Date;
-  updatedAt: Date;
-  criteria: RubricCriteria[];
-}
-
-export type ProvocationStrategy =
+type ProvocationStrategy =
   | 'evidence_check'
   | 'logic_gap'
   | 'counter_argument'
   | 'warrant_probe'
   | 'metacognitive'
   | 'conceptual'
-  | 'clarification'   // legacy/agent variant
-  | 'extension';     // legacy/agent variant
+  | 'clarification' // legacy/agent variant
+  | 'extension'; // legacy/agent variant
 
 export interface SparringQuestion {
-  related_rubric_id: string;   // 對應的評分維度 ID (用於量化分析)
-  target_quote: string;        // 學生文章中的具體引文
+  related_rubric_id: string; // 對應的評分維度 ID (用於量化分析)
+  target_quote: string; // 學生文章中的具體引文
   provocation_strategy: ProvocationStrategy; // 策略標籤 (用於質性編碼)
-  question: string;            // 顯示給學生的問題
+  question: string; // 顯示給學生的問題
   ai_hidden_reasoning: string; // AI 的評分依據 (揭曉時顯示)
 }
 
@@ -79,7 +41,7 @@ export interface GradingResultData {
 }
 
 // 學生對練回應資料結構
-export interface SparringResponseData {
+interface SparringResponseData {
   questionIndex: number;
   questionId: string;
   strategy: string;
@@ -89,33 +51,4 @@ export interface SparringResponseData {
   dialecticalFeedback?: string;
   studentDecision?: 'agree' | 'disagree';
   decisionAt?: string;
-}
-
-/**
- * Grading request with optional context (Feature 004)
- * Extends existing grading with assignment context and language
- */
-export interface GradingRequest {
-  fileId: string;
-  rubricId: string;
-  assignmentAreaId?: string | null; // Optional assignment context
-  language?: 'zh' | 'en' | null; // User interface language for feedback
-}
-
-/**
- * Extended grading result with context transparency (Feature 004)
- */
-export interface GradingResultWithContext extends GradingResultData {
-  usedContext?: {
-    assignmentAreaId: string | null;
-    referenceFilesUsed: Array<{
-      fileId: string;
-      fileName: string;
-      contentLength: number;
-      wasTruncated: boolean;
-    }>;
-    customInstructionsUsed: boolean;
-  };
-  gradingModel?: string;
-  gradingDuration?: number;
 }

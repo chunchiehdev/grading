@@ -41,19 +41,6 @@ export interface AgentGradingResult {
 }
 
 /**
- * Tool execution result
- */
-export interface ToolResult<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  metadata?: {
-    durationMs: number;
-    tokensUsed?: number;
-  };
-}
-
-/**
  * Confidence scoring tool result
  */
 export interface ConfidenceScore {
@@ -154,50 +141,4 @@ export interface AgentGradingParams {
   confidenceThreshold?: number; // Default: 0.7
   enableSimilarityCheck?: boolean; // Default: true
   useDirectGrading?: boolean; // Default: false
-}
-
-/**
- * Agent configuration options
- */
-export interface AgentConfig {
-  maxSteps: number;
-  confidenceThreshold: number;
-  temperature: number;
-  maxOutputTokens: number;
-  thinkingBudget: number;
-  enableTools: {
-    searchReference: boolean;
-    checkSimilarity: boolean;
-    calculateConfidence: boolean;
-    generateFeedback: boolean;
-  };
-}
-
-/**
- * Default Agent configuration
- */
-export const DEFAULT_AGENT_CONFIG: AgentConfig = {
-  maxSteps: 10,
-  confidenceThreshold: 0.7,
-  temperature: 0.3,
-  maxOutputTokens: 8192,
-  thinkingBudget: 8192,
-  enableTools: {
-    searchReference: true,
-    checkSimilarity: true,
-    calculateConfidence: true,
-    generateFeedback: true,
-  },
-};
-
-/**
- * Agent execution state (for logging)
- */
-export interface AgentExecutionState {
-  resultId: string;
-  startTime: Date;
-  steps: AgentStep[];
-  currentStep: number;
-  isComplete: boolean;
-  error?: string;
 }

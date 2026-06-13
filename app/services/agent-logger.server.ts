@@ -5,16 +5,10 @@
  */
 
 import { db } from '@/lib/db.server';
-import type { AgentGradingResult, AgentStep } from '@/types/agent';
+import type { AgentGradingResult } from '@/types/agent';
 import logger from '@/utils/logger';
 
-/**
- * Save Agent execution to database
- */
-export async function saveAgentExecution(
-  resultId: string,
-  agentResult: AgentGradingResult
-): Promise<void> {
+export async function saveAgentExecution(resultId: string, agentResult: AgentGradingResult): Promise<void> {
   try {
     const { steps, confidenceScore, requiresReview, totalTokens, executionTimeMs } = agentResult;
 
@@ -28,13 +22,11 @@ export async function saveAgentExecution(
         hasOutput: !!s.toolOutput,
       }));
 
-    const attemptedToolCalls = Object.entries(agentResult.toolCallStats?.byTool || {}).map(
-      ([toolName, callCount]) => ({
-        toolName,
-        callCount,
-        hasOutput: false,
-      })
-    );
+    const attemptedToolCalls = Object.entries(agentResult.toolCallStats?.byTool || {}).map(([toolName, callCount]) => ({
+      toolName,
+      callCount,
+      hasOutput: false,
+    }));
 
     const toolCalls = [
       ...completedToolCalls,
@@ -79,80 +71,23 @@ export async function saveAgentExecution(
       data: logRecords,
     });
 
-    logger.info({
-      resultId,
-      stepsCount: steps.length,
-      logsCreated: logRecords.length,
-      requiresReview,
-    }, '[Agent Logger] Execution saved to database');
+    logger.info(
+      {
+        resultId,
+        stepsCount: steps.length,
+        logsCreated: logRecords.length,
+        requiresReview,
+      },
+      '[Agent Logger] Execution saved to database'
+    );
   } catch (error) {
-    logger.error({
-      resultId,
-      error: error instanceof Error ? error.message : String(error),
-    }, '[Agent Logger] Failed to save execution');
+    logger.error(
+      {
+        resultId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      '[Agent Logger] Failed to save execution'
+    );
     // Don't throw - logging failure shouldn't break grading
   }
-}
-
-/**
- * Get Agent execution logs for a grading result
- */
-export async function getAgentExecutionLogs(resultId: string) {
-  return db.agentExecutionLog.findMany({
-    where: { gradingResultId: resultId },
-    orderBy: { stepNumber: 'asc' },
-  });
-}
-
-/**
- * Get statistics about Agent grading performance
- */
-export async function getAgentStatistics(filters?: {
-  startDate?: Date;
-  endDate?: Date;
-  requiresReview?: boolean;
-}) {
-  const where: any = {
-    agentModel: { not: null }, // Only Agent-graded results
-  };
-
-  if (filters?.startDate) {
-    where.createdAt = { gte: filters.startDate };
-  }
-  if (filters?.endDate) {
-    where.createdAt = { ...where.createdAt, lte: filters.endDate };
-  }
-  if (filters?.requiresReview !== undefined) {
-    where.requiresReview = filters.requiresReview;
-  }
-
-  const [total, reviewed, avgConfidence, avgExecutionTime] = await Promise.all([
-    // Total count
-    db.gradingResult.count({ where }),
-
-    // Reviewed count
-    db.gradingResult.count({
-      where: { ...where, reviewedBy: { not: null } },
-    }),
-
-    // Average confidence
-    db.gradingResult.aggregate({
-      where,
-      _avg: { confidenceScore: true },
-    }),
-
-    // Average execution time
-    db.gradingResult.aggregate({
-      where,
-      _avg: { agentExecutionTime: true },
-    }),
-  ]);
-
-  return {
-    total,
-    reviewed,
-    reviewRate: total > 0 ? (reviewed / total) * 100 : 0,
-    avgConfidence: avgConfidence._avg.confidenceScore || 0,
-    avgExecutionTimeMs: avgExecutionTime._avg.agentExecutionTime || 0,
-  };
 }

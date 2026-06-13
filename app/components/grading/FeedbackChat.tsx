@@ -72,12 +72,14 @@ export function toFeedbackUIMessage(message: DraftChatMessageLike, index: number
       ...(message.decisionAt ? { decisionAt: message.decisionAt } : {}),
       ...(message.convergenceSuggestionAt ? { convergenceSuggestionAt: message.convergenceSuggestionAt } : {}),
       ...(typeof message.decisionLatencyMs === 'number' ? { decisionLatencyMs: message.decisionLatencyMs } : {}),
-      ...(typeof message.roundsBeforeDecision === 'number' ? { roundsBeforeDecision: message.roundsBeforeDecision } : {}),
+      ...(typeof message.roundsBeforeDecision === 'number'
+        ? { roundsBeforeDecision: message.roundsBeforeDecision }
+        : {}),
     },
   };
 }
 
-export function toFeedbackUIMessages(messages: DraftChatMessageLike[]): FeedbackUIMessage[] {
+function toFeedbackUIMessages(messages: DraftChatMessageLike[]): FeedbackUIMessage[] {
   return messages.map(toFeedbackUIMessage);
 }
 
@@ -96,7 +98,7 @@ export function toDraftChatMessage(message: FeedbackUIMessage): DraftChatMessage
   };
 }
 
-export function toDraftChatMessages(messages: FeedbackUIMessage[]): DraftChatMessageLike[] {
+function toDraftChatMessages(messages: FeedbackUIMessage[]): DraftChatMessageLike[] {
   return messages.map(toDraftChatMessage);
 }
 
@@ -135,11 +137,7 @@ interface ConvergenceSections {
   decision: string;
 }
 
-function extractSectionContent(
-  text: string,
-  headingPattern: RegExp,
-  nextHeadingPatterns: RegExp[]
-): string {
+function extractSectionContent(text: string, headingPattern: RegExp, nextHeadingPatterns: RegExp[]): string {
   const match = text.match(headingPattern);
   if (!match || match.index === undefined) return '';
 
@@ -163,7 +161,12 @@ function parseConvergenceSections(text: string): ConvergenceSections | null {
   const suggestionHeading = /(?:^|\n)\s*(\[Suggested revision direction\]|【建議改寫方向】)\s*/i;
   const decisionHeading = /(?:^|\n)\s*(\[Do you want to revise\?\]|【你要不要改】)\s*/i;
 
-  if (!priorityHeading.test(text) || !whyHeading.test(text) || !suggestionHeading.test(text) || !decisionHeading.test(text)) {
+  if (
+    !priorityHeading.test(text) ||
+    !whyHeading.test(text) ||
+    !suggestionHeading.test(text) ||
+    !decisionHeading.test(text)
+  ) {
     return null;
   }
 
@@ -183,12 +186,32 @@ function parseConvergenceSections(text: string): ConvergenceSections | null {
 function getKemberLevel(score: number, maxScore: number) {
   const pct = maxScore > 0 ? score / maxScore : 0;
   if (pct >= 0.8)
-    return { level: 4, label: 'L4', descKey: 'grading:chat.kember.level4', colorClass: 'border border-primary/30 bg-primary/10 text-primary' };
+    return {
+      level: 4,
+      label: 'L4',
+      descKey: 'grading:chat.kember.level4',
+      colorClass: 'border border-primary/30 bg-primary/10 text-primary',
+    };
   if (pct >= 0.6)
-    return { level: 3, label: 'L3', descKey: 'grading:chat.kember.level3', colorClass: 'border border-accent-foreground/20 bg-accent text-accent-foreground' };
+    return {
+      level: 3,
+      label: 'L3',
+      descKey: 'grading:chat.kember.level3',
+      colorClass: 'border border-accent-foreground/20 bg-accent text-accent-foreground',
+    };
   if (pct >= 0.4)
-    return { level: 2, label: 'L2', descKey: 'grading:chat.kember.level2', colorClass: 'border border-muted-foreground/20 bg-muted text-muted-foreground' };
-  return { level: 1, label: 'L1', descKey: 'grading:chat.kember.level1', colorClass: 'border border-destructive/30 bg-destructive/10 text-destructive' };
+    return {
+      level: 2,
+      label: 'L2',
+      descKey: 'grading:chat.kember.level2',
+      colorClass: 'border border-muted-foreground/20 bg-muted text-muted-foreground',
+    };
+  return {
+    level: 1,
+    label: 'L1',
+    descKey: 'grading:chat.kember.level1',
+    colorClass: 'border border-destructive/30 bg-destructive/10 text-destructive',
+  };
 }
 
 export interface SparringState {
@@ -251,15 +274,13 @@ export function FeedbackChat({
   const hasSentOpening = useRef(false);
 
   // ── Direction 1: Multi-question management ─────────────────────────────
-  const [activeIdx, setActiveIdx] = useState(
-    initialSparringState?.activeQuestionIndex ?? 0
-  );
+  const [activeIdx] = useState(initialSparringState?.activeQuestionIndex ?? 0);
   const [completedQuestions, setCompletedQuestions] = useState<Set<number>>(
     () => new Set(initialSparringState?.completedQuestionIndices ?? [])
   );
   // Per-question conversation memory: { 0: messages[], 1: messages[], … }
   // Initialize from persisted data (excluding activeIdx which will be loaded via setMessages)
-  const [conversationsMap, setConversationsMap] = useState<Record<number, DraftChatMessage[]>>(() => {
+  const [conversationsMap] = useState<Record<number, DraftChatMessage[]>>(() => {
     if (!initialConversationsMap) return {};
     // Store all saved conversations EXCEPT the active question's
     // (the active question's messages will be loaded via setMessages in the init effect)
@@ -279,24 +300,19 @@ export function FeedbackChat({
   const [decisionReasonDraft, setDecisionReasonDraft] = useState('');
 
   // ── Direction 4: Growth summary ────────────────────────────────────────
-  const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>(
-    initialSparringState?.phase ?? 'chat'
-  );
+  const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>(initialSparringState?.phase ?? 'chat');
   const sparringCompleteFired = useRef(false);
 
   // 控制是否已經正式開始對練（避免一載入頁面就打第一發給 Gemini）
-  const [hasStarted, setHasStarted] = useState<boolean>(
-    () => {
-      const hasSavedMessages = !!initialConversationsMap &&
-        Object.values(initialConversationsMap).some(
-          (msgs) => Array.isArray(msgs) && msgs.length > 0
-        );
+  const [hasStarted, setHasStarted] = useState<boolean>(() => {
+    const hasSavedMessages =
+      !!initialConversationsMap &&
+      Object.values(initialConversationsMap).some((msgs) => Array.isArray(msgs) && msgs.length > 0);
 
-      // Important: sparring state object may exist even before user clicks "start sparring"
-      // (because parent can receive a default chat phase). Only real messages should auto-start.
-      return hasSavedMessages;
-    }
-  );
+    // Important: sparring state object may exist even before user clicks "start sparring"
+    // (because parent can receive a default chat phase). Only real messages should auto-start.
+    return hasSavedMessages;
+  });
 
   const activeQuestion = sparringQuestions[activeIdx] ?? sparringQuestions[0];
 
@@ -304,9 +320,7 @@ export function FeedbackChat({
   const getQuestionKemberLevel = useCallback(
     (question: SparringQuestion) => {
       const item = result?.breakdown?.find(
-        (b) =>
-          b.criteriaId === question.related_rubric_id ||
-          b.name === question.related_rubric_id
+        (b) => b.criteriaId === question.related_rubric_id || b.name === question.related_rubric_id
       );
       if (!item) return null;
       return getKemberLevel(item.score, item.maxScore ?? 4);
@@ -321,9 +335,7 @@ export function FeedbackChat({
   );
 
   const criterionBreakdown = result?.breakdown?.find(
-    (b) =>
-      b.criteriaId === activeQuestion.related_rubric_id ||
-      b.name === activeQuestion.related_rubric_id
+    (b) => b.criteriaId === activeQuestion.related_rubric_id || b.name === activeQuestion.related_rubric_id
   );
 
   const kemberTemplate = getKemberRubricTemplate(uiLanguage);
@@ -413,36 +425,9 @@ export function FeedbackChat({
     });
   }, [activeIdx, completedQuestions, chatPhase, onSparringStateChange, hasStarted]);
 
-  // ── Direction 1: Switch question ───────────────────────────────────────
-  const handleSwitchQuestion = useCallback(
-    (idx: number) => {
-      if (idx === activeIdx) return;
-      // Save current question's messages before switching
-      setConversationsMap((prev) => {
-        const previousMessages = prev[activeIdx] ?? initialConversationsMap?.[activeIdx] ?? [];
-        return {
-          ...prev,
-          [activeIdx]: mergeDraftMessagesPreservingContent(toDraftChatMessages(messages), previousMessages),
-        };
-      });
-      // Restore from conversationsMap first, then from persisted data
-      const saved = conversationsMap[idx] ?? initialConversationsMap?.[idx] ?? [];
-      setMessages(toFeedbackUIMessages(saved));
-      hasSentOpening.current = saved.length > 0;
-      setActiveIdx(idx);
-      setShowRevisionBox(false);
-      setRevisionDraft('');
-      setHasConvergenceSuggestion(false);
-      setSelectedConvergenceDecision(null);
-      setDecisionReasonDraft('');
-      setConvergenceError(null);
-    },
-    [activeIdx, messages, conversationsMap, initialConversationsMap, setMessages]
-  );
-
   useEffect(() => {
-    const savedDecision = messages.find((m) =>
-      m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep')
+    const savedDecision = messages.find(
+      (m) => m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep')
     );
 
     if (savedDecision?.metadata?.studentDecision) {
@@ -450,10 +435,11 @@ export function FeedbackChat({
       setHasConvergenceSuggestion(true);
     }
 
-    const savedReason = messages.find((m) =>
-      m.role === 'user' &&
-      typeof m.metadata?.studentDecisionReason === 'string' &&
-      m.metadata.studentDecisionReason.trim().length > 0
+    const savedReason = messages.find(
+      (m) =>
+        m.role === 'user' &&
+        typeof m.metadata?.studentDecisionReason === 'string' &&
+        m.metadata.studentDecisionReason.trim().length > 0
     );
 
     if (savedReason?.metadata?.studentDecisionReason) {
@@ -624,8 +610,12 @@ export function FeedbackChat({
     try {
       const triggerTexts = new Set([
         normalizeChatTypography(triggerText).trim(),
-        normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
-        normalizeChatTypography('Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.').trim(),
+        normalizeChatTypography(
+          '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。'
+        ).trim(),
+        normalizeChatTypography(
+          'Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.'
+        ).trim(),
       ]);
       const conversationMessages = messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
@@ -695,17 +685,19 @@ export function FeedbackChat({
         ? Math.max(0, new Date(nowIso).getTime() - new Date(convergenceAtIso).getTime())
         : null;
 
-      const content = uiLanguage === 'zh'
-        ? decision === 'adopt'
-          ? '決策：採納（已透過按鈕選擇）'
-          : '決策：保留（已透過按鈕選擇）'
-        : decision === 'adopt'
-          ? 'Decision: Adopt (selected via UI)'
-          : 'Decision: Keep (selected via UI)';
+      const content =
+        uiLanguage === 'zh'
+          ? decision === 'adopt'
+            ? '決策：採納（已透過按鈕選擇）'
+            : '決策：保留（已透過按鈕選擇）'
+          : decision === 'adopt'
+            ? 'Decision: Adopt (selected via UI)'
+            : 'Decision: Keep (selected via UI)';
 
       setMessages((prev) => {
         const filtered = prev.filter(
-          (m) => !(m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep'))
+          (m) =>
+            !(m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep'))
         );
 
         return [
@@ -734,7 +726,9 @@ export function FeedbackChat({
 
     setMessages((prev) =>
       prev.map((m) => {
-        if (!(m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep'))) {
+        if (
+          !(m.role === 'user' && (m.metadata?.studentDecision === 'adopt' || m.metadata?.studentDecision === 'keep'))
+        ) {
           return m;
         }
 
@@ -754,7 +748,7 @@ export function FeedbackChat({
   // ── Direction 3: Submit revision as a chat message ─────────────────────
   const handleSubmitRevision = useCallback(() => {
     if (!revisionDraft.trim() || isLoading) return;
-        const original = activeQuestion.target_quote;
+    const original = activeQuestion.target_quote;
     sendMessage({
       text: t('grading:chat.revision.submissionMessage', {
         original,
@@ -793,25 +787,26 @@ export function FeedbackChat({
     setChatPhase('summary');
   }, [decisionReasonDraft, handleSaveDecisionReason, selectedConvergenceDecision]);
 
-  const visibleMessages = useMemo(
-    () => {
-      const triggerTexts = new Set([
-        normalizeChatTypography(triggerText).trim(),
-        normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
-        normalizeChatTypography('Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.').trim(),
-      ]);
+  const visibleMessages = useMemo(() => {
+    const triggerTexts = new Set([
+      normalizeChatTypography(triggerText).trim(),
+      normalizeChatTypography(
+        '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。'
+      ).trim(),
+      normalizeChatTypography(
+        'Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.'
+      ).trim(),
+    ]);
 
-      return messages.filter((m) => {
-        if (m.id === TRIGGER_MSG_ID) return false;
-        if (m.metadata?.studentDecision) return false;
-        const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
-        if (!content) return false;
-        if (triggerTexts.has(content)) return false;
-        return true;
-      });
-    },
-    [messages, triggerText]
-  );
+    return messages.filter((m) => {
+      if (m.id === TRIGGER_MSG_ID) return false;
+      if (m.metadata?.studentDecision) return false;
+      const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
+      if (!content) return false;
+      if (triggerTexts.has(content)) return false;
+      return true;
+    });
+  }, [messages, triggerText]);
 
   // ── Shared: score collapsible ──────────────────────────────────────────
   const scoreCollapsible = result && (
@@ -836,7 +831,6 @@ export function FeedbackChat({
               >
                 {result.totalScore}/{result.maxScore}
               </span>
-              
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{isDetailsOpen ? t('grading:chat.hideDetail') : t('grading:chat.showDetails')}</span>
@@ -853,7 +847,9 @@ export function FeedbackChat({
                     <div className="flex items-center gap-2 min-w-0">
                       <BrainCircuit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <p className="text-sm font-medium text-foreground">
-                        {isThinkingOpen ? t('grading:thinkingProcess.hideProcess') : t('grading:thinkingProcess.viewProcess')}
+                        {isThinkingOpen
+                          ? t('grading:thinkingProcess.hideProcess')
+                          : t('grading:thinkingProcess.viewProcess')}
                       </p>
                     </div>
                     <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/thinking:rotate-180" />
@@ -883,45 +879,50 @@ export function FeedbackChat({
                   {t('grading:result.criteriaDetails')}
                 </p>
                 <div className="space-y-1">
-                  {result.breakdown.map((item: { criteriaId?: string; name?: string; maxScore?: number; score: number; feedback: string }, idx: number) => {
-                    const maxScore = item.maxScore ?? 0;
-                    const ratio = maxScore > 0 ? item.score / maxScore : 0;
-                    const color: 'green' | 'amber' | 'red' =
-                      ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
+                  {result.breakdown.map(
+                    (
+                      item: { criteriaId?: string; name?: string; maxScore?: number; score: number; feedback: string },
+                      idx: number
+                    ) => {
+                      const maxScore = item.maxScore ?? 0;
+                      const ratio = maxScore > 0 ? item.score / maxScore : 0;
+                      const color: 'green' | 'amber' | 'red' = ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
 
-                    return (
-                      <Collapsible key={item.criteriaId || idx} className="group/item">
-                        <CollapsibleTrigger asChild>
-                          <button className="w-full flex items-center gap-3 py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {idx + 1}. {item.name}
-                              </p>
+                      return (
+                        <Collapsible key={item.criteriaId || idx} className="group/item">
+                          <CollapsibleTrigger asChild>
+                            <button className="w-full flex items-center gap-3 py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {idx + 1}. {item.name}
+                                </p>
+                              </div>
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  'flex-shrink-0 tabular-nums',
+                                  color === 'green'
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                    : color === 'amber'
+                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                )}
+                              >
+                                {item.score}
+                                {item.maxScore != null ? `/${item.maxScore}` : ''}
+                              </Badge>
+                              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/item:rotate-180" />
+                            </button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+                              <Markdown>{item.feedback}</Markdown>
                             </div>
-                            <Badge
-                              variant="secondary"
-                              className={cn(
-                                'flex-shrink-0 tabular-nums',
-                                color === 'green'
-                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                  : color === 'amber'
-                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                              )}
-                            >
-                              {item.score}{item.maxScore != null ? `/${item.maxScore}` : ''}
-                            </Badge>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/item:rotate-180" />
-                          </button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
-                            <Markdown>{item.feedback}</Markdown>
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    );
-                  })}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    }
+                  )}
                 </div>
               </div>
             )}
@@ -945,16 +946,17 @@ export function FeedbackChat({
               <Trophy className="h-5 w-5 text-primary" />
             </div>
             <div>
-               <h2 className="text-base font-semibold text-foreground">{t('grading:chat.summary.title')}</h2>
-               <p className="text-xs text-muted-foreground">{t('grading:chat.summary.subtitle')}</p>
+              <h2 className="text-base font-semibold text-foreground">{t('grading:chat.summary.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('grading:chat.summary.subtitle')}</p>
             </div>
           </div>
 
           {sparringQuestions.map((q, idx) => {
             const kLevel = getQuestionKemberLevel(q);
-              const breakdownItem = result?.breakdown?.find((b) => b.criteriaId === q.related_rubric_id || b.name === q.related_rubric_id);
-            const isDiscussed =
-              completedQuestions.has(idx) || (idx === activeIdx && userRoundCount > 0);
+            const breakdownItem = result?.breakdown?.find(
+              (b) => b.criteriaId === q.related_rubric_id || b.name === q.related_rubric_id
+            );
+            const isDiscussed = completedQuestions.has(idx) || (idx === activeIdx && userRoundCount > 0);
 
             return (
               <div
@@ -971,7 +973,9 @@ export function FeedbackChat({
                     <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
                   )}
                   <span className="text-sm font-medium text-foreground flex-1 min-w-0 truncate">
-                    {breakdownItem?.name || q.related_rubric_id || t('grading:chat.summary.questionFallback', { index: idx + 1 })}
+                    {breakdownItem?.name ||
+                      q.related_rubric_id ||
+                      t('grading:chat.summary.questionFallback', { index: idx + 1 })}
                   </span>
                   {kLevel && (
                     <Badge className={cn('flex-shrink-0 text-xs', kLevel.colorClass)}>
@@ -991,8 +995,6 @@ export function FeedbackChat({
             );
           })}
 
-          
-
           {sparringQuestions.some((_, idx) => !completedQuestions.has(idx) && idx !== activeIdx) && (
             <button
               onClick={() => setChatPhase('chat')}
@@ -1002,7 +1004,6 @@ export function FeedbackChat({
             </button>
           )}
         </div>
-
       </div>
     );
   }
@@ -1024,18 +1025,15 @@ export function FeedbackChat({
             </div>
             <div className="space-y-2">
               <h2 className="text-base sm:text-lg font-semibold text-foreground">
-                 {t('grading:chat.startSparring.title')}
+                {t('grading:chat.startSparring.title')}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                 {t('grading:chat.startSparring.description')}
+                {t('grading:chat.startSparring.description')}
               </p>
             </div>
             <div className="pt-2">
-              <Button
-                onClick={() => setHasStarted(true)}
-                className="rounded-full px-6 sm:px-8"
-              >
-                 {t('grading:chat.startSparring.button')}
+              <Button onClick={() => setHasStarted(true)} className="rounded-full px-6 sm:px-8">
+                {t('grading:chat.startSparring.button')}
               </Button>
             </div>
           </div>
@@ -1050,12 +1048,12 @@ export function FeedbackChat({
   return (
     <div className="h-full flex flex-col">
       {scoreCollapsible}
-  
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0 w-full">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 min-h-full flex flex-col">
           <div className="space-y-6 py-6 flex-1">
-                {visibleMessages.map((m) => {
+            {visibleMessages.map((m) => {
               const parsedMessage = m as UiChatMessage;
               const messageText = normalizeChatTypography(extractChatMessageText(parsedMessage));
               const convergenceSections = parseConvergenceSections(messageText);
@@ -1065,10 +1063,7 @@ export function FeedbackChat({
               const reaction = m.metadata?.studentReaction;
 
               return (
-                <div
-                  key={messageId}
-                  className={`flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+                <div key={messageId} className={`flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {m.role === 'user' ? (
                     <div className="max-w-[88%] sm:max-w-[82%]">
                       <div className="text-sm whitespace-pre-wrap break-words px-4 py-3 rounded-2xl rounded-br-md bg-primary text-primary-foreground shadow-sm">
@@ -1130,7 +1125,8 @@ export function FeedbackChat({
                             size="icon"
                             className={cn(
                               'h-7 w-7 rounded-full text-muted-foreground hover:text-foreground',
-                              reaction === 'up' && 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400'
+                              reaction === 'up' &&
+                                'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400'
                             )}
                             onClick={() => handleAssistantReaction(messageId, 'up')}
                             aria-label={t('grading:chat.reactions.likeAria', 'Like this response')}
@@ -1143,7 +1139,8 @@ export function FeedbackChat({
                             size="icon"
                             className={cn(
                               'h-7 w-7 rounded-full text-muted-foreground hover:text-foreground',
-                              reaction === 'down' && 'bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400'
+                              reaction === 'down' &&
+                                'bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400'
                             )}
                             onClick={() => handleAssistantReaction(messageId, 'down')}
                             aria-label={t('grading:chat.reactions.dislikeAria', 'Dislike this response')}
@@ -1159,8 +1156,7 @@ export function FeedbackChat({
             })}
 
             {isLoading &&
-              (visibleMessages.length === 0 ||
-                visibleMessages[visibleMessages.length - 1]?.role === 'user') && (
+              (visibleMessages.length === 0 || visibleMessages[visibleMessages.length - 1]?.role === 'user') && (
                 <div className="flex w-full justify-start">
                   <div className="flex items-center gap-2 px-1 py-1">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -1173,7 +1169,9 @@ export function FeedbackChat({
             {isCurrentQuestionComplete && !isLoading && (
               <div className="flex w-full justify-center py-2">
                 <div className="w-full max-w-md rounded-2xl border border-[#D9E1E8] bg-[#F8FAFC] p-4 space-y-4 dark:border-[#334155] dark:bg-[#0F172A]/40">
-                  <p className="text-xs text-muted-foreground text-center">{t('grading:chat.currentQuestionCompleted')}</p>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {t('grading:chat.currentQuestionCompleted')}
+                  </p>
 
                   {!hasConvergenceSuggestion ? (
                     <div className="flex justify-center">
@@ -1207,7 +1205,9 @@ export function FeedbackChat({
                           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#D6F1E6] text-[#155E45] dark:bg-[#065F46]/50 dark:text-[#6EE7B7]">
                             <ThumbsUp className="h-5 w-5" />
                           </div>
-                          <p className="text-xs font-medium text-foreground">{uiLanguage === 'zh' ? '有幫助' : 'Helpful'}</p>
+                          <p className="text-xs font-medium text-foreground">
+                            {uiLanguage === 'zh' ? '有幫助' : 'Helpful'}
+                          </p>
                         </button>
 
                         <button
@@ -1223,7 +1223,9 @@ export function FeedbackChat({
                           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#FFE1D6] text-[#8C3218] dark:bg-[#7F1D1D]/45 dark:text-[#FDA4AF]">
                             <ThumbsDown className="h-5 w-5" />
                           </div>
-                          <p className="text-xs font-medium text-foreground">{uiLanguage === 'zh' ? '沒幫助' : 'Not helpful'}</p>
+                          <p className="text-xs font-medium text-foreground">
+                            {uiLanguage === 'zh' ? '沒幫助' : 'Not helpful'}
+                          </p>
                         </button>
                       </div>
 
@@ -1237,7 +1239,11 @@ export function FeedbackChat({
                           <Textarea
                             value={decisionReasonDraft}
                             onChange={(e) => setDecisionReasonDraft(e.target.value)}
-                            placeholder={uiLanguage === 'zh' ? '例如：我先保留，因為還想再確認證據。' : 'For example: I keep my draft for now because I need to verify evidence.'}
+                            placeholder={
+                              uiLanguage === 'zh'
+                                ? '例如：我先保留，因為還想再確認證據。'
+                                : 'For example: I keep my draft for now because I need to verify evidence.'
+                            }
                             className="text-xs min-h-[72px] resize-none rounded-xl border-border bg-background"
                           />
                           <div className="flex justify-center">
@@ -1278,7 +1284,7 @@ export function FeedbackChat({
               onClick={() => setShowRevisionBox(false)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-               {t('common:cancel')}
+              {t('common:cancel')}
             </button>
           </div>
           <p className="text-xs text-muted-foreground italic">
@@ -1355,22 +1361,17 @@ export function FeedbackChat({
                   size="icon"
                   className="h-11 w-11 rounded-xl shrink-0"
                 >
-                  {isLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Send className="h-5 w-5" />
-                  )}
+                  {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
               </form>
 
               <div className="mt-2 flex items-center justify-between px-1">
                 <p className="text-xs text-muted-foreground">
                   {t('grading:chat.disclaimer')} ·{' '}
-                    {t('grading:chat.roundsRemaining', {
-                     remaining: maxRounds - userRoundCount,
-                   })}
+                  {t('grading:chat.roundsRemaining', {
+                    remaining: maxRounds - userRoundCount,
+                  })}
                 </p>
-                
               </div>
             </div>
           </div>

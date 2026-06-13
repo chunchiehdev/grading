@@ -8,7 +8,7 @@ import { publishSubmissionCreatedNotification } from './notification.server';
 import { deleteFromStorage } from './storage.server';
 import logger from '@/utils/logger';
 
-export interface CreateSubmissionData {
+interface CreateSubmissionData {
   assignmentAreaId: string;
   filePath: string;
 }
@@ -44,10 +44,7 @@ export interface SubmissionAiFeedbackCommentInfo extends CreateSubmissionAiFeedb
  * @param {CreateSubmissionData} submissionData - Submission creation data
  * @returns {Promise<SubmissionInfo>} Created submission information
  */
-export async function createSubmission(
-  studentId: string,
-  submissionData: CreateSubmissionData
-): Promise<SubmissionInfo> {
+async function createSubmission(studentId: string, submissionData: CreateSubmissionData): Promise<SubmissionInfo> {
   try {
     // Verify the assignment area exists
     const assignmentArea = await db.assignmentArea.findUnique({

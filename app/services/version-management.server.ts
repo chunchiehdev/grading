@@ -7,18 +7,6 @@ import logger from '@/utils/logger';
  * Handles version tracking, querying, and comparison for student submissions
  */
 
-export interface SubmissionVersion {
-  id: string;
-  version: number;
-  isLatest: boolean;
-  submittedAt: Date;
-  status: string;
-  finalScore?: number | null;
-  normalizedScore?: number | null;
-  filePath: string;
-  previousVersionId?: string | null;
-}
-
 export interface VersionComparison {
   versionA: {
     version: number;
@@ -104,10 +92,7 @@ export async function getLatestSubmissionVersion(
  * Get all submission versions for a student and assignment
  * @returns Array of submissions ordered by version (newest first)
  */
-export async function getSubmissionHistory(
-  assignmentAreaId: string,
-  studentId: string
-): Promise<SubmissionInfo[]> {
+export async function getSubmissionHistory(assignmentAreaId: string, studentId: string): Promise<SubmissionInfo[]> {
   try {
     const submissions = await db.submission.findMany({
       where: {
@@ -149,75 +134,6 @@ export async function getSubmissionHistory(
   } catch (error) {
     logger.error({ err: error }, '❌ Error fetching submission history:');
     return [];
-  }
-}
-
-/**
- * Get a specific version of a submission
- */
-export async function getSubmissionByVersion(
-  assignmentAreaId: string,
-  studentId: string,
-  version: number
-): Promise<SubmissionInfo | null> {
-  try {
-    const submission = await db.submission.findFirst({
-      where: {
-        assignmentAreaId,
-        studentId,
-        version,
-      },
-      include: {
-        assignmentArea: {
-          include: {
-            course: {
-              include: {
-                teacher: {
-                  select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-            rubric: true,
-          },
-        },
-        student: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            picture: true,
-          },
-        },
-      },
-    });
-
-    return submission;
-  } catch (error) {
-    logger.error({ err: error }, '❌ Error fetching submission by version:');
-    return null;
-  }
-}
-
-/**
- * Get version count for a student's assignment submission
- */
-export async function getVersionCount(assignmentAreaId: string, studentId: string): Promise<number> {
-  try {
-    const count = await db.submission.count({
-      where: {
-        assignmentAreaId,
-        studentId,
-      },
-    });
-
-    return count;
-  } catch (error) {
-    logger.error({ err: error }, '❌ Error counting submission versions:');
-    return 0;
   }
 }
 
@@ -372,8 +288,7 @@ export async function compareSubmissionVersions(
     const timeDiffMs = Math.abs(submissionB.uploadedAt.getTime() - submissionA.uploadedAt.getTime());
     const timeDiffHours = Math.floor(timeDiffMs / (1000 * 60 * 60));
     const timeDiffMinutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60));
-    const timeDiff =
-      timeDiffHours > 0 ? `${timeDiffHours}小時${timeDiffMinutes}分鐘` : `${timeDiffMinutes}分鐘`;
+    const timeDiff = timeDiffHours > 0 ? `${timeDiffHours}小時${timeDiffMinutes}分鐘` : `${timeDiffMinutes}分鐘`;
 
     // Basic differences
     const differences = {

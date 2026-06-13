@@ -16,11 +16,12 @@ const PDF_PARSER_RETRIES = Number(process.env.PDF_PARSER_RETRIES || 2);
 
 // Docker + node-fetch + HTTPS has IPv6/IPv6 resolution issues for localhost
 // Create agent only for localhost HTTPS URLs (not external APIs)
-const createHttpsAgent = () => new https.Agent({
-  rejectUnauthorized: true, // Keep SSL validation
-  timeout: PDF_PARSER_TIMEOUT_MS,
-  family: 4, // Force IPv4 to fix Docker networking
-});
+const createHttpsAgent = () =>
+  new https.Agent({
+    rejectUnauthorized: true, // Keep SSL validation
+    timeout: PDF_PARSER_TIMEOUT_MS,
+    family: 4, // Force IPv4 to fix Docker networking
+  });
 
 async function fetchWithTimeout(
   url: string,
@@ -171,7 +172,7 @@ export async function triggerPdfParsing(
   fileKey: string,
   fileName: string,
   userId: string,
-  fileBuffer?: Buffer  
+  fileBuffer?: Buffer
 ): Promise<void> {
   try {
     logger.info(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
@@ -180,7 +181,7 @@ export async function triggerPdfParsing(
       where: { id: fileId },
       data: { parseStatus: FileParseStatus.PROCESSING },
     });
-    
+
     let buffer: Buffer;
     if (fileBuffer) {
       buffer = fileBuffer;
@@ -210,8 +211,7 @@ export async function triggerPdfParsing(
     const hasReadableText = /[A-Za-z0-9\u3400-\u9FFF\uF900-\uFAFF]/.test(normalizedContent);
 
     if (!normalizedContent || !hasReadableText) {
-      const emptyContentError =
-        'No extractable text found in this PDF. It may be scanned/image-only or encrypted.';
+      const emptyContentError = 'No extractable text found in this PDF. It may be scanned/image-only or encrypted.';
 
       await db.uploadedFile.update({
         where: { id: fileId },
@@ -234,7 +234,7 @@ export async function triggerPdfParsing(
     if (!tokenCheck.allowed) {
       // Content too large - mark as failed
       logger.error(`❌ Content exceeds token limit: ${tokenCheck.tokens}/${tokenCheck.limit}`);
-      
+
       await db.uploadedFile.update({
         where: { id: fileId },
         data: {
@@ -243,11 +243,13 @@ export async function triggerPdfParsing(
           parsedContentTokens: tokenCheck.tokens,
         },
       });
-      
+
       throw new Error(tokenCheck.message || 'Content exceeds token limit');
     }
 
-    logger.info(`📊 Token check passed: ${tokenCheck.tokens.toLocaleString()} tokens (${((tokenCheck.tokens / tokenCheck.limit) * 100).toFixed(1)}% of limit)`);
+    logger.info(
+      `📊 Token check passed: ${tokenCheck.tokens.toLocaleString()} tokens (${((tokenCheck.tokens / tokenCheck.limit) * 100).toFixed(1)}% of limit)`
+    );
 
     await db.uploadedFile.update({
       where: { id: fileId },
@@ -271,13 +273,4 @@ export async function triggerPdfParsing(
     // Propagate to caller so API can return failure
     throw error instanceof Error ? error : new Error('Unknown error');
   }
-}
-
-export async function getUserUploadedFiles(userId: string, uploadId?: string) {
-  const where = uploadId ? { userId, uploadId } : { userId };
-
-  return db.uploadedFile.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-  });
 }

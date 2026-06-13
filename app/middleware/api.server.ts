@@ -1,13 +1,6 @@
-import { getUser, requireAuthForApi } from '@/services/auth.server';
+import { requireAuthForApi } from '@/services/auth.server';
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  errors?: Record<string, string>;
-}
-
-export class ApiError extends Error {
+class ApiError extends Error {
   constructor(
     public message: string,
     public statusCode: number = 400,
@@ -45,38 +38,11 @@ export async function withErrorHandler(handler: () => Promise<Response>): Promis
   }
 }
 
-export async function requireAuth(request: Request): Promise<Response | null> {
-  const user = await getUser(request);
-
-  if (!user) {
-    return Response.json(
-      {
-        success: false,
-        error: 'Unauthorized',
-      },
-      { status: 401 }
-    );
-  }
-
-  return null;
-}
-
 export function createApiResponse<T>(data: T, status: number = 200): Response {
   return Response.json(
     {
       success: true,
       data,
-    },
-    { status }
-  );
-}
-
-export function createErrorResponse(message: string, status: number = 400, errors?: Record<string, string>): Response {
-  return Response.json(
-    {
-      success: false,
-      error: message,
-      errors,
     },
     { status }
   );
@@ -102,66 +68,6 @@ export function withAuth<T extends Response>(handler: AuthenticatedFunction<T>):
             error: 'Unauthorized',
           },
           { status: 401 }
-        );
-      }
-      return handler({ ...args, user });
-    });
-  };
-}
-
-/**
- * Higher-order function to require teacher role
- */
-export function withTeacher<T extends Response>(handler: AuthenticatedFunction<T>): LoaderFunction | ActionFunction {
-  return async (args) => {
-    return withErrorHandler(async () => {
-      const user = await requireAuthForApi(args.request);
-      if (!user) {
-        return Response.json(
-          {
-            success: false,
-            error: 'Unauthorized',
-          },
-          { status: 401 }
-        );
-      }
-      if (user.role !== 'TEACHER') {
-        return Response.json(
-          {
-            success: false,
-            error: 'Forbidden - Teacher role required',
-          },
-          { status: 403 }
-        );
-      }
-      return handler({ ...args, user });
-    });
-  };
-}
-
-/**
- * Higher-order function to require student role
- */
-export function withStudent<T extends Response>(handler: AuthenticatedFunction<T>): LoaderFunction | ActionFunction {
-  return async (args) => {
-    return withErrorHandler(async () => {
-      const user = await requireAuthForApi(args.request);
-      if (!user) {
-        return Response.json(
-          {
-            success: false,
-            error: 'Unauthorized',
-          },
-          { status: 401 }
-        );
-      }
-      if (user.role !== 'STUDENT') {
-        return Response.json(
-          {
-            success: false,
-            error: 'Forbidden - Student role required',
-          },
-          { status: 403 }
         );
       }
       return handler({ ...args, user });

@@ -240,6 +240,3 @@ export class RedisProgressService {
     }
   }
 }
-
-// Export singleton instance for convenience
-export const redisProgressService = RedisProgressService;

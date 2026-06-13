@@ -1,7 +1,12 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import logger from '@/utils/logger';
 import { GradingResultData } from '@/types/grading';
-import { GeminiGradingRequest, GeminiGradingResponse, type GeminiResponse, type GeminiContentPart } from '@/types/gemini';
+import {
+  GeminiGradingRequest,
+  GeminiGradingResponse,
+  type GeminiResponse,
+  type GeminiContentPart,
+} from '@/types/gemini';
 import type { DbCriterion } from '@/schemas/rubric-data';
 import { GeminiPrompts } from './gemini-prompts.server';
 import { formatThoughtSummary } from './thought-formatter.server';
@@ -84,18 +89,25 @@ class SimpleGeminiService {
           items: {
             type: Type.OBJECT,
             properties: {
-              related_rubric_id: { type: Type.STRING, description: '對應的評分維度 ID，必須與 breakdown 中的 criteriaId 一致' },
+              related_rubric_id: {
+                type: Type.STRING,
+                description: '對應的評分維度 ID，必須與 breakdown 中的 criteriaId 一致',
+              },
               target_quote: { type: Type.STRING, description: '學生文章中的具體引文，作為發問的依據' },
-              provocation_strategy: { 
-                type: Type.STRING, 
+              provocation_strategy: {
+                type: Type.STRING,
                 enum: ['evidence_check', 'logic_gap', 'counter_argument', 'clarification', 'extension'],
-                description: '挑釁策略類型：查證(evidence_check)、邏輯跳躍(logic_gap)、反方觀點(counter_argument)、釐清(clarification)、延伸(extension)'
+                description:
+                  '挑釁策略類型：查證(evidence_check)、邏輯跳躍(logic_gap)、反方觀點(counter_argument)、釐清(clarification)、延伸(extension)',
               },
               question: { type: Type.STRING, description: '直接對學生提出的挑戰性問題，不包含答案' },
-              ai_hidden_reasoning: { type: Type.STRING, description: '問題背後的邏輯與 AI 的真實評分依據 (這部分會被暫時隱藏)' }
+              ai_hidden_reasoning: {
+                type: Type.STRING,
+                description: '問題背後的邏輯與 AI 的真實評分依據 (這部分會被暫時隱藏)',
+              },
             },
-            required: ['related_rubric_id', 'target_quote', 'provocation_strategy', 'question', 'ai_hidden_reasoning']
-          }
+            required: ['related_rubric_id', 'target_quote', 'provocation_strategy', 'question', 'ai_hidden_reasoning'],
+          },
         },
       },
       required: ['totalScore', 'maxScore', 'breakdown', 'overallFeedback', 'sparringQuestions'],
@@ -169,7 +181,9 @@ class SimpleGeminiService {
 
         if (formatResult.success && formatResult.formattedThought) {
           thoughtSummary = formatResult.formattedThought;
-          logger.info(`✨ Thought summary formatted successfully (${thoughtSummary.length} chars) using ${formatResult.provider}`);
+          logger.info(
+            `✨ Thought summary formatted successfully (${thoughtSummary.length} chars) using ${formatResult.provider}`
+          );
         } else {
           // If formatting fails, use raw thought as fallback
           thoughtSummary = rawThought;
@@ -210,7 +224,7 @@ class SimpleGeminiService {
 
       return {
         success: false,
-        result: fallbackResult,  //   Include fallback result
+        result: fallbackResult, //   Include fallback result
         error: errorMessage,
         metadata: {
           model: this.model,
@@ -358,5 +372,3 @@ export function getSimpleGeminiService(): SimpleGeminiService {
   }
   return geminiService;
 }
-
-export default SimpleGeminiService;

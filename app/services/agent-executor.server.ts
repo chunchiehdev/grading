@@ -13,7 +13,7 @@
  * https://www.anthropic.com/engineering/building-effective-agents
  */
 
-import { ToolLoopAgent, generateObject, streamText, type StepResult, type ToolSet } from 'ai';
+import { ToolLoopAgent, generateObject } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
 import { redis } from '@/lib/redis';
@@ -194,10 +194,13 @@ Input: ${JSON.stringify(rawCriteria, null, 2)}
       },
     });
 
-    logger.info({
-      originalCount: rawCriteria.length,
-      optimizedCount: optimizedCriteria.length,
-    }, '[Agent] Rubric optimized');
+    logger.info(
+      {
+        originalCount: rawCriteria.length,
+        optimizedCount: optimizedCriteria.length,
+      },
+      '[Agent] Rubric optimized'
+    );
 
     return optimizedCriteria;
   } catch (error) {
@@ -525,8 +528,7 @@ function buildFallbackResultFromSteps(
       justification: 'Process interrupted before generate_feedback',
     })),
     reasoning:
-      'The agent failed to complete the grading process.' +
-      (interruption?.code ? ` Reason: ${interruption.code}` : ''),
+      'The agent failed to complete the grading process.' + (interruption?.code ? ` Reason: ${interruption.code}` : ''),
     interruption: {
       code: interruption?.code || 'NO_FINAL_RESULT_CAPTURED',
       reason: interruption?.reason || 'No final result was captured before fallback.',
@@ -588,15 +590,22 @@ const DirectGradingSchema = z.object({
   strengths: z.array(z.string()).optional().describe('List of strengths'),
   improvements: z.array(z.string()).optional().describe('List of improvement suggestions'),
   // Sparring Questions for Productive Friction - REQUIRED!
-  sparringQuestions: z.array(
-    z.object({
-      related_rubric_id: z.string().describe('Related rubric criterion ID'),
-      target_quote: z.string().describe('Specific quote from the student submission'),
-      provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual']).describe('Reflection strategy: L2 (warrant_probe, evidence_check) or L3+ (logic_gap, counter_argument, metacognitive, conceptual)'),
-      question: z.string().describe('Reflection-promoting question for the student'),
-      ai_hidden_reasoning: z.string().describe('Internal reasoning for question design'),
-    })
-  ).min(1).describe('[Required] Reflection sparring questions for the student (minimum 3, with L3+ depth)'),
+  sparringQuestions: z
+    .array(
+      z.object({
+        related_rubric_id: z.string().describe('Related rubric criterion ID'),
+        target_quote: z.string().describe('Specific quote from the student submission'),
+        provocation_strategy: z
+          .enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual'])
+          .describe(
+            'Reflection strategy: L2 (warrant_probe, evidence_check) or L3+ (logic_gap, counter_argument, metacognitive, conceptual)'
+          ),
+        question: z.string().describe('Reflection-promoting question for the student'),
+        ai_hidden_reasoning: z.string().describe('Internal reasoning for question design'),
+      })
+    )
+    .min(1)
+    .describe('[Required] Reflection sparring questions for the student (minimum 3, with L3+ depth)'),
 });
 
 // ============================================================================
@@ -628,11 +637,14 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
   const localeText = getGradingLocaleText(params.userLanguage);
 
   try {
-    logger.info({
-      resultId: params.resultId,
-      rubricName: params.rubricName,
-      hasAssignmentTitle: !!params.assignmentTitle,
-    }, '[Agent] Starting autonomous grading (ToolLoopAgent)');
+    logger.info(
+      {
+        resultId: params.resultId,
+        rubricName: params.rubricName,
+        hasAssignmentTitle: !!params.assignmentTitle,
+      },
+      '[Agent] Starting autonomous grading (ToolLoopAgent)'
+    );
 
     // 1. Setup Model (Google Generative AI)
     let model: any;
@@ -658,12 +670,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     // 2. Optimize Rubric
     let effectiveCriteria = params.criteria;
     try {
-      effectiveCriteria = await optimizeRubricWithLLM(
-        model,
-        params.rubricName,
-        params.criteria,
-        params.userLanguage
-      );
+      effectiveCriteria = await optimizeRubricWithLLM(model, params.rubricName, params.criteria, params.userLanguage);
     } catch (e) {
       logger.warn({ err: e }, '[Agent] Rubric optimization failed, using original');
     }
@@ -683,10 +690,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     // CHECK FOR DIRECT GRADING MODE
     if (params.useDirectGrading) {
-       logger.info('[Agent] Executing Direct Grading Mode (Manual Branch)');
-       const systemPrompt = buildGradingSystemPrompt(ctx, true);
-       const userMessage = isZh
-         ? `請評分以下學生作業：
+      logger.info('[Agent] Executing Direct Grading Mode (Manual Branch)');
+      const systemPrompt = buildGradingSystemPrompt(ctx, true);
+      const userMessage = isZh
+        ? `請評分以下學生作業：
 
      ${params.assignmentTitle ? `【作業標題】${params.assignmentTitle}` : ''}
      ${params.assignmentDescription ? `【作業說明】${params.assignmentDescription}` : ''}
@@ -694,7 +701,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
      ${params.content}
 
      請直接輸出評分結果 JSON。`
-         : `Please grade the following student submission:
+        : `Please grade the following student submission:
 
      ${params.assignmentTitle ? `[Assignment Title] ${params.assignmentTitle}` : ''}
      ${params.assignmentDescription ? `[Assignment Description] ${params.assignmentDescription}` : ''}
@@ -702,109 +709,113 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
      ${params.content}
 
      Please output the grading result in JSON directly.`;
- 
-       try {
-         const { object: result, usage, providerMetadata } = await generateObject({
-           model,
-           schema: DirectGradingSchema,
-           messages: [
-             { role: 'system', content: systemPrompt },
-             { role: 'user', content: userMessage },
-           ],
-           providerOptions: {
-             google: {
-               thinkingConfig: {
-                 includeThoughts: true,
-                 thinkingLevel: 'high',
-               },
-               safetySettings: [
-                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                 { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-               ],
-             },
-           },
-         });
- 
-         // Capture Gemini Native Thinking
-         let directThinking = '';
-         const googleMetadata = providerMetadata?.google as any;
-         if (googleMetadata?.thoughts) {
-           directThinking = googleMetadata.thoughts as string;
-           logger.info({ length: directThinking.length }, '[Agent] Captured Direct Mode Thinking');
-         }
- 
-         // Stream thinking to Redis (Bridge format)
-         if (params.sessionId && directThinking) {
-           await redis.publish(
-             `session:${params.sessionId}`,
-             JSON.stringify({
-               type: 'text-delta',
-               content: directThinking,
-             })
-           );
-         }
- 
-         // Construct a "fake" step for the direct execution to fit the AgentGradingResult structure
-         const steps: AgentStep[] = [
-           {
-             stepNumber: 1,
-             toolName: 'direct_grading',
-             reasoning: directThinking || result.reasoning, // Prefer native thinking if available
-             toolOutput: result,
-             durationMs: Date.now() - startTime,
-             timestamp: new Date(),
-           },
-         ];
- 
-         // Map to AIGradingResult format to satisfy type requirements
-         const mappedData = {
-           breakdown: result.criteriaScores.map((s: any) => ({
-             criteriaId: s.criteriaId,
-             name: s.name,
-             score: s.score,
-             feedback: s.analysis || s.justification || '',
-           })),
-           overallFeedback: result.messageToStudent || result.overallObservation,
-           summary: result.overallObservation,
-           // Include sparring questions for Productive Friction
-           sparringQuestions: result.sparringQuestions || [],
-         };
- 
-         // Stream finish to Redis (Bridge format) with telemetry for thesis research
-         if (params.sessionId) {
-           const directExecutionTimeMs = Date.now() - startTime;
-           await redis.publish(
-             `session:${params.sessionId}`,
-             JSON.stringify({
-               type: 'finish',
-               result: mappedData,
-               // Telemetry for thesis data analysis
-               meta: {
-                 executionTimeMs: directExecutionTimeMs,
-                 totalTokens: usage?.totalTokens || 0,
-                  modelName: 'gemini-3.1-flash-lite',
-                 sparringQuestionsCount: mappedData.sparringQuestions?.length || 0,
-                 mode: 'direct',
-               }
-             })
-           );
-         }
- 
-         return {
-           success: true,
-           data: mappedData,
-           steps,
-           confidenceScore: 1.0, // Direct mode assumes high confidence or N/A
-           requiresReview: false,
-           totalTokens: usage?.totalTokens || 0,
-           executionTimeMs: Date.now() - startTime,
-         };
-       } catch (error) {
-         logger.error({ err: error }, '[Agent] Direct grading failed');
-         throw error;
-       }
+
+      try {
+        const {
+          object: result,
+          usage,
+          providerMetadata,
+        } = await generateObject({
+          model,
+          schema: DirectGradingSchema,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+          providerOptions: {
+            google: {
+              thinkingConfig: {
+                includeThoughts: true,
+                thinkingLevel: 'high',
+              },
+              safetySettings: [
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+              ],
+            },
+          },
+        });
+
+        // Capture Gemini Native Thinking
+        let directThinking = '';
+        const googleMetadata = providerMetadata?.google as any;
+        if (googleMetadata?.thoughts) {
+          directThinking = googleMetadata.thoughts as string;
+          logger.info({ length: directThinking.length }, '[Agent] Captured Direct Mode Thinking');
+        }
+
+        // Stream thinking to Redis (Bridge format)
+        if (params.sessionId && directThinking) {
+          await redis.publish(
+            `session:${params.sessionId}`,
+            JSON.stringify({
+              type: 'text-delta',
+              content: directThinking,
+            })
+          );
+        }
+
+        // Construct a "fake" step for the direct execution to fit the AgentGradingResult structure
+        const steps: AgentStep[] = [
+          {
+            stepNumber: 1,
+            toolName: 'direct_grading',
+            reasoning: directThinking || result.reasoning, // Prefer native thinking if available
+            toolOutput: result,
+            durationMs: Date.now() - startTime,
+            timestamp: new Date(),
+          },
+        ];
+
+        // Map to AIGradingResult format to satisfy type requirements
+        const mappedData = {
+          breakdown: result.criteriaScores.map((s: any) => ({
+            criteriaId: s.criteriaId,
+            name: s.name,
+            score: s.score,
+            feedback: s.analysis || s.justification || '',
+          })),
+          overallFeedback: result.messageToStudent || result.overallObservation,
+          summary: result.overallObservation,
+          // Include sparring questions for Productive Friction
+          sparringQuestions: result.sparringQuestions || [],
+        };
+
+        // Stream finish to Redis (Bridge format) with telemetry for thesis research
+        if (params.sessionId) {
+          const directExecutionTimeMs = Date.now() - startTime;
+          await redis.publish(
+            `session:${params.sessionId}`,
+            JSON.stringify({
+              type: 'finish',
+              result: mappedData,
+              // Telemetry for thesis data analysis
+              meta: {
+                executionTimeMs: directExecutionTimeMs,
+                totalTokens: usage?.totalTokens || 0,
+                modelName: 'gemini-3.1-flash-lite',
+                sparringQuestionsCount: mappedData.sparringQuestions?.length || 0,
+                mode: 'direct',
+              },
+            })
+          );
+        }
+
+        return {
+          success: true,
+          data: mappedData,
+          steps,
+          confidenceScore: 1.0, // Direct mode assumes high confidence or N/A
+          requiresReview: false,
+          totalTokens: usage?.totalTokens || 0,
+          executionTimeMs: Date.now() - startTime,
+        };
+      } catch (error) {
+        logger.error({ err: error }, '[Agent] Direct grading failed');
+        throw error;
+      }
     }
 
     // 4. Create Tools
@@ -817,7 +828,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     });
 
     // 5. Execute Agent (ToolLoopAgent)
-    
+
     const userMessage = isZh
       ? `請評分以下學生作業：
 
@@ -836,10 +847,13 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     ${params.content}
     `;
 
-    logger.info({
-      contentLength: params.content.length,
-      hasTitle: !!params.assignmentTitle,
-    }, '[Agent] Executing ToolLoopAgent');
+    logger.info(
+      {
+        contentLength: params.content.length,
+        hasTitle: !!params.assignmentTitle,
+      },
+      '[Agent] Executing ToolLoopAgent'
+    );
 
     const MAX_AGENT_STEPS = 5;
     const MAX_GENERATE_FEEDBACK_ATTEMPTS = 2;
@@ -866,7 +880,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     let stepCounter = 0;
     let confidenceCalled = false;
     let feedbackCalled = false;
-    let thinkCalled = false;  // NEW: Track if think was called
+    let thinkCalled = false; // NEW: Track if think was called
 
     const agent = new ToolLoopAgent({
       model,
@@ -874,7 +888,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       tools,
       prepareStep: async ({ steps: agentSteps }) => {
         stepCounter++;
-        
+
         // Use the agent's internal steps array to check tool completion status
         // This is synchronous - the data is available immediately unlike our async stream handler
         const completedToolNames = new Set<string>();
@@ -894,32 +908,35 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             }
           }
         }
-        
+
         const hasThinkAloudCompleted = completedToolNames.has('think_aloud');
         const hasThinkAloudCalled = calledToolNames.has('think_aloud');
         const hasConfidence = completedToolNames.has('calculate_confidence');
         const hasFeedback = completedToolNames.has('generate_feedback');
         const generateFeedbackCalls = countToolCalls(agentSteps, 'generate_feedback');
         const thinkAloudCalls = countToolCalls(agentSteps, 'think_aloud');
-        
-        logger.info({ 
-          agentStepsCount: agentSteps?.length || 0,
-          hasThinkAloudCompleted,
-          hasThinkAloudCalled,
-          hasConfidence, 
-          hasFeedback,
-          generateFeedbackCalls,
-          thinkAloudCalls,
-          calledTools: Array.from(calledToolNames),
-          completedTools: Array.from(completedToolNames)
-        }, `[Agent] prepareStep ${stepCounter}`);
-        
+
+        logger.info(
+          {
+            agentStepsCount: agentSteps?.length || 0,
+            hasThinkAloudCompleted,
+            hasThinkAloudCalled,
+            hasConfidence,
+            hasFeedback,
+            generateFeedbackCalls,
+            thinkAloudCalls,
+            calledTools: Array.from(calledToolNames),
+            completedTools: Array.from(completedToolNames),
+          },
+          `[Agent] prepareStep ${stepCounter}`
+        );
+
         // STEP 0: If feedback already generated, we're done - no more steps needed
         if (hasFeedback) {
           logger.info('[Agent] generate_feedback completed, signaling stop via toolChoice: none');
           return { toolChoice: 'none' as const };
         }
-        
+
         // Force think_aloud tool on first step
         if (!hasThinkAloudCompleted) {
           if (thinkAloudCalls >= MAX_THINK_ALOUD_ATTEMPTS) {
@@ -933,18 +950,18 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
           logger.info('[Agent] Forcing think_aloud tool on first step');
           return {
-            toolChoice: { type: 'tool' as const, toolName: 'think_aloud' }
+            toolChoice: { type: 'tool' as const, toolName: 'think_aloud' },
           };
         }
-        
+
         // STEP 2: After thinking, force confidence calculation
         if (hasThinkAloudCompleted && !hasConfidence) {
           logger.info('[Agent] Forcing calculate_confidence after thinking');
           return {
-            toolChoice: { type: 'tool' as const, toolName: 'calculate_confidence' }
+            toolChoice: { type: 'tool' as const, toolName: 'calculate_confidence' },
           };
         }
-        
+
         // STEP 3: After confidence, force generate_feedback
         if (hasConfidence && !hasFeedback) {
           if (generateFeedbackCalls >= MAX_GENERATE_FEEDBACK_ATTEMPTS) {
@@ -958,25 +975,25 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
           logger.info('[Agent] Forcing generate_feedback after calculate_confidence');
           return {
-            toolChoice: { type: 'tool', toolName: 'generate_feedback' }
+            toolChoice: { type: 'tool', toolName: 'generate_feedback' },
           };
         }
-        
+
         // Default: stop instead of allowing unconstrained exploration
         return { toolChoice: 'none' as const };
       },
       stopWhen: ({ steps: agentSteps }) => {
-        const observedTotalCalls = Object.values(observedToolCallCounts).reduce(
-          (sum, count) => sum + count,
-          0
-        );
+        const observedTotalCalls = Object.values(observedToolCallCounts).reduce((sum, count) => sum + count, 0);
 
         if (observedToolCallCounts.think_aloud && observedToolCallCounts.think_aloud > HARD_MAX_THINK_ALOUD_CALLS) {
           setInterruptionReason(
             'THINK_ALOUD_MAX_ATTEMPTS_REACHED',
             `Hard cap reached: think_aloud > ${HARD_MAX_THINK_ALOUD_CALLS}`
           );
-          logger.warn({ observedThinkAloudCalls: observedToolCallCounts.think_aloud }, '[Agent] Hard cap stop: think_aloud overflow');
+          logger.warn(
+            { observedThinkAloudCalls: observedToolCallCounts.think_aloud },
+            '[Agent] Hard cap stop: think_aloud overflow'
+          );
           return true;
         }
 
@@ -998,7 +1015,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           logger.warn('[Agent] Max steps reached, stopping');
           return true;
         }
-        
+
         // Check if generate_feedback has completed (has toolResults, not just toolCalls)
         if (agentSteps && agentSteps.length > 0) {
           const generateFeedbackCalls = countToolCalls(agentSteps, 'generate_feedback');
@@ -1033,11 +1050,14 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               'GENERATE_FEEDBACK_NO_VALID_RESULT',
               `generate_feedback called ${generateFeedbackCalls} times without valid tool result`
             );
-            logger.warn({ generateFeedbackCalls }, '[Agent] Stopping after repeated generate_feedback attempts without valid result');
+            logger.warn(
+              { generateFeedbackCalls },
+              '[Agent] Stopping after repeated generate_feedback attempts without valid result'
+            );
             return true;
           }
         }
-        
+
         return false;
       },
     });
@@ -1049,7 +1069,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     let finalResult: any = null;
     let confidenceData: any = null;
     let currentThinking = '';
-    
+
     // Token tracking
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
@@ -1061,30 +1081,33 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       if ('usage' in part && part.usage) {
         const usage = part.usage as any;
         const stepTokens = usage.totalTokens || 0;
-        
+
         totalPromptTokens += usage.promptTokens || 0;
         totalCompletionTokens += usage.completionTokens || 0;
         totalTokens += stepTokens;
-        
+
         // Determine which step this belongs to (from most recent tool call)
         const currentStep = steps.length > 0 ? steps[steps.length - 1] : null;
         const toolName = currentStep?.toolName || 'unknown';
-        
-        logger.info({
-          stepNumber: steps.length,
-          toolName,
-          promptTokens: usage.promptTokens,
-          completionTokens: usage.completionTokens,
-          stepTotal: stepTokens,
-          cumulativeTotal: totalTokens,
-        }, `[Agent] 📊 Step ${steps.length} Token Usage (${toolName})`);
+
+        logger.info(
+          {
+            stepNumber: steps.length,
+            toolName,
+            promptTokens: usage.promptTokens,
+            completionTokens: usage.completionTokens,
+            stepTotal: stepTokens,
+            cumulativeTotal: totalTokens,
+          },
+          `[Agent] 📊 Step ${steps.length} Token Usage (${toolName})`
+        );
       }
-    
+
       // 1. Handle Text (Thinking)
       if (part.type === 'text-delta') {
         const text = part.text;
         currentThinking += text;
-        
+
         // Stream to Redis (Bridge format)
         if (params.sessionId) {
           await redis.publish(
@@ -1101,17 +1124,17 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       if (part.type === 'tool-call') {
         observedToolCallCounts[part.toolName] = (observedToolCallCounts[part.toolName] || 0) + 1;
 
-        const observedTotalCalls = Object.values(observedToolCallCounts).reduce(
-          (sum, count) => sum + count,
-          0
-        );
+        const observedTotalCalls = Object.values(observedToolCallCounts).reduce((sum, count) => sum + count, 0);
 
         if (part.toolName === 'think_aloud' && observedToolCallCounts.think_aloud > HARD_MAX_THINK_ALOUD_CALLS) {
           setInterruptionReason(
             'THINK_ALOUD_MAX_ATTEMPTS_REACHED',
             `Hard cap reached during stream: think_aloud > ${HARD_MAX_THINK_ALOUD_CALLS}`
           );
-          logger.warn({ observedThinkAloudCalls: observedToolCallCounts.think_aloud }, '[Agent] Breaking stream due to think_aloud hard cap');
+          logger.warn(
+            { observedThinkAloudCalls: observedToolCallCounts.think_aloud },
+            '[Agent] Breaking stream due to think_aloud hard cap'
+          );
           hardCapInterrupted = true;
           break;
         }
@@ -1129,23 +1152,27 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         // 🔍 Debug: Log generate_feedback tool call args
         if (part.toolName === 'generate_feedback') {
           const args = part.input as any;
-          logger.info(`🔍 [Agent] generate_feedback ARGS - has sparringQuestions: ${!!args?.sparringQuestions}, count: ${args?.sparringQuestions?.length || 0}`);
+          logger.info(
+            `🔍 [Agent] generate_feedback ARGS - has sparringQuestions: ${!!args?.sparringQuestions}, count: ${args?.sparringQuestions?.length || 0}`
+          );
           if (args?.sparringQuestions && args.sparringQuestions.length > 0) {
-            logger.info(`🔍 [Agent] sparringQuestions[0] in args: ${JSON.stringify(args.sparringQuestions[0]).substring(0, 300)}`);
+            logger.info(
+              `🔍 [Agent] sparringQuestions[0] in args: ${JSON.stringify(args.sparringQuestions[0]).substring(0, 300)}`
+            );
           }
-          
+
           // =========================================================
-          // ✅ [FIX] Early Capture: Save args as fallback in case 
+          // ✅ [FIX] Early Capture: Save args as fallback in case
           // tool-result is never received (defense-in-depth)
           // =========================================================
           if (args && args.criteriaScores && args.sparringQuestions?.length > 0) {
             logger.info('[Agent] 🟢 Early Capture: Saving generate_feedback args as fallback');
-            
+
             // Compute the same fields that the tool's execute function computes
             const totalScore = args.criteriaScores.reduce((sum: number, c: any) => sum + c.score, 0);
             const maxScore = args.criteriaScores.reduce((sum: number, c: any) => sum + c.maxScore, 0);
             const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
-            
+
             // Transform criteriaScores to breakdown format
             const breakdown = args.criteriaScores.map((c: any) => ({
               criteriaId: c.criteriaId,
@@ -1153,10 +1180,15 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               score: c.score,
               feedback: c.analysis || c.justification || c.evidence || localeText.noSpecificFeedback,
             }));
-            
+
             // Build overallFeedback from multiple sources (must match agent-tools execute logic)
             // Schema 必填是 overallFeedback，LLM 常只填它而沒填 messageToStudent/overallObservation
-            let overallFeedback = (args.overallFeedback || args.messageToStudent || args.overallObservation || '').trim();
+            let overallFeedback = (
+              args.overallFeedback ||
+              args.messageToStudent ||
+              args.overallObservation ||
+              ''
+            ).trim();
             if (args.topPriority) {
               overallFeedback += `\n\n**${localeText.priorityLabel}:**\n${args.topPriority}`;
             }
@@ -1174,7 +1206,8 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               else if (percentage >= 50) overallFeedback += `\n\n${localeText.encouragementFair}`;
               else overallFeedback += `\n\n${localeText.encouragementNeedsWork}`;
             }
-            const finalOverallFeedback = overallFeedback.trim() ||
+            const finalOverallFeedback =
+              overallFeedback.trim() ||
               (percentage >= 70 ? localeText.defaultOverallGood : localeText.defaultOverallNeedsWork);
 
             // Only set as fallback if we don't already have a result
@@ -1193,16 +1226,19 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
                 _source: 'early_capture',
               };
               feedbackCalled = true;
-              
-              logger.info({
-                totalScore,
-                maxScore,
-                sparringQuestionsCount: args.sparringQuestions?.length || 0,
-              }, '[Agent] 🟢 Early Capture complete');
+
+              logger.info(
+                {
+                  totalScore,
+                  maxScore,
+                  sparringQuestionsCount: args.sparringQuestions?.length || 0,
+                },
+                '[Agent] 🟢 Early Capture complete'
+              );
             }
           }
         }
-        
+
         // Stream tool call metadata only (no reasoning extraction)
         // Reasoning should come from native text-delta, not from tool args
         if (params.sessionId) {
@@ -1224,12 +1260,14 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         const toolResult = part.output;
 
         logger.info(`[Agent] Tool completed: ${toolName}`);
-        
+
         // 🔍 Debug: Log generate_feedback tool result structure
         if (toolName === 'generate_feedback') {
           const resultObj = toolResult as any;
           logger.info(`🔍 [Agent] generate_feedback result keys: ${Object.keys(resultObj || {}).join(', ')}`);
-          logger.info(`🔍 [Agent] generate_feedback has sparringQuestions: ${!!resultObj?.sparringQuestions}, count: ${resultObj?.sparringQuestions?.length || 0}`);
+          logger.info(
+            `🔍 [Agent] generate_feedback has sparringQuestions: ${!!resultObj?.sparringQuestions}, count: ${resultObj?.sparringQuestions?.length || 0}`
+          );
         }
 
         // Special handling for think/think_aloud tool: extract thought from args
@@ -1254,7 +1292,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           durationMs: 0,
           timestamp: new Date(),
         });
-        
+
         // Reset thinking buffer for next step (except for think tool)
         if (toolName !== 'think') {
           currentThinking = '';
@@ -1270,7 +1308,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         }
         if (toolName === 'generate_feedback') {
           const typedResult = toolResult as any;
-          
+
           // Only mark as completed if we actually have the required sparringQuestions
           // This allows the agent to retry if the tool threw an error or failed validation
           if (typedResult && Array.isArray(typedResult.sparringQuestions) && typedResult.sparringQuestions.length > 0) {
@@ -1279,25 +1317,31 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             if (wasEarlyCapture) {
               logger.info('[Agent] 🔄 tool-result overriding early capture (preferred source)');
             }
-            
+
             feedbackCalled = true;
             finalResult = toolResult;
 
-            logger.info({
-              hasSparringQuestions: true,
-              sparringQuestionsCount: typedResult.sparringQuestions.length,
-              resultKeys: Object.keys(toolResult || {}),
-              source: 'tool_result',
-            }, '[Agent] generate_feedback completed successfully');
+            logger.info(
+              {
+                hasSparringQuestions: true,
+                sparringQuestionsCount: typedResult.sparringQuestions.length,
+                resultKeys: Object.keys(toolResult || {}),
+                source: 'tool_result',
+              },
+              '[Agent] generate_feedback completed successfully'
+            );
           } else {
-             setInterruptionReason(
-               'GENERATE_FEEDBACK_VALIDATION_FAILED',
-               'generate_feedback tool-result missing required sparringQuestions'
-             );
-             logger.warn({ 
-               toolResult: typeof toolResult === 'string' ? toolResult.substring(0, 100) : 'object' 
-             }, '[Agent] generate_feedback failed validation (missing sparringQuestions or error)');
-             // Do NOT set feedbackCalled = true, so the loop will retry
+            setInterruptionReason(
+              'GENERATE_FEEDBACK_VALIDATION_FAILED',
+              'generate_feedback tool-result missing required sparringQuestions'
+            );
+            logger.warn(
+              {
+                toolResult: typeof toolResult === 'string' ? toolResult.substring(0, 100) : 'object',
+              },
+              '[Agent] generate_feedback failed validation (missing sparringQuestions or error)'
+            );
+            // Do NOT set feedbackCalled = true, so the loop will retry
           }
         }
       }
@@ -1357,25 +1401,28 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         finalResult.messageToStudent?.trim() ||
         finalResult.overallObservation?.trim() ||
         (finalResult.totalScore != null && finalResult.maxScore != null && finalResult.maxScore > 0
-          ? (finalResult.totalScore / finalResult.maxScore) >= 0.7
+          ? finalResult.totalScore / finalResult.maxScore >= 0.7
             ? localeText.defaultOverallGood
             : localeText.defaultOverallNeedsWork
           : localeText.gradingCompletedFallback);
     }
 
-    logger.info({
-      totalSteps: steps.length,
-      totalScore: finalResult?.totalScore,
-      maxScore: finalResult?.maxScore,
-      interrupted,
-      interruptionReasonCode,
-      tokenUsage: {
-        promptTokens: totalPromptTokens,
-        completionTokens: totalCompletionTokens,
-        total: totalTokens,
+    logger.info(
+      {
+        totalSteps: steps.length,
+        totalScore: finalResult?.totalScore,
+        maxScore: finalResult?.maxScore,
+        interrupted,
+        interruptionReasonCode,
+        tokenUsage: {
+          promptTokens: totalPromptTokens,
+          completionTokens: totalCompletionTokens,
+          total: totalTokens,
+        },
+        executionTimeMs,
       },
-      executionTimeMs,
-    }, '[Agent] Grading completed');
+      '[Agent] Grading completed'
+    );
 
     // Stream to Redis (Bridge format) with telemetry for thesis research
     if (params.sessionId) {
@@ -1390,14 +1437,16 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             totalTokens,
             modelName: 'gemini-3.1-flash-lite',
             sparringQuestionsCount: finalResult?.sparringQuestions?.length || 0,
-          }
+          },
         })
       );
     }
 
     // 🔍 CRITICAL DEBUG: Check finalResult BEFORE returning
     logger.info(`🔍 [Agent Return] finalResult keys: ${Object.keys(finalResult || {}).join(', ')}`);
-    logger.info(`🔍 [Agent Return] finalResult.sparringQuestions: ${finalResult?.sparringQuestions ? `YES (${finalResult.sparringQuestions.length})` : 'NO/UNDEFINED'}`);
+    logger.info(
+      `🔍 [Agent Return] finalResult.sparringQuestions: ${finalResult?.sparringQuestions ? `YES (${finalResult.sparringQuestions.length})` : 'NO/UNDEFINED'}`
+    );
 
     return {
       success: true,
@@ -1405,7 +1454,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       steps,
       confidenceScore: confidenceData?.confidenceScore ?? 0.8,
       requiresReview: interrupted || (confidenceData?.shouldReview ?? false),
-      totalTokens,  // Use tracked value instead of 0
+      totalTokens, // Use tracked value instead of 0
       executionTimeMs,
       interrupted,
       interruptionReasonCode,
@@ -1454,11 +1503,4 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       toolCallStats: getToolCallStats(),
     };
   }
-}
-
-/**
- * Check if Agent grading is enabled
- */
-export function isAgentGradingEnabled(): boolean {
-  return process.env.USE_AGENT_GRADING === 'true';
 }

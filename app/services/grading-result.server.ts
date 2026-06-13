@@ -34,7 +34,7 @@ export async function updateGradingResult(
       data: {
         status: GradingStatus.COMPLETED,
         progress: 100,
-        result: validatedData, 
+        result: validatedData,
         gradingModel: metadata?.gradingModel,
         gradingTokens: metadata?.gradingTokens,
         gradingDuration: metadata?.gradingDuration,
@@ -87,54 +87,6 @@ export async function failGradingResult(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update grading result',
-    };
-  }
-}
-
-/**
- * Starts processing a grading result
- */
-export async function startGradingResult(resultId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    await db.gradingResult.update({
-      where: { id: resultId },
-      data: {
-        status: GradingStatus.PROCESSING,
-        progress: 0,
-      },
-    });
-
-    return { success: true };
-  } catch (error) {
-    logger.error({ err: error }, 'Failed to start grading result:');
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to start grading result',
-    };
-  }
-}
-
-/**
- * Updates grading result progress
- */
-export async function updateGradingProgress(
-  resultId: string,
-  progress: number
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    await db.gradingResult.update({
-      where: { id: resultId },
-      data: {
-        progress: Math.max(0, Math.min(100, progress)),
-      },
-    });
-
-    return { success: true };
-  } catch (error) {
-    logger.error({ err: error }, 'Failed to update grading progress:');
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to update progress',
     };
   }
 }
@@ -195,39 +147,6 @@ export async function getSessionGradingResults(
     return { results };
   } catch (error) {
     logger.error({ err: error }, 'Failed to get session grading results:');
-    return {
-      results: [],
-      error: error instanceof Error ? error.message : 'Failed to get grading results',
-    };
-  }
-}
-
-/**
- * Gets grading results by status
- */
-export async function getGradingResultsByStatus(
-  status: GradingStatus,
-  limit: number = 50
-): Promise<{ results: (GradingResult & { uploadedFile: UploadedFile; rubric: Rubric })[]; error?: string }> {
-  try {
-    const results = await db.gradingResult.findMany({
-      where: { status },
-      include: {
-        uploadedFile: true,
-        rubric: true,
-        gradingSession: {
-          select: {
-            userId: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
-    });
-
-    return { results };
-  } catch (error) {
-    logger.error({ err: error }, 'Failed to get grading results by status:');
     return {
       results: [],
       error: error instanceof Error ? error.message : 'Failed to get grading results',

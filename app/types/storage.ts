@@ -21,7 +21,7 @@ export interface S3Error {
 /**
  * Reader interface for ReadableStream (Web API)
  */
-export interface StreamReader {
+interface StreamReader {
   read(): Promise<{ value?: Uint8Array; done: boolean }>;
   releaseLock(): void;
 }
@@ -31,32 +31,4 @@ export interface StreamReader {
  */
 export interface ReadableStreamBody {
   getReader(): StreamReader;
-}
-
-/**
- * Upload result from storage operation
- */
-export interface UploadResult {
-  success: boolean;
-  key: string;
-  url: string;
-  etag?: string;
-}
-
-/**
- * Stream result from storage operation
- */
-export interface StreamResult {
-  stream: NodeJS.ReadableStream;
-  contentType: string;
-  contentLength: number;
-  lastModified?: Date;
-  etag?: string;
-}
-
-/**
- * Deletion result from storage operation
- */
-export interface DeletionResult {
-  success: boolean;
 }

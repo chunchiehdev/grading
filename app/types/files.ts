@@ -21,28 +21,3 @@ export interface FileWithStatus {
   key?: string;
   url?: string;
 }
-
-export interface ProcessedDocument {
-  fileName: string;
-  fileKey: string;
-  content: string;
-  contentType: string;
-  error?: string;
-  metadata?: {
-    processedBy?: 'MCP' | 'API' | 'PDF_Parser_API';
-    mcpResponse?: any;
-    apiResponse?: any;
-    taskId?: string;
-    userId?: string;
-    [key: string]: any;
-  };
-}
-
-export interface DocumentSummary {
-  fileName: string;
-  fileKey: string;
-  content: string;
-  hasError: boolean;
-  contentLength: number;
-  error?: string;
-}

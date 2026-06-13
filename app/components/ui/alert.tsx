@@ -30,7 +30,7 @@ const AlertIcon = {
   info: Info,
 } as const;
 
-export interface AlertProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof alertVariants> {
+interface AlertProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof alertVariants> {
   showIcon?: boolean;
 }
 

@@ -32,12 +32,7 @@
  */
 
 import logger from '@/utils/logger';
-import {
-  gradeWithGemini,
-  gradeWithOpenAI,
-  type GradingResult,
-  type AIGradingResult,
-} from './ai-sdk-provider.server';
+import { gradeWithGemini, gradeWithOpenAI, type GradingResult, type AIGradingResult } from './ai-sdk-provider.server';
 
 export interface GradeWithAIParams {
   prompt: string;
@@ -107,16 +102,29 @@ export type GradeWithAIResult = GradeWithAISuccess | GradeWithAIFailure;
  * @returns Grading result with success/failure status
  */
 export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithAIResult> {
-  const { prompt, userId, resultId, temperature, skipFallback = false, language = 'en', contextHash, contextContent, userPrompt } = params;
-
-  logger.info({
+  const {
+    prompt,
     userId,
     resultId,
-    promptLength: prompt.length,
-    language,
+    temperature,
+    skipFallback = false,
+    language = 'en',
     contextHash,
-    contextContent: !!contextContent, // Log presence only
-  }, 'Starting AI grading');
+    contextContent,
+    userPrompt,
+  } = params;
+
+  logger.info(
+    {
+      userId,
+      resultId,
+      promptLength: prompt.length,
+      language,
+      contextHash,
+      contextContent: !!contextContent, // Log presence only
+    },
+    'Starting AI grading'
+  );
 
   // Step 1: Try Gemini (with KeyHealthTracker)
   const geminiResult = await gradeWithGemini({
@@ -131,30 +139,39 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
   });
 
   if (geminiResult.success) {
-    logger.info({
-      userId,
-      resultId,
-      provider: 'gemini',
-      keyId: geminiResult.keyId,
-      responseTimeMs: geminiResult.responseTimeMs,
-    }, 'Grading completed successfully with Gemini');
+    logger.info(
+      {
+        userId,
+        resultId,
+        provider: 'gemini',
+        keyId: geminiResult.keyId,
+        responseTimeMs: geminiResult.responseTimeMs,
+      },
+      'Grading completed successfully with Gemini'
+    );
 
     return geminiResult;
   }
 
   // Gemini failed
-  logger.warn({
-    userId,
-    resultId,
-    error: geminiResult.error,
-  }, 'Gemini grading failed, preparing fallback');
+  logger.warn(
+    {
+      userId,
+      resultId,
+      error: geminiResult.error,
+    },
+    'Gemini grading failed, preparing fallback'
+  );
 
   // Check if fallback is disabled
   if (skipFallback) {
-    logger.error({
-      userId,
-      resultId,
-    }, 'Gemini failed and fallback is disabled');
+    logger.error(
+      {
+        userId,
+        resultId,
+      },
+      'Gemini failed and fallback is disabled'
+    );
 
     return {
       success: false,
@@ -175,23 +192,29 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
   });
 
   if (openaiResult.success) {
-    logger.info({
-      userId,
-      resultId,
-      provider: 'openai',
-      responseTimeMs: openaiResult.responseTimeMs,
-    }, 'Grading completed successfully with OpenAI (fallback)');
+    logger.info(
+      {
+        userId,
+        resultId,
+        provider: 'openai',
+        responseTimeMs: openaiResult.responseTimeMs,
+      },
+      'Grading completed successfully with OpenAI (fallback)'
+    );
 
     return openaiResult;
   }
 
   // Both providers failed
-  logger.error({
-    userId,
-    resultId,
-    geminiError: geminiResult.error,
-    openaiError: openaiResult.error,
-  }, 'Both Gemini and OpenAI failed');
+  logger.error(
+    {
+      userId,
+      resultId,
+      geminiError: geminiResult.error,
+      openaiError: openaiResult.error,
+    },
+    'Both Gemini and OpenAI failed'
+  );
 
   return {
     success: false,
@@ -211,9 +234,7 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
  * Note: AI SDK result already matches legacy format (breakdown, overallFeedback),
  * so this is essentially a pass-through with type conversion.
  */
-export function convertToLegacyFormat(
-  aiResult: AIGradingResult
-): {
+export function convertToLegacyFormat(aiResult: AIGradingResult): {
   breakdown: Array<{
     criteriaId: string;
     name: string;
@@ -235,25 +256,4 @@ export function convertToLegacyFormat(
  */
 export function isAISDKGradingEnabled(): boolean {
   return process.env.USE_AI_SDK_GRADING === 'true';
-}
-
-/**
- * Get grading provider status for health monitoring
- */
-export async function getGradingProviderStatus(): Promise<{
-  geminiAvailable: boolean;
-  geminiKeyCount: number;
-  openaiAvailable: boolean;
-}> {
-  const geminiKeyCount = [
-    process.env.GEMINI_API_KEY,
-    process.env.GEMINI_API_KEY2,
-    process.env.GEMINI_API_KEY3,
-  ].filter(Boolean).length;
-
-  return {
-    geminiAvailable: geminiKeyCount > 0,
-    geminiKeyCount,
-    openaiAvailable: !!process.env.OPENAI_API_KEY,
-  };
 }

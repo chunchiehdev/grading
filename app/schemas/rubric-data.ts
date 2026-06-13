@@ -7,13 +7,13 @@ import type { UICategory, UICriterion, UILevel } from '@/types/rubric';
  */
 
 // Level in database format
-export const DbLevelSchema = z.object({
+const DbLevelSchema = z.object({
   score: z.number().int(),
   description: z.string(),
 });
 
 // Criterion in database format
-export const DbCriterionSchema = z.object({
+const DbCriterionSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string(),
@@ -22,19 +22,15 @@ export const DbCriterionSchema = z.object({
 });
 
 // Category in database format (groups criteria)
-export const DbCategorySchema = z.object({
+const DbCategorySchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   criteria: z.array(DbCriterionSchema),
 });
 
 // Full criteria array as stored in database
-export const DbRubricCriteriaSchema = z.array(DbCategorySchema);
-
-// Export types inferred from schemas
-export type DbLevel = z.infer<typeof DbLevelSchema>;
+const DbRubricCriteriaSchema = z.array(DbCategorySchema);
 export type DbCriterion = z.infer<typeof DbCriterionSchema>;
-export type DbCategory = z.infer<typeof DbCategorySchema>;
 export type DbRubricCriteria = z.infer<typeof DbRubricCriteriaSchema>;
 
 /**
@@ -58,34 +54,6 @@ export function parseRubricCriteria(criteria: unknown): DbRubricCriteria | null 
  */
 export function parseRubricCriteriaWithDefault(criteria: unknown): DbRubricCriteria {
   return parseRubricCriteria(criteria) ?? [];
-}
-
-/**
- * Type guard to check if a value is a valid DbRubricCriteria
- * @param {unknown} value - Value to check
- * @returns {boolean} True if value is valid DbRubricCriteria
- */
-export function isDbRubricCriteria(value: unknown): value is DbRubricCriteria {
-  try {
-    DbRubricCriteriaSchema.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Type guard to check if a value is a valid DbCategory
- * @param {unknown} value - Value to check
- * @returns {boolean} True if value is valid DbCategory
- */
-export function isDbCategory(value: unknown): value is DbCategory {
-  try {
-    DbCategorySchema.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**

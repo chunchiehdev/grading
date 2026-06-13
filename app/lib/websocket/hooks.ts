@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { type ChatMessage, type WebSocketClientOptions, type WebSocketEvents } from './types';
+import { WebSocketClientOptions, WebSocketEvents } from './types';
 import { websocketClient } from './index';
 
 /**
@@ -88,12 +88,9 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
   }, [userId]);
 
   // 返回 WebSocket 狀態和方法
-  const onEventListener = useCallback(
-    <T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]) => {
-      return websocketClient.on(event, handler);
-    },
-    []
-  );
+  const onEventListener = useCallback(<T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]) => {
+    return websocketClient.on(event, handler);
+  }, []);
 
   return {
     connectionState,
@@ -109,111 +106,6 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
 
     // 事件監聽
     on: onEventListener,
-  };
-}
-
-/**
- * 聊天專用 Hook
- * 簡化聊天功能的使用
- */
-export function useChatWebSocket(userId?: string, chatId?: string) {
-  const currentChatRef = useRef<string | null>(null);
-
-  const { connectionState, isConnected, isHealthy, joinChat, on, ...rest } = useWebSocket(userId);
-
-  // 自動加入聊天室
-  useEffect(() => {
-    if (!chatId || !isConnected) return;
-
-    // 避免重複加入相同聊天室
-    if (currentChatRef.current === chatId) return;
-
-    currentChatRef.current = chatId;
-    joinChat(chatId);
-
-    // 清理時重置
-    return () => {
-      currentChatRef.current = null;
-    };
-  }, [chatId, isConnected, joinChat]);
-
-  // 訊息監聽 Hook
-  const useMessageListener = useCallback(
-    (handler: (message: ChatMessage) => void) => {
-      useEffect(() => {
-        const unsubscribe = on('new-msg', handler);
-        return unsubscribe;
-      }, [handler]);
-    },
-    [on]
-  );
-
-  // 聊天同步監聽 Hook
-  const useChatSyncListener = useCallback(
-    (handler: (data: any) => void) => {
-      useEffect(() => {
-        const unsubscribe = on('chat-sync', handler);
-        return unsubscribe;
-      }, [handler]);
-    },
-    [on]
-  );
-
-  return {
-    connectionState,
-    isConnected,
-    isHealthy,
-    currentChatId: currentChatRef.current,
-
-    // 專用的監聽器
-    useMessageListener,
-    useChatSyncListener,
-
-    // 基礎方法
-    ...rest,
-  };
-}
-
-/**
- * WebSocket 狀態監控 Hook
- * 用於 Debug 和監控
- */
-export function useWebSocketMonitor() {
-  const metricsRef = useRef(websocketClient.connectionMetrics);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      metricsRef.current = websocketClient.connectionMetrics;
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return {
-    metrics: metricsRef.current,
-    connectionState: websocketClient.connectionState,
-    isHealthy: websocketClient.isHealthy,
-
-    // 診斷方法
-    ping: useCallback(async () => {
-      try {
-        const response = await websocketClient.ping();
-        return { success: true, response, latency: Date.now() };
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-      }
-    }, []),
-
-    getDebugInfo: useCallback(
-      () => ({
-        state: websocketClient.connectionState,
-        userId: websocketClient.currentUserId,
-        metrics: websocketClient.connectionMetrics,
-        isHealthy: websocketClient.isHealthy,
-        timestamp: new Date().toISOString(),
-      }),
-      []
-    ),
   };
 }
 
@@ -248,31 +140,6 @@ export function useWebSocketEvent<K extends keyof WebSocketEvents>(
       unsubscribe();
     };
   }, [event]); // 只依賴 event 名稱，不依賴 handler 或 deps
-}
-
-/**
- * WebSocket 重連 Hook
- * 提供重連邏輯和狀態
- */
-export function useWebSocketReconnect() {
-  const isReconnecting = websocketClient.connectionState === 'reconnecting';
-  const canReconnect =
-    websocketClient.connectionState === 'disconnected' || websocketClient.connectionState === 'error';
-
-  const reconnect = useCallback(async () => {
-    if (!canReconnect) {
-      throw new Error('Cannot reconnect in current state');
-    }
-
-    return websocketClient.reconnect();
-  }, [canReconnect]);
-
-  return {
-    isReconnecting,
-    canReconnect,
-    reconnect,
-    connectionState: websocketClient.connectionState,
-  };
 }
 
 /**
@@ -311,12 +178,9 @@ export function useWebSocketStatus() {
   }, []);
 
   // 返回只讀狀態和安全的方法
-  const onEventListener = useCallback(
-    <K extends keyof WebSocketEvents>(event: K, handler: WebSocketEvents[K]) => {
-      return websocketClient.on(event, handler);
-    },
-    []
-  );
+  const onEventListener = useCallback(<K extends keyof WebSocketEvents>(event: K, handler: WebSocketEvents[K]) => {
+    return websocketClient.on(event, handler);
+  }, []);
 
   return {
     connectionState,

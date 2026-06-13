@@ -63,7 +63,7 @@ export const PERIODS: PeriodDefinition[] = [
  * @param code 節次代碼
  * @returns 節次定義，找不到則返回 undefined
  */
-export function getPeriodByCode(code: string): PeriodDefinition | undefined {
+function getPeriodByCode(code: string): PeriodDefinition | undefined {
   return PERIODS.find((p) => p.code === code);
 }
 
@@ -72,7 +72,7 @@ export function getPeriodByCode(code: string): PeriodDefinition | undefined {
  * @param code 星期代碼
  * @returns 星期定義，找不到則返回 undefined
  */
-export function getWeekdayByCode(code: string): WeekdayDefinition | undefined {
+function getWeekdayByCode(code: string): WeekdayDefinition | undefined {
   return WEEKDAYS.find((w) => w.code === code);
 }
 
@@ -116,18 +116,4 @@ export function formatScheduleShort(weekdayCode: string, periodCode: string, lan
   const periodName = language === 'en' ? period.englishDisplayName : period.displayName;
 
   return `${weekdayName} ${periodName}`;
-}
-
-/**
- * 驗證星期代碼是否有效
- */
-export function isValidWeekday(code: string): boolean {
-  return WEEKDAYS.some((w) => w.code === code);
-}
-
-/**
- * 驗證節次代碼是否有效
- */
-export function isValidPeriod(code: string): boolean {
-  return PERIODS.some((p) => p.code === code);
 }

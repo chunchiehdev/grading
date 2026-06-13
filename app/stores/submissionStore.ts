@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-export interface TeacherSubmission {
+interface TeacherSubmission {
   id: string; // This is the notificationId (for mark-as-read operations)
   submissionId: string; // The actual submission ID
   assignmentId: string;
@@ -56,9 +56,7 @@ export const useSubmissionStore = create<SubmissionState>()(
     setSubmissions: (submissions) => {
       const unreadCount = submissions.filter((s) => !s.isRead).length;
       set({
-        submissions: submissions.sort(
-          (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
-        ),
+        submissions: submissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
         unreadCount,
         lastUpdated: new Date(),
         error: null,
@@ -108,7 +106,7 @@ export const useSubmissionStore = create<SubmissionState>()(
       const originalUnreadCount = get().unreadCount;
 
       // Find the submission being marked
-      const submission = originalSubmissions.find(s => s.id === id);
+      const submission = originalSubmissions.find((s) => s.id === id);
       if (!submission) {
         console.error('[SubmissionStore] ❌ Notification not found:', id);
         return;
@@ -116,9 +114,7 @@ export const useSubmissionStore = create<SubmissionState>()(
 
       // Optimistically update UI first
       set((state) => {
-        const updatedSubmissions = state.submissions.map((s) =>
-          s.id === id ? { ...s, isRead: true } : s
-        );
+        const updatedSubmissions = state.submissions.map((s) => (s.id === id ? { ...s, isRead: true } : s));
         const unreadCount = updatedSubmissions.filter((s) => !s.isRead).length;
         return {
           submissions: updatedSubmissions,
@@ -257,7 +253,6 @@ export const useSubmissionStore = create<SubmissionState>()(
 
     // Handle new submission from WebSocket
     handleNewSubmission: async (notificationData) => {
-
       try {
         // Skip if no notificationId (shouldn't happen, but be defensive)
         if (!notificationData.notificationId) {

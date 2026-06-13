@@ -1,4 +1,4 @@
-import { db, GradingStatus, type Prisma } from '@/types/database';
+import { db, Prisma } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
 import { gradeWithAI, convertToLegacyFormat, isAISDKGradingEnabled } from './ai-grader-sdk.server';
 import { SimpleProgressService } from './progress-simple.server';
@@ -6,11 +6,7 @@ import { loadReferenceDocuments, getCustomGradingInstructions } from './assignme
 import { getGradingLogger } from './grading-logger.server';
 import { GeminiPrompts } from './gemini-prompts.server';
 import logger from '@/utils/logger';
-import {
-  parseRubricCriteria,
-  flattenCategoriesToCriteria,
-  type DbCriterion,
-} from '@/schemas/rubric-data';
+import { parseRubricCriteria, flattenCategoriesToCriteria, type DbCriterion } from '@/schemas/rubric-data';
 import { extractOverallFeedback } from '@/utils/grading-helpers';
 import { gradingQueue } from './queue.server';
 import { GeminiCacheManager } from './gemini-cache.server';
@@ -83,11 +79,7 @@ export async function processGradingResult(
     }
 
     if (result.rubric) {
-      gradingLogger.addRubricInfo(
-        sessionId,
-        result.rubricId,
-        result.rubric.name
-      );
+      gradingLogger.addRubricInfo(sessionId, result.rubricId, result.rubric.name);
     }
 
     // Allow retries for FAILED or PROCESSING status (e.g., after throttle recovery)
@@ -248,18 +240,21 @@ export async function processGradingResult(
       assignmentDescription: result.assignmentArea?.description || undefined,
     };
 
-    logger.info({
-      hasAssignmentArea: !!result.assignmentArea,
-      assignmentTitle: gradingRequest.assignmentTitle,
-      assignmentDescriptionLength: gradingRequest.assignmentDescription?.length || 0,
-    }, `📝 [Grading Engine] Prepared grading request for assignment: "${gradingRequest.assignmentTitle}"`);
+    logger.info(
+      {
+        hasAssignmentArea: !!result.assignmentArea,
+        assignmentTitle: gradingRequest.assignmentTitle,
+        assignmentDescriptionLength: gradingRequest.assignmentDescription?.length || 0,
+      },
+      `📝 [Grading Engine] Prepared grading request for assignment: "${gradingRequest.assignmentTitle}"`
+    );
 
     // Generate and log the prompt (for research traceability)
     const splitPrompt = GeminiPrompts.generateSplitGradingPrompt(gradingRequest);
     const prompt = `${splitPrompt.cachedContent}\n\n${splitPrompt.userPrompt}`;
     const promptTokenEstimate = Math.ceil(prompt.length / 3.5); // Simple token estimate
     gradingLogger.addPromptInfo(sessionId, prompt, promptTokenEstimate, userLanguage);
-    
+
     // Calculate context hash for caching (must include system instruction as it's part of the cache config)
     const contextContent = splitPrompt.cachedContent;
     // We include systemInstruction in the hash so that prompt updates invalidate the cache
@@ -283,23 +278,26 @@ export async function processGradingResult(
         rubricId: result.rubric.id,
         rubricName: result.rubric.name,
         useDirectGrading,
-        criteria: criteria.map(c => ({
+        criteria: criteria.map((c) => ({
           criteriaId: c.id,
           name: c.name,
           description: c.description,
           maxScore: c.maxScore,
-          levels: c.levels?.map(l => ({
+          levels: c.levels?.map((l) => ({
             score: l.score,
-            description: l.description
-          }))
+            description: l.description,
+          })),
         })),
-        referenceDocuments: referenceDocuments.length > 0 ? referenceDocuments.map(ref => ({
-          fileId: ref.fileId,
-          fileName: ref.fileName,
-          content: ref.content,
-          contentLength: ref.content.length,
-          wasTruncated: ref.wasTruncated,
-        })) : undefined,
+        referenceDocuments:
+          referenceDocuments.length > 0
+            ? referenceDocuments.map((ref) => ({
+                fileId: ref.fileId,
+                fileName: ref.fileName,
+                content: ref.content,
+                contentLength: ref.content.length,
+                wasTruncated: ref.wasTruncated,
+              }))
+            : undefined,
         customInstructions: customInstructions || undefined,
         assignmentType: 'other', // TODO: detect from assignment
         assignmentTitle: result.assignmentArea?.name || 'Untitled Assignment',
@@ -315,7 +313,9 @@ export async function processGradingResult(
 
       // 🔍 CRITICAL: Check agentResult.data IMMEDIATELY after executeGradingAgent
       logger.info(`🔍 [IMMEDIATE] agentResult.data keys: ${Object.keys(agentResult.data || {}).join(', ')}`);
-      logger.info(`🔍 [IMMEDIATE] agentResult.data.sparringQuestions: ${JSON.stringify((agentResult.data as any)?.sparringQuestions || 'UNDEFINED').substring(0, 300)}`);
+      logger.info(
+        `🔍 [IMMEDIATE] agentResult.data.sparringQuestions: ${JSON.stringify((agentResult.data as any)?.sparringQuestions || 'UNDEFINED').substring(0, 300)}`
+      );
 
       // Save Agent execution to database
       await saveAgentExecution(resultId, agentResult);
@@ -330,20 +330,27 @@ export async function processGradingResult(
           toolCallStats: agentResult.toolCallStats || { total: 0, byTool: {} },
           capturedSteps: agentResult.steps.length,
         };
-        
+
         // 🔍 Log the agentResult.data structure for debugging (use separate logs for visibility)
         logger.info(`🔍 [Grading Engine] agentResult.data keys: ${Object.keys(agentData || {}).join(', ')}`);
-        logger.info(`🔍 [Grading Engine] hasSparringQuestions: ${!!agentData.sparringQuestions}, count: ${agentData.sparringQuestions?.length || 0}`);
+        logger.info(
+          `🔍 [Grading Engine] hasSparringQuestions: ${!!agentData.sparringQuestions}, count: ${agentData.sparringQuestions?.length || 0}`
+        );
         if (agentData.sparringQuestions && agentData.sparringQuestions.length > 0) {
-          logger.info(`🔍 [Grading Engine] sparringQuestions[0]: ${JSON.stringify(agentData.sparringQuestions[0]).substring(0, 300)}`);
+          logger.info(
+            `🔍 [Grading Engine] sparringQuestions[0]: ${JSON.stringify(agentData.sparringQuestions[0]).substring(0, 300)}`
+          );
         }
 
         // Convert to standard format with null safety
         if (!agentResult.data.breakdown || !Array.isArray(agentResult.data.breakdown)) {
-          logger.error({
-            resultId,
-            breakdown: agentResult.data.breakdown,
-          }, '❌ [Grading Engine] Invalid breakdown structure');
+          logger.error(
+            {
+              resultId,
+              breakdown: agentResult.data.breakdown,
+            },
+            '❌ [Grading Engine] Invalid breakdown structure'
+          );
           throw new Error('Agent returned invalid breakdown structure (not an array)');
         }
 
@@ -355,14 +362,15 @@ export async function processGradingResult(
         let thoughtSummary = '';
         let thinkingProcess = '';
         let gradingRationale = '';
-        
+
         // 1. Collect Thinking Process from think/think_aloud tools
         // Some runs may emit think_aloud as multiple tool calls; merge all chunks in step order.
         const thinkSteps = agentResult.steps
-          .filter((s: any) =>
-            (s.toolName === 'think' || s.toolName === 'think_aloud') &&
-            typeof s.reasoning === 'string' &&
-            s.reasoning.length > 0
+          .filter(
+            (s: any) =>
+              (s.toolName === 'think' || s.toolName === 'think_aloud') &&
+              typeof s.reasoning === 'string' &&
+              s.reasoning.length > 0
           )
           .sort((a: any, b: any) => (a.stepNumber || 0) - (b.stepNumber || 0));
 
@@ -391,17 +399,15 @@ export async function processGradingResult(
         if (directThinkingStep?.reasoning) {
           // If we have native thinking from direct mode, use it as thinkingProcess
           if (!thinkingProcess) {
-             thinkingProcess = directThinkingStep.reasoning;
+            thinkingProcess = directThinkingStep.reasoning;
           } else {
-             thinkingProcess += `\n\n## Native Thinking\n${directThinkingStep.reasoning}`;
+            thinkingProcess += `\n\n## Native Thinking\n${directThinkingStep.reasoning}`;
           }
         }
-        
+
         // 2. Determine Grading Rationale (The "Why")
-        const feedbackStep = agentResult.steps.find((s: any) => 
-          s.toolName === 'generate_feedback' && s.reasoning
-        );
-        
+        const feedbackStep = agentResult.steps.find((s: any) => s.toolName === 'generate_feedback' && s.reasoning);
+
         if (feedbackStep?.reasoning && feedbackStep.reasoning.length > 20) {
           // If generate_feedback has substantial reasoning, use it
           gradingRationale = feedbackStep.reasoning;
@@ -413,7 +419,7 @@ export async function processGradingResult(
         // 3. Prepend Confidence Summary to Grading Rationale
         const confidenceStep = agentResult.steps.find((s: any) => s.toolName === 'calculate_confidence');
         const confidenceInfo = confidenceStep?.toolOutput as { confidenceScore?: number; reason?: string } | undefined;
-        
+
         let confidenceHeader = '';
         if (confidenceInfo?.confidenceScore !== undefined) {
           confidenceHeader = isZh
@@ -424,10 +430,11 @@ export async function processGradingResult(
 
         // thoughtSummary should ONLY contain confidence info, not the full thinking process
         // This prevents duplication when displaying thinkingProcess and thoughtSummary together
-        thoughtSummary = confidenceHeader.trim() || (isZh
-          ? `評分已完成。總分：${totalScore}/${maxScore}`
-          : `Grading complete. Total score: ${totalScore}/${maxScore}`);
-
+        thoughtSummary =
+          confidenceHeader.trim() ||
+          (isZh
+            ? `評分已完成。總分：${totalScore}/${maxScore}`
+            : `Grading complete. Total score: ${totalScore}/${maxScore}`);
 
         gradingResponse = {
           success: true,
@@ -454,27 +461,36 @@ export async function processGradingResult(
           },
         };
 
-        logger.info({
-          resultId,
-          confidence: agentResult.confidenceScore,
-          requiresReview: agentResult.requiresReview,
-          steps: agentResult.steps.length,
-        }, `  Agent grading succeeded`);
+        logger.info(
+          {
+            resultId,
+            confidence: agentResult.confidenceScore,
+            requiresReview: agentResult.requiresReview,
+            steps: agentResult.steps.length,
+          },
+          `  Agent grading succeeded`
+        );
 
         // If requires review, send notification to teacher
         if (agentResult.requiresReview) {
-          logger.warn({
-            resultId,
-            confidence: agentResult.confidenceScore,
-          }, `⚠️ Low confidence grading - requires human review`);
+          logger.warn(
+            {
+              resultId,
+              confidence: agentResult.confidenceScore,
+            },
+            `⚠️ Low confidence grading - requires human review`
+          );
           // TODO: Send WebSocket notification to teacher
         }
       } else {
         // Agent failed, fallback to AI SDK or Legacy
-        logger.error({
-          resultId,
-          error: agentResult.error,
-        }, `❌ Agent grading failed, falling back`);
+        logger.error(
+          {
+            resultId,
+            error: agentResult.error,
+          },
+          `❌ Agent grading failed, falling back`
+        );
         gradingResponse = {
           success: false,
           error: agentResult.error || 'Agent grading failed',
@@ -538,9 +554,7 @@ export async function processGradingResult(
       // Calculate 100-point normalized score
       const { totalScore, maxScore } = gradingResponse.result;
       const normalizedScore =
-        maxScore > 0
-          ? Math.max(0, Math.min(100, Math.round((totalScore / maxScore) * 10000) / 100))
-          : null;
+        maxScore > 0 ? Math.max(0, Math.min(100, Math.round((totalScore / maxScore) * 10000) / 100)) : null;
 
       logger.info(`📊 Normalized score: ${totalScore}/${maxScore} → ${normalizedScore}/100`);
 
@@ -570,9 +584,9 @@ export async function processGradingResult(
       let overallFeedbackStr: string =
         typeof rawFeedback === 'string'
           ? rawFeedback
-          : (rawFeedback && typeof rawFeedback === 'object' && 'summary' in rawFeedback
-              ? String((rawFeedback as Record<string, unknown>).summary ?? '')
-              : '');
+          : rawFeedback && typeof rawFeedback === 'object' && 'summary' in rawFeedback
+            ? String((rawFeedback as Record<string, unknown>).summary ?? '')
+            : '';
 
       // Final safeguard: ensure overallFeedback is never empty
       // Agent / AI SDK 應該都會填，但如果模型回傳空字串，這裡用 breakdown 自動組一個整體回饋
@@ -601,7 +615,9 @@ export async function processGradingResult(
         : [];
 
       // 🔍 CRITICAL DEBUG: Check sparringQuestions BEFORE saving to DB
-      logger.info(`🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(normalizedSparringQuestions || 'UNDEFINED').substring(0, 300)}`);
+      logger.info(
+        `🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(normalizedSparringQuestions || 'UNDEFINED').substring(0, 300)}`
+      );
       logger.info(`🔍 [DB Save] sparringQuestions count: ${normalizedSparringQuestions.length || 0}`);
 
       await db.gradingResult.update({
@@ -626,11 +642,13 @@ export async function processGradingResult(
           gradingTokens: gradingResponse.metadata?.tokens,
           sparringTokens: 0, // Initialize to 0 so subsequent increment operations work (NULL + N = NULL)
           gradingDuration: gradingResponse.metadata?.duration,
-          usedContext: usedContext ? {
-            assignmentAreaId: usedContext.assignmentAreaId,
-            referenceFilesUsed: usedContext.referenceFilesUsed,
-            customInstructionsUsed: usedContext.customInstructionsUsed,
-          } : undefined, // Use undefined instead of null for optional JSON fields
+          usedContext: usedContext
+            ? {
+                assignmentAreaId: usedContext.assignmentAreaId,
+                referenceFilesUsed: usedContext.referenceFilesUsed,
+                customInstructionsUsed: usedContext.customInstructionsUsed,
+              }
+            : undefined, // Use undefined instead of null for optional JSON fields
           completedAt: new Date(),
         },
       });
@@ -695,7 +713,7 @@ export async function processGradingResult(
               maxScore: gradingResponse.result.maxScore,
               breakdown: gradingResponse.result.breakdown || [],
               overallFeedback: overallFeedbackStr,
-               sparringQuestions: normalizedSparringQuestions,
+              sparringQuestions: normalizedSparringQuestions,
               processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
             };
           }
@@ -737,13 +755,17 @@ export async function processGradingResult(
 
       logger.info(`💾 Saved thoughtSummary (${gradingResponse.thoughtSummary?.length || 0} chars) to DB`);
       // 🆕 Debug: Log sparringQuestions saved to DB
-      logger.info({
-        resultId,
-        sparringQuestionsCount: normalizedSparringQuestions.length || 0,
-        sparringQuestionsPreview: normalizedSparringQuestions.length > 0
-          ? JSON.stringify(normalizedSparringQuestions).substring(0, 200)
-          : 'empty',
-      }, `🎯 [Grading Engine] sparringQuestions saved to DB:`);
+      logger.info(
+        {
+          resultId,
+          sparringQuestionsCount: normalizedSparringQuestions.length || 0,
+          sparringQuestionsPreview:
+            normalizedSparringQuestions.length > 0
+              ? JSON.stringify(normalizedSparringQuestions).substring(0, 200)
+              : 'empty',
+        },
+        `🎯 [Grading Engine] sparringQuestions saved to DB:`
+      );
 
       // Log grading success
       gradingLogger.addResult(
@@ -789,9 +811,9 @@ export async function processGradingResult(
         const overallFeedbackStr: string =
           typeof fallbackRaw === 'string'
             ? fallbackRaw
-            : (fallbackRaw && typeof fallbackRaw === 'object' && 'summary' in fallbackRaw
-                ? String((fallbackRaw as Record<string, unknown>).summary ?? '')
-                : '');
+            : fallbackRaw && typeof fallbackRaw === 'object' && 'summary' in fallbackRaw
+              ? String((fallbackRaw as Record<string, unknown>).summary ?? '')
+              : '';
         updateData.result = {
           totalScore: gradingResponse.result.totalScore,
           maxScore: gradingResponse.result.maxScore,
@@ -823,11 +845,7 @@ export async function processGradingResult(
     logger.error({ err: error }, `💥 Fatal error processing grading result ${resultId}:`);
 
     // Log fatal error
-    gradingLogger.addError(
-      sessionId,
-      'Fatal error',
-      error instanceof Error ? error.message : 'Processing error'
-    );
+    gradingLogger.addError(sessionId, 'Fatal error', error instanceof Error ? error.message : 'Processing error');
 
     // Mark as failed
     try {
@@ -850,142 +868,6 @@ export async function processGradingResult(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Processing error',
-    };
-  }
-}
-
-/**
- * Process all pending results for a session - using BullMQ
- */
-export async function processGradingSession(sessionId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    logger.info(`🔄 Starting grading session ${sessionId} (Async Queue)`);
-
-    const pendingResults = await db.gradingResult.findMany({
-      where: {
-        gradingSessionId: sessionId,
-        status: 'PENDING',
-      },
-      include: { gradingSession: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (pendingResults.length === 0) {
-      return { success: true };
-    }
-
-    logger.info(`📝 Adding ${pendingResults.length} jobs to grading queue`);
-
-    // Add jobs to BullMQ
-    const jobs = pendingResults.map((result) => ({
-      name: 'grade-submission',
-      data: {
-        resultId: result.id,
-        userId: result.gradingSession.userId,
-        sessionId: result.gradingSessionId,
-        userLanguage: 'en' as const,
-      },
-      opts: {
-        jobId: `grade-${result.id}`, // Prevent duplicate jobs for same result
-      },
-    }));
-
-    await gradingQueue.addBulk(jobs);
-
-    logger.info(`  Queued ${jobs.length} grading jobs for session ${sessionId}`);
-    return { success: true };
-  } catch (error) {
-    logger.error({ err: error }, `❌ Failed to queue grading session ${sessionId}:`);
-    return { success: false, error: error instanceof Error ? error.message : 'Session queuing failed' };
-  }
-}
-
-/**
- * Process all pending grading across all sessions - background job
- */
-export async function processAllPendingGrading(): Promise<{ processed: number; failed: number }> {
-  let processed = 0;
-  let failed = 0;
-
-  try {
-    const pendingResults = await db.gradingResult.findMany({
-      where: { status: 'PENDING' },
-      include: { gradingSession: true },
-      orderBy: { createdAt: 'asc' },
-      take: 50, // Process in reasonable batches
-    });
-
-    logger.info(`🔄 Processing ${pendingResults.length} pending grading results`);
-
-    for (const result of pendingResults) {
-      // Feature 004: Use default fallback language for batch processing
-      const processResult = await processGradingResult(
-        result.id,
-        result.gradingSession.userId,
-        result.gradingSessionId,
-        'en'
-      );
-
-      if (processResult.success) {
-        processed++;
-      } else {
-        failed++;
-      }
-
-      // Rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-
-    logger.info(`  Processed ${processed} results, ${failed} failed`);
-  } catch (error) {
-    logger.error({ err: error }, '❌ Failed to process pending grading:');
-  }
-
-  return { processed, failed };
-}
-
-/**
- * Retry failed grading results - simple version
- */
-export async function retryFailedGrading(
-  sessionId?: string
-): Promise<{ success: boolean; retriedCount: number; error?: string }> {
-  try {
-    const where = sessionId
-      ? { status: GradingStatus.FAILED, gradingSessionId: sessionId }
-      : { status: GradingStatus.FAILED };
-
-    const failedResults = await db.gradingResult.findMany({
-      where,
-      orderBy: { updatedAt: 'desc' },
-      take: 20, // Retry in batches
-    });
-
-    let retriedCount = 0;
-
-    for (const result of failedResults) {
-      // Reset status to pending
-      await db.gradingResult.update({
-        where: { id: result.id },
-        data: {
-          status: 'PENDING',
-          errorMessage: null,
-          progress: 0,
-        },
-      });
-
-      retriedCount++;
-    }
-
-    logger.info(`🔄 Reset ${retriedCount} failed grading results to pending`);
-
-    return { success: true, retriedCount };
-  } catch (error) {
-    logger.error({ err: error }, '❌ Failed to retry failed grading:');
-    return {
-      success: false,
-      retriedCount: 0,
-      error: error instanceof Error ? error.message : 'Retry failed',
     };
   }
 }

@@ -5,7 +5,7 @@ type LogFn = {
   (msg: string): void;
 };
 
-export interface AppLogger {
+interface AppLogger {
   level: string;
   fatal: LogFn;
   error: LogFn;

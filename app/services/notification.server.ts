@@ -9,7 +9,7 @@ import type {
   UnreadNotification,
 } from '@/types/notification';
 
-export async function createNotifications(notifications: NotificationData[]): Promise<void> {
+async function createNotifications(notifications: NotificationData[]): Promise<void> {
   if (notifications.length === 0) return;
 
   await db.notification.createMany({
@@ -20,7 +20,7 @@ export async function createNotifications(notifications: NotificationData[]): Pr
       assignmentId: notif.assignmentId,
       title: notif.title,
       message: notif.message,
-      data: notif.data as any || undefined,
+      data: (notif.data as any) || undefined,
     })),
   });
 }
@@ -41,11 +41,14 @@ export async function publishAssignmentCreatedNotification(
   });
 
   logger.info(
-    { data: courseStudents.map((e: EnrollmentWithStudent) => ({
-      studentId: e.studentId,
-      studentName: e.student.name,
-      studentEmail: e.student.email,
-    })) }, '📋 課程學生名單:'
+    {
+      data: courseStudents.map((e: EnrollmentWithStudent) => ({
+        studentId: e.studentId,
+        studentName: e.student.name,
+        studentEmail: e.student.email,
+      })),
+    },
+    '📋 課程學生名單:'
   );
 
   if (courseStudents.length === 0) {
@@ -156,21 +159,6 @@ export async function getUserNotifications(userId: string, limit: number = 50): 
   }) as Promise<UnreadNotification[]>;
 }
 
-export async function getUnreadNotifications(userId: string): Promise<UnreadNotification[]> {
-  return db.notification.findMany({
-    where: {
-      userId,
-      isRead: false,
-    },
-    include: {
-      course: { select: { name: true } },
-      assignment: { select: { name: true, dueDate: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  }) as Promise<UnreadNotification[]>;
-}
-
 /**
  * Get recent notifications for a teacher (both read and unread)
  * This is used for initial page load to populate the notification center
@@ -188,30 +176,4 @@ export async function getRecentNotifications(userId: string, limit: number = 50)
     orderBy: { createdAt: 'desc' },
     take: limit,
   }) as Promise<UnreadNotification[]>;
-}
-
-export async function markNotificationAsRead(notificationId: string, userId: string): Promise<void> {
-  await db.notification.updateMany({
-    where: {
-      id: notificationId,
-      userId,
-    },
-    data: {
-      isRead: true,
-      readAt: new Date(),
-    },
-  });
-}
-
-export async function markAllNotificationsAsRead(userId: string): Promise<void> {
-  await db.notification.updateMany({
-    where: {
-      userId,
-      isRead: false,
-    },
-    data: {
-      isRead: true,
-      readAt: new Date(),
-    },
-  });
 }

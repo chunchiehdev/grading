@@ -66,7 +66,7 @@ gradingQueueEvents.on('failed', ({ jobId, failedReason }) => {
   logger.error(`💥 [BullMQ] Job ${jobId} failed: ${failedReason}`);
 });
 
-export { gradingQueue, gradingQueueEvents };
+export { gradingQueue };
 
 export async function getQueueStatus() {
   if (!gradingQueue) {

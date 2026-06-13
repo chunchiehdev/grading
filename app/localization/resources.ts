@@ -34,7 +34,7 @@ import zhAgent from '../locales/zh/agent.json';
 import zhQueue from '../locales/zh/queue.json';
 
 // Create supported languages array
-export const supportedLanguages = ['en', 'zh'];
+const supportedLanguages = ['en', 'zh'];
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
 // Define resource structure

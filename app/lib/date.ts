@@ -19,51 +19,6 @@ export function formatDateForDisplay(date: Date | string): string {
   }
 }
 
-export function formatDatetime(date: Date | string): string {
-  try {
-    return formatDateTimeInTimeZone(date, 'en-CA').replace(',', '');
-  } catch (error) {
-    console.error('Datetime formatting error:', error);
-    return 'Invalid Datetime';
-  }
-}
-
-export function formatRelativeDate(date: Date | string): string {
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    const now = new Date();
-    const diffTime = now.getTime() - dateObj.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-
-    return formatDateForDisplay(dateObj);
-  } catch (error) {
-    console.error('Relative date formatting error:', error);
-    return 'Unknown';
-  }
-}
-
-export function parseDateOnlyToUTCDate(value: string | null | undefined): Date | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) {
-    const fallback = new Date(trimmed);
-    return Number.isNaN(fallback.getTime()) ? undefined : fallback;
-  }
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-}
-
 export function formatDateOnlyInTimeZone(date: Date | string, timeZone: string = APP_TIME_ZONE): string {
   return formatInTimeZone(date, 'en-CA', {
     timeZone,
@@ -98,7 +53,10 @@ export function formatDateTimeInTimeZone(
   }).replace(/\u200E|\u200F/g, '');
 }
 
-export function parseTaipeiDateTimeToUTC(dateValue: string | null | undefined, timeValue: string | null | undefined): Date | null | undefined {
+export function parseTaipeiDateTimeToUTC(
+  dateValue: string | null | undefined,
+  timeValue: string | null | undefined
+): Date | null | undefined {
   if (!dateValue || dateValue.trim() === '') {
     return null;
   }
@@ -121,7 +79,11 @@ export function parseTaipeiDateTimeToUTC(dateValue: string | null | undefined, t
   }
 
   const utcDateCheck = new Date(Date.UTC(year, month - 1, day));
-  if (utcDateCheck.getUTCFullYear() !== year || utcDateCheck.getUTCMonth() !== month - 1 || utcDateCheck.getUTCDate() !== day) {
+  if (
+    utcDateCheck.getUTCFullYear() !== year ||
+    utcDateCheck.getUTCMonth() !== month - 1 ||
+    utcDateCheck.getUTCDate() !== day
+  ) {
     return undefined;
   }
 

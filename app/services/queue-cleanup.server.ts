@@ -1,6 +1,6 @@
 /**
  * Enhanced Queue Cleanup Service with Job Details
- * 
+ *
  * Provides detailed job information before cleanup
  */
 
@@ -11,7 +11,7 @@ import { db } from '@/lib/db.server';
 
 const QUEUE_NAME = 'grading';
 
-export interface JobDetail {
+interface JobDetail {
   jobId: string;
   status: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed';
   data: {
@@ -46,8 +46,8 @@ export interface CleanupPreview {
     delayed: number;
   };
   byUser: Record<string, { name: string; count: number }>;
-  activeJobs: JobDetail[];  // Important: currently processing jobs
-  recentJobs: JobDetail[];  // Sample of jobs to be cleaned
+  activeJobs: JobDetail[]; // Important: currently processing jobs
+  recentJobs: JobDetail[]; // Sample of jobs to be cleaned
 }
 
 export interface CleanupResult {
@@ -106,7 +106,7 @@ export async function getCleanupPreview(): Promise<CleanupPreview> {
     const userIds = new Set<string>();
     const resultIds: string[] = [];
 
-    allJobs.forEach(job => {
+    allJobs.forEach((job) => {
       if (job.data?.userId) userIds.add(job.data.userId);
       if (job.data?.resultId) resultIds.push(job.data.resultId);
     });
@@ -127,37 +127,49 @@ export async function getCleanupPreview(): Promise<CleanupPreview> {
       }),
     ]);
 
-    const userMap = new Map(users.map(u => [u.id, u]));
-    const resultMap = new Map(results.map(r => [r.id, r]));
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const resultMap = new Map(results.map((r) => [r.id, r]));
 
     // Build job details
-    const jobDetails: JobDetail[] = allJobs.map(job => {
+    const jobDetails: JobDetail[] = allJobs.map((job) => {
       const user = job.data?.userId ? userMap.get(job.data.userId) : undefined;
       const result = job.data?.resultId ? resultMap.get(job.data.resultId) : undefined;
 
       return {
         jobId: job.id || 'unknown',
-        status: job.name === 'active' ? 'active' : 
-                job.name === 'waiting' ? 'waiting' :
-                job.name === 'failed' ? 'failed' :
-                job.name === 'completed' ? 'completed' : 'delayed',
+        status:
+          job.name === 'active'
+            ? 'active'
+            : job.name === 'waiting'
+              ? 'waiting'
+              : job.name === 'failed'
+                ? 'failed'
+                : job.name === 'completed'
+                  ? 'completed'
+                  : 'delayed',
         data: {
           resultId: job.data?.resultId,
           userId: job.data?.userId,
           sessionId: job.data?.sessionId,
         },
-        user: user ? {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        } : undefined,
-        assignment: result?.assignmentArea ? {
-          id: result.assignmentArea.id,
-          name: result.assignmentArea.name || 'Untitled',
-        } : undefined,
-        file: result?.uploadedFile ? {
-          fileName: result.uploadedFile.originalFileName,
-        } : undefined,
+        user: user
+          ? {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+            }
+          : undefined,
+        assignment: result?.assignmentArea
+          ? {
+              id: result.assignmentArea.id,
+              name: result.assignmentArea.name || 'Untitled',
+            }
+          : undefined,
+        file: result?.uploadedFile
+          ? {
+              fileName: result.uploadedFile.originalFileName,
+            }
+          : undefined,
         addedAt: job.timestamp ? new Date(job.timestamp) : undefined,
         processedAt: job.processedOn ? new Date(job.processedOn) : undefined,
         failedReason: job.failedReason,
@@ -166,7 +178,7 @@ export async function getCleanupPreview(): Promise<CleanupPreview> {
 
     // Calculate statistics
     const byUser: Record<string, { name: string; count: number }> = {};
-    jobDetails.forEach(job => {
+    jobDetails.forEach((job) => {
       if (job.user) {
         if (!byUser[job.user.id]) {
           byUser[job.user.id] = { name: job.user.name, count: 0 };
@@ -185,7 +197,7 @@ export async function getCleanupPreview(): Promise<CleanupPreview> {
         delayed: delayedJobs.length,
       },
       byUser,
-      activeJobs: jobDetails.filter(j => j.status === 'active'),
+      activeJobs: jobDetails.filter((j) => j.status === 'active'),
       recentJobs: jobDetails.slice(0, 10), // First 10 jobs as sample
     };
 

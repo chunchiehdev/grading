@@ -14,7 +14,7 @@ export interface ClassSchedule {
 /**
  * Represents a single class (section) with enrollment information
  */
-export interface ClassCard {
+interface ClassCard {
   id: string;
   name: string;
   schedule: ClassSchedule;
@@ -40,44 +40,6 @@ export interface DiscoverableCourse {
   classes: ClassCard[];
   enrollmentStatus: 'not_enrolled' | 'enrolled';
   createdAt: string;
-}
-
-/**
- * Response from course discovery API
- */
-export interface DiscoveryResponse {
-  success: boolean;
-  data?: {
-    courses: DiscoverableCourse[];
-    total: number;
-    hasMore: boolean;
-  };
-  error?: string;
-}
-
-/**
- * Request body for creating an enrollment
- */
-export interface EnrollmentPayload {
-  classId: string;
-  courseId: string;
-}
-
-/**
- * Response from enrollment API
- */
-export interface EnrollmentResponse {
-  success: boolean;
-  data?: {
-    enrollment: {
-      id: string;
-      studentId: string;
-      classId: string;
-      enrollmentDate: string;
-      status: string;
-    };
-  };
-  error?: string;
 }
 
 /**

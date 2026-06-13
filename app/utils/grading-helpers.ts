@@ -1,14 +1,7 @@
 import { ZodError } from 'zod';
-import {
-  GradingResultDataSchema,
-  GradingResultWithContextSchema,
-  UsedContextSchema,
-  type GradingResultData,
-  type GradingResultWithContext,
-  type UsedContext,
-} from '@/schemas/grading';
+import { GradingResultDataSchema, GradingResultData, UsedContext } from '@/schemas/grading';
 
-export type { GradingResultData, GradingResultWithContext, UsedContext };
+export type { GradingResultData, UsedContext };
 
 /**
  * Safely parses and validates grading result data from database JsonValue field
@@ -21,38 +14,6 @@ export function parseGradingResult(value: unknown): GradingResultData | null {
   } catch (error) {
     if (error instanceof ZodError) {
       console.warn('Invalid grading result data:', error.errors);
-    }
-    return null;
-  }
-}
-
-/**
- * Safely parses and validates grading result with context
- * @param {unknown} value - Unknown value from database (likely JsonValue)
- * @returns {GradingResultWithContext | null} Validated data or null if validation fails
- */
-export function parseGradingResultWithContext(value: unknown): GradingResultWithContext | null {
-  try {
-    return GradingResultWithContextSchema.parse(value);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      console.warn('Invalid grading result with context data:', error.errors);
-    }
-    return null;
-  }
-}
-
-/**
- * Safely parses and validates used context data
- * @param {unknown} value - Unknown value from database (likely JsonValue)
- * @returns {UsedContext | null} Validated UsedContext or null if validation fails
- */
-export function parseUsedContext(value: unknown): UsedContext | null {
-  try {
-    return UsedContextSchema.parse(value);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      console.warn('Invalid used context data:', error.errors);
     }
     return null;
   }
@@ -106,65 +67,4 @@ export function extractOverallFeedback(result: unknown): string | undefined {
   }
 
   return typeof parsed.overallFeedback === 'string' ? parsed.overallFeedback : undefined;
-}
-
-/**
- * Type guard to check if a value is a valid GradingResultData
- * @param {unknown} value - Value to check
- * @returns {boolean} True if value is valid GradingResultData
- */
-export function isGradingResultData(value: unknown): value is GradingResultData {
-  try {
-    GradingResultDataSchema.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Type guard to check if a value is a valid GradingResultWithContext
- * @param {unknown} value - Value to check
- * @returns {boolean} True if value is valid GradingResultWithContext
- */
-export function isGradingResultWithContext(value: unknown): value is GradingResultWithContext {
-  try {
-    GradingResultWithContextSchema.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Type guard to check if a value is valid UsedContext
- * @param {unknown} value - Value to check
- * @returns {boolean} True if value is valid UsedContext
- */
-export function isUsedContext(value: unknown): value is UsedContext {
-  try {
-    UsedContextSchema.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Safely extracts typed grading result with fallback
- * Use when you need the full validated object
- * @param {unknown} result - Grading result from database
- * @returns {GradingResultData} Validated data or default empty structure
- */
-export function getGradingResultWithDefault(result: unknown): GradingResultData {
-  const parsed = parseGradingResult(result);
-  if (parsed) return parsed;
-
-  // Return safe default
-  return {
-    totalScore: 0,
-    maxScore: 100,
-    breakdown: [],
-    overallFeedback: 'No grading result available',
-  };
 }

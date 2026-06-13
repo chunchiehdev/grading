@@ -1,21 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 import logger from '@/utils/logger';
-import type {
-  RubricGenerationRequest,
-  RubricGenerationResponse,
-  ConversationItem,
-  RubricContext,
-  RubricValidationResult,
-} from '@/types/rubric-ai';
+import type { RubricGenerationRequest, ConversationItem, RubricContext } from '@/types/rubric-ai';
 
 /**
  * 生成評分標準的專業 Prompt
  */
-function createRubricPrompt(
-  message: string,
-  conversationHistory: ConversationItem[],
-  context?: RubricContext
-): string {
+function createRubricPrompt(message: string, conversationHistory: ConversationItem[], context?: RubricContext): string {
   const contextInfo = context ? `\n當前評分標準內容：${JSON.stringify(context, null, 2)}\n` : '';
 
   const historyText =
@@ -144,12 +134,13 @@ async function callGeminiForRubric(prompt: string): Promise<string> {
 
     return text;
   } catch (error: unknown) {
-    const errorDetails = error instanceof Error
-      ? {
-          message: error.message,
-          name: error.name,
-        }
-      : { error };
+    const errorDetails =
+      error instanceof Error
+        ? {
+            message: error.message,
+            name: error.name,
+          }
+        : { error };
 
     logger.error({ err: errorDetails }, 'Gemini API detailed error:');
 
@@ -218,11 +209,14 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
   // 建構專業的 prompt
   const prompt = createRubricPrompt(message, conversationHistory, context);
 
-  logger.info({
-    messageLength: message.length,
-    hasContext: !!context,
-    historyLength: conversationHistory.length,
-  }, 'Generating rubric with AI');
+  logger.info(
+    {
+      messageLength: message.length,
+      hasContext: !!context,
+      historyLength: conversationHistory.length,
+    },
+    'Generating rubric with AI'
+  );
 
   // 先測試 Gemini API 連接性
   const connectionTest = await testGeminiConnection();
@@ -234,10 +228,13 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
       logger.info('Successfully generated rubric with OpenAI (Gemini connection failed)');
       return response;
     } catch (openaiError) {
-      logger.error({
-        geminiError: connectionTest.error,
-        openaiError,
-      }, 'Both AI services failed');
+      logger.error(
+        {
+          geminiError: connectionTest.error,
+          openaiError,
+        },
+        'Both AI services failed'
+      );
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
   }
@@ -249,9 +246,12 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
     return response;
   } catch (geminiError: unknown) {
     const errorMsg = geminiError instanceof Error ? geminiError.message : 'Unknown error';
-    logger.warn({
-      error: errorMsg,
-    }, 'Gemini API failed, trying OpenAI fallback');
+    logger.warn(
+      {
+        error: errorMsg,
+      },
+      'Gemini API failed, trying OpenAI fallback'
+    );
 
     // 使用 OpenAI 作為備用方案
     try {
@@ -264,50 +264,5 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
       // 兩個 AI 服務都失敗時，拋出錯誤讓上層處理
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
-  }
-}
-
-/**
- * 驗證生成的評分標準 JSON 格式
- */
-export function validateRubricResponse(response: string): RubricValidationResult {
-  try {
-    // 嘗試提取 JSON
-    const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) {
-      return { isValid: true }; // 可能是純文字回應，也是有效的
-    }
-
-    const rubricData = JSON.parse(jsonMatch[1]);
-
-    // 基本格式驗證
-    if (!rubricData.name || !rubricData.description || !Array.isArray(rubricData.categories)) {
-      return { isValid: false, error: '評分標準格式不完整' };
-    }
-
-    // 驗證類別結構
-    for (const category of rubricData.categories) {
-      if (!category.name || !Array.isArray(category.criteria)) {
-        return { isValid: false, error: '評分類別格式不正確' };
-      }
-
-      // 驗證評分項目結構
-      for (const criterion of category.criteria) {
-        if (!criterion.name || !Array.isArray(criterion.levels)) {
-          return { isValid: false, error: '評分項目格式不正確' };
-        }
-
-        // 驗證評分等級
-        for (const level of criterion.levels) {
-          if (typeof level.score !== 'number' || !level.description) {
-            return { isValid: false, error: '評分等級格式不正確' };
-          }
-        }
-      }
-    }
-
-    return { isValid: true };
-  } catch (error) {
-    return { isValid: false, error: 'JSON 格式解析錯誤' };
   }
 }

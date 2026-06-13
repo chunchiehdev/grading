@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "app/root.tsx",
+    "app/routes.ts",
+    "app/routes/**/*.ts",
+    "app/routes/**/*.tsx",
+    "app/api/**/*.ts",
+    "websocket-server/src/server.ts"
+  ],
+  "project": [
+    "app/**/*.{ts,tsx}",
+    "websocket-server/src/**/*.ts"
+  ],
+  "ignore": [
+    "app/generated/**",
+    ".react-router/**",
+    "build/**",
+    "coverage/**",
+    "docs/**",
+    "scripts/**",
+    "specs/**",
+    "test/**"
+  ],
+  "ignoreDependencies": [
+    "@react-router/architect",
+    "@react-router/cloudflare",
+    "@react-router/express",
+    "@react-router/serve"
+  ]
+}

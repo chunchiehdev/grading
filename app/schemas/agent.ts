@@ -7,79 +7,6 @@
 import { z } from 'zod';
 
 /**
- * Reference search tool schema
- */
-export const ReferenceSearchResultSchema = z.object({
-  foundReferences: z.array(
-    z.object({
-      fileName: z.string(),
-      content: z.string(),
-      relevanceScore: z.number().min(0).max(1),
-      excerpt: z.string(),
-    })
-  ),
-  totalMatches: z.number().int().nonnegative(),
-  searchQuery: z.string(),
-});
-
-/**
- * Similarity check tool schema
- */
-export const SimilarityCheckResultSchema = z.object({
-  hasSuspiciousSimilarity: z.boolean(),
-  matches: z.array(
-    z.object({
-      submissionId: z.string(),
-      studentName: z.string().optional(),
-      similarity: z.number().min(0).max(1),
-      matchedSegments: z.array(z.string()).optional(),
-    })
-  ),
-  recommendation: z.string(),
-  checked: z.number().int().nonnegative(),
-});
-
-/**
- * Agent step schema
- */
-export const AgentStepSchema = z.object({
-  stepNumber: z.number().int().positive(),
-  toolName: z.string().optional(),
-  toolInput: z.unknown().optional(),
-  toolOutput: z.unknown().optional(),
-  reasoning: z.string().optional(),
-  durationMs: z.number().int().nonnegative(),
-  timestamp: z.date(),
-});
-
-/**
- * Agent grading result schema
- */
-export const AgentGradingResultSchema = z.object({
-  success: z.boolean(),
-  data: z
-    .object({
-      breakdown: z.array(
-        z.object({
-          criteriaId: z.string(),
-          name: z.string(),
-          score: z.number(),
-          feedback: z.string(),
-        })
-      ),
-      overallFeedback: z.string(),
-      summary: z.string().optional(),
-    })
-    .optional(),
-  steps: z.array(AgentStepSchema),
-  confidenceScore: z.number().min(0).max(1),
-  requiresReview: z.boolean(),
-  totalTokens: z.number().int().nonnegative(),
-  executionTimeMs: z.number().int().nonnegative(),
-  error: z.string().optional(),
-});
-
-/**
  * Tool input schemas
  */
 
@@ -106,20 +33,6 @@ export const CalculateConfidenceInputSchema = z.object({
   criteriaAmbiguity: z.number().min(0).max(1),
 });
 
-/**
- * Think Aloud Tool - 讓模型說出當下的思考 (Hattie & Timperley Framework)
- */
-export const ThinkAloudInputSchema = z.object({
-  feedUp: z.string().describe('Feed Up (Where am I going?): Analyze the goal of this assignment. What is the student trying to achieve?'),
-  feedBack: z.string().describe('Feed Back (How am I going?): Analyze the student\'s current performance. What are the strengths and weaknesses? Use specific evidence.'),
-  feedForward: z.string().describe('Feed Forward (Where to next?): What are the next steps for the student? How can they close the gap?'),
-  strategy: z.string().describe('Grading Strategy: How will you approach grading this specific submission based on the analysis above?'),
-});
-
-export const ThinkAloudOutputSchema = z.object({
-  acknowledged: z.boolean(),
-});
-
 // Deprecated: Granular tools removed for efficiency
 // export const EvaluateSubtraitInputSchema = ...
 // export const MatchToLevelInputSchema = ...
@@ -127,18 +40,18 @@ export const ThinkAloudOutputSchema = z.object({
 /**
  * Sparring Question Schema - 對練問題（Productive Friction）
  */
-export const ProvocationStrategySchema = z.enum([
-  'evidence_check',    // 查證數據來源
-  'logic_gap',         // 指出邏輯跳躍
-  'counter_argument',  // 提供反方觀點
-  'clarification',     // 要求釐清定義
-  'extension',         // 延伸思考
-  'warrant_probe',     // 檢查論證根據
-  'metacognitive',     // 後設認知反思
-  'conceptual',        // 概念理解深化
+const ProvocationStrategySchema = z.enum([
+  'evidence_check', // 查證數據來源
+  'logic_gap', // 指出邏輯跳躍
+  'counter_argument', // 提供反方觀點
+  'clarification', // 要求釐清定義
+  'extension', // 延伸思考
+  'warrant_probe', // 檢查論證根據
+  'metacognitive', // 後設認知反思
+  'conceptual', // 概念理解深化
 ]);
 
-export const SparringQuestionSchema = z.object({
+const SparringQuestionSchema = z.object({
   related_rubric_id: z.string().describe('對應的評分維度 ID（必須與 criteriaScores 中的 criteriaId 一致）'),
   target_quote: z.string().describe('學生文章中的具體引文，作為發問的依據'),
   provocation_strategy: ProvocationStrategySchema.describe('挑釁策略類型'),
@@ -148,7 +61,8 @@ export const SparringQuestionSchema = z.object({
 
 export const GenerateFeedbackInputSchema = z.object({
   // 新增：強制 AI 提供完整的評分推理過程
-  reasoning: z.string().describe(`【完整思考過程】這是你作為評分者的內心獨白，會顯示給教師看。請用第一人稱，像老師批改作業時的思考：
+  reasoning: z.string()
+    .describe(`【完整思考過程】這是你作為評分者的內心獨白，會顯示給教師看。請用第一人稱，像老師批改作業時的思考：
 
 「讀完這篇作業，我的第一印象是...
 在【句子結構】方面，我注意到學生寫道「...」，這裡...
@@ -165,7 +79,12 @@ export const GenerateFeedbackInputSchema = z.object({
     z.object({
       criteriaId: z.string(),
       name: z.string(),
-      score: z.number().int().min(1).max(4).describe("Score must be an integer matching the rubric levels (1-4). No decimals allowed."),
+      score: z
+        .number()
+        .int()
+        .min(1)
+        .max(4)
+        .describe('Score must be an integer matching the rubric levels (1-4). No decimals allowed.'),
       maxScore: z.number(),
       evidence: z.string().describe('從學生作業中引用的原文證據'),
       analysis: z.string().optional().describe('【給學生看】簡潔的改進建議，1-2 句話即可，不要重複 reasoning 的內容'),

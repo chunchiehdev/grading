@@ -20,8 +20,6 @@ export enum ApiErrorCode {
   NOT_FOUND = 'NOT_FOUND',
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
-  RATE_LIMIT = 'RATE_LIMIT',
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
 export function createSuccessResponse<T>(data: T, meta?: ApiResponse<T>['meta']): ApiResponse<T> {

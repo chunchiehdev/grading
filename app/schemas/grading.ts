@@ -6,7 +6,7 @@ import { z } from 'zod';
  */
 
 // Overall feedback can be a string or structured object
-export const OverallFeedbackSchema = z.union([
+const OverallFeedbackSchema = z.union([
   z.string(),
   z.object({
     documentStrengths: z.array(z.string()).optional(),
@@ -17,7 +17,7 @@ export const OverallFeedbackSchema = z.union([
 ]);
 
 // Individual criterion breakdown item
-export const CriteriaBreakdownSchema = z.object({
+const CriteriaBreakdownSchema = z.object({
   criteriaId: z.string(),
   name: z.string(),
   score: z.number(),
@@ -25,7 +25,7 @@ export const CriteriaBreakdownSchema = z.object({
 });
 
 // Sparring question schema (allow clarification/extension for backward compat with agent output)
-export const SparringQuestionSchema = z.object({
+const SparringQuestionSchema = z.object({
   related_rubric_id: z.string(),
   target_quote: z.string(),
   provocation_strategy: z.enum([
@@ -36,14 +36,14 @@ export const SparringQuestionSchema = z.object({
     'metacognitive',
     'conceptual',
     'clarification', // legacy/agent variant
-    'extension',     // legacy/agent variant
+    'extension', // legacy/agent variant
   ]),
   question: z.string(),
   ai_hidden_reasoning: z.string(),
 });
 
 // Sparring response schema
-export const SparringResponseSchema = z.object({
+const SparringResponseSchema = z.object({
   questionIndex: z.number(),
   questionId: z.string(),
   strategy: z.string(),
@@ -69,27 +69,17 @@ export const GradingResultDataSchema = z.object({
 // Context about what was used during grading (Feature 004)
 export const UsedContextSchema = z.object({
   assignmentAreaId: z.string().nullable().optional(),
-  referenceFilesUsed: z.array(
-    z.object({
-      fileId: z.string(),
-      fileName: z.string(),
-      contentLength: z.number(),
-      wasTruncated: z.boolean(),
-    })
-  ).optional(),
+  referenceFilesUsed: z
+    .array(
+      z.object({
+        fileId: z.string(),
+        fileName: z.string(),
+        contentLength: z.number(),
+        wasTruncated: z.boolean(),
+      })
+    )
+    .optional(),
   customInstructionsUsed: z.boolean().optional(),
 });
-
-// Extended grading result with context
-export const GradingResultWithContextSchema = GradingResultDataSchema.extend({
-  usedContext: UsedContextSchema.optional(),
-  gradingModel: z.string().optional(),
-  gradingDuration: z.number().optional(),
-});
-
-// Export types inferred from schemas
-export type OverallFeedback = z.infer<typeof OverallFeedbackSchema>;
-export type CriteriaBreakdown = z.infer<typeof CriteriaBreakdownSchema>;
 export type GradingResultData = z.infer<typeof GradingResultDataSchema>;
 export type UsedContext = z.infer<typeof UsedContextSchema>;
-export type GradingResultWithContext = z.infer<typeof GradingResultWithContextSchema>;

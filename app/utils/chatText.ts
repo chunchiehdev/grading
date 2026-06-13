@@ -1,4 +1,4 @@
-export interface ChatTextPartLike {
+interface ChatTextPartLike {
   type?: string;
   text?: string;
   content?: string;

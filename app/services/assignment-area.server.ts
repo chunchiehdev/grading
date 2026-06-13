@@ -125,10 +125,7 @@ export async function createAssignmentArea(
       },
     });
 
-    logger.info(
-      { assignmentAreaName: assignmentArea.name, courseId },
-      '  Created assignment area',
-    );
+    logger.info({ assignmentAreaName: assignmentArea.name, courseId }, '  Created assignment area');
 
     // 發布作業通知事件
     try {
@@ -364,71 +361,6 @@ export async function deleteAssignmentArea(assignmentId: string, teacherId: stri
   } catch (error) {
     logger.error({ err: error }, '❌ Error deleting assignment area:');
     return false;
-  }
-}
-
-/**
- * Gets assignment area statistics for teacher dashboard
- * @param teacherId - Teacher's user ID
- * @returns Assignment area statistics
- */
-export async function getTeacherAssignmentStats(teacherId: string) {
-  try {
-    const stats = await db.assignmentArea.aggregate({
-      where: {
-        course: {
-          teacherId,
-        },
-      },
-      _count: true,
-    });
-
-    const submissionStats = await db.submission.aggregate({
-      where: {
-        assignmentArea: {
-          course: {
-            teacherId,
-          },
-        },
-      },
-      _count: true,
-    });
-
-    const recentAreas = await db.assignmentArea.findMany({
-      where: {
-        course: {
-          teacherId,
-        },
-      },
-      include: {
-        course: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        _count: {
-          select: {
-            submissions: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
-
-    return {
-      totalAssignmentAreas: stats._count,
-      totalSubmissions: submissionStats._count,
-      recentAreas,
-    };
-  } catch (error) {
-    logger.error({ err: error }, '❌ Error fetching teacher assignment stats:');
-    return {
-      totalAssignmentAreas: 0,
-      totalSubmissions: 0,
-      recentAreas: [],
-    };
   }
 }
 

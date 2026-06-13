@@ -1,22 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
 import logger from '~/utils/logger';
-
-/**
- * Generate a secure API key
- * @returns {string} Generated API key
- */
-export function generateApiKey(): string {
-  return randomBytes(32).toString('hex');
-}
-
-/**
- * Hash API key for secure storage
- * @param {string} apiKey - The plain API key
- * @returns {string} Hashed API key
- */
-export function hashApiKey(apiKey: string): string {
-  return createHash('sha256').update(apiKey).digest('hex');
-}
 
 /**
  * Validate API key from request
@@ -41,23 +23,14 @@ export function validateApiKey(request: Request): boolean {
 
   // Direct string comparison (API keys should be random enough)
   const isValid = apiKey === expectedApiKey;
-  logger.debug({
-    provided: apiKey.substring(0, 8) + '...',
-    expected: expectedApiKey.substring(0, 8) + '...',
-    isValid,
-  }, 'API Key validation');
+  logger.debug(
+    {
+      provided: apiKey.substring(0, 8) + '...',
+      expected: expectedApiKey.substring(0, 8) + '...',
+      isValid,
+    },
+    'API Key validation'
+  );
 
   return isValid;
-}
-
-/**
- * Middleware to check API key for internal services
- * @param {Request} request - The HTTP request
- * @returns {Response|null} Error response if unauthorized, null if authorized
- */
-export function requireApiKey(request: Request): Response | null {
-  if (!validateApiKey(request)) {
-    return Response.json({ success: false, error: 'Invalid or missing API key' }, { status: 401 });
-  }
-  return null;
 }

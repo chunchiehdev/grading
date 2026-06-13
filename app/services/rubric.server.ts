@@ -5,10 +5,8 @@ import { DeleteRubricRequestSchema } from '@/schemas/rubric';
 import { type RubricResponse, type UIRubricData } from '@/types/rubric';
 import {
   transformUICategoriesToDbCriteria,
-  parseRubricCriteria,
   parseRubricCriteriaWithDefault,
   flattenCategoriesToCriteria,
-  type DbRubricCriteria,
 } from '@/schemas/rubric-data';
 
 /**
@@ -32,7 +30,6 @@ function handleServiceError(error: unknown, operation: string): { success: false
 
   return { success: false, error: `${operation}過程中發生未知錯誤` };
 }
-
 
 /**
  * Creates a new rubric with validation and version control
@@ -256,86 +253,5 @@ export async function deleteRubric(id: string): Promise<{ success: boolean; erro
     return { success: true };
   } catch (error) {
     return handleServiceError(error, '刪除評分標準');
-  }
-}
-
-/**
- * Gets all versions of a rubric
- * @param {string} id - The rubric ID to retrieve versions for
- * @returns {Promise<Object>} Result object containing versions array and optional error
- * @returns {RubricResponse[]} returns.versions - Array of rubric versions
- * @returns {string} [returns.error] - Error message if retrieval failed
- */
-export async function getRubricVersions(id: string): Promise<{ versions: RubricResponse[]; error?: string }> {
-  try {
-    const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
-
-    // 先找到該評分標準的userId
-    const rubric = await db.rubric.findUnique({
-      where: { id: validatedId },
-    });
-
-    if (!rubric) {
-      return { versions: [], error: '找不到評分標準' };
-    }
-
-    // 找到同名的所有版本
-    const versions = await db.rubric.findMany({
-      where: {
-        userId: rubric.userId,
-        name: rubric.name,
-      },
-      orderBy: {
-        version: 'desc',
-      },
-    });
-
-    const versionResponses: RubricResponse[] = versions.map((v) => {
-      const categories = parseRubricCriteriaWithDefault(v.criteria);
-      return {
-        id: v.id,
-        name: v.name,
-        description: v.description,
-        version: v.version,
-        isActive: v.isActive,
-        isTemplate: v.isTemplate,
-        createdAt: v.createdAt,
-        updatedAt: v.updatedAt,
-        criteria: flattenCategoriesToCriteria(categories),
-        categories: categories,
-      };
-    });
-
-    return { versions: versionResponses };
-  } catch (error) {
-    const errorResult = handleServiceError(error, '獲取評分標準版本歷史');
-    return {
-      versions: [],
-      error: errorResult.error,
-    };
-  }
-}
-
-/**
- * Starts a background grading process for a grading session
- * @param {string} sessionId - The grading session ID to process
- * @returns {Promise<Object>} Result object indicating if grading was started
- */
-export async function startGradingProcess(sessionId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Import here to avoid circular dependencies
-    const { processGradingSession } = await import('./grading-engine.server');
-
-    // Start grading process asynchronously
-    processGradingSession(sessionId).catch((error) => {
-      console.error(`Background grading failed for session ${sessionId}:`, error);
-    });
-
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to start grading process',
-    };
   }
 }

@@ -26,20 +26,3 @@ export interface RubricGenerationRequest {
   conversationHistory: ConversationItem[];
   context?: RubricContext;
 }
-
-/**
- * Rubric generation response
- */
-export interface RubricGenerationResponse {
-  success: boolean;
-  response?: string;
-  error?: string;
-}
-
-/**
- * Validation result for rubric JSON
- */
-export interface RubricValidationResult {
-  isValid: boolean;
-  error?: string;
-}

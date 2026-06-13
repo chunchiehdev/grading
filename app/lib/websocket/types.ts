@@ -3,7 +3,7 @@
  * 集中管理所有 WebSocket 相關的型別
  */
 
-import type { ChatMsg, Chat, ChatSyncData } from '@/types/chat';
+import type { ChatMsg, ChatSyncData } from '@/types/chat';
 
 export enum ConnectionState {
   DISCONNECTED = 'disconnected',
@@ -14,8 +14,7 @@ export enum ConnectionState {
 }
 
 // Re-export chat types for convenience
-export type ChatMessage = ChatMsg;
-export type ChatRoom = Chat;
+type ChatMessage = ChatMsg;
 
 export interface ConnectionConfig {
   wsUrl?: string;

@@ -1,5 +1,5 @@
 import { GradingResultData } from './grading';
-import type { DbCriterion, DbRubricCriteria } from '@/schemas/rubric-data';
+import type { DbCriterion } from '@/schemas/rubric-data';
 
 /**
  * Gemini AI 服務的共用型別定義
@@ -12,12 +12,12 @@ export interface GeminiContentPart {
   thought?: boolean;
 }
 
-export interface GeminiContent {
+interface GeminiContent {
   parts: GeminiContentPart[];
   role?: string;
 }
 
-export interface GeminiCandidate {
+interface GeminiCandidate {
   content: GeminiContent;
   finishReason?: string;
 }

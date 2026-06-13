@@ -26,30 +26,6 @@ export type { RubricResponse } from '@/types/rubric';
 import type { SubmissionAiFeedbackCommentView } from '@/types/student';
 
 /**
- * Analytics types (inferred from analytics.server.ts return values)
- */
-export type OverallTeacherStats = {
-  totalCourses: number;
-  totalStudents: number;
-  totalSubmissions: number;
-  averageScore: number;
-};
-
-export type CoursePerformance = Array<{
-  id: string;
-  name: string;
-  submissionsCount: number;
-  averageScore: number;
-  statusCounts: Record<string, number>;
-}>;
-
-export type RubricUsage = Array<{
-  rubricId: string;
-  rubricName: string;
-  usageCount: number;
-}>;
-
-/**
  * Teacher submission view data - flattened for display
  *
  * This type represents the optimized data structure for the teacher submission review page.

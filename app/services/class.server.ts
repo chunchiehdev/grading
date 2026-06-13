@@ -136,10 +136,7 @@ export async function createClass(teacherId: string, data: CreateClassData): Pro
       },
     });
 
-    logger.info(
-      { className: classInstance.name, courseId: data.courseId },
-      '  Created class',
-    );
+    logger.info({ className: classInstance.name, courseId: data.courseId }, '  Created class');
     return classInstance;
   } catch (error) {
     logger.error({ err: error }, '❌ Error creating class:');
@@ -363,115 +360,6 @@ export async function deleteClass(classId: string, teacherId: string): Promise<b
   } catch (error) {
     logger.error({ err: error }, '❌ Error deleting class:');
     throw error;
-  }
-}
-
-/**
- * Gets class statistics
- * @param classId - Class ID
- * @param teacherId - Teacher's user ID for authorization
- * @returns Class statistics
- */
-export async function getClassStatistics(classId: string, teacherId: string) {
-  try {
-    const classInstance = await getClassById(classId, teacherId);
-    if (!classInstance) {
-      throw new Error('Class not found or unauthorized');
-    }
-
-    const [totalEnrollments, totalAssignments, recentEnrollments, assignmentStats] = await Promise.all([
-      db.enrollment.count({
-        where: { classId },
-      }),
-      db.assignmentArea.count({
-        where: { classId },
-      }),
-      db.enrollment.findMany({
-        where: { classId },
-        include: {
-          student: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              picture: true,
-            },
-          },
-        },
-        orderBy: { enrolledAt: 'desc' },
-        take: 10,
-      }),
-      db.submission.groupBy({
-        by: ['status'],
-        where: {
-          assignmentArea: {
-            classId,
-          },
-        },
-        _count: true,
-      }),
-    ]);
-
-    return {
-      totalEnrollments,
-      totalAssignments,
-      recentEnrollments,
-      submissionsByStatus: assignmentStats.reduce((acc: any, stat: any) => {
-        acc[stat.status] = stat._count;
-        return acc;
-      }, {}),
-      capacityUtilization: classInstance.capacity ? (totalEnrollments / classInstance.capacity) * 100 : null,
-    };
-  } catch (error) {
-    logger.error({ err: error }, '❌ Error fetching class statistics:');
-    throw error;
-  }
-}
-
-/**
- * Gets all classes a student is enrolled in
- * @param studentId - Student's user ID
- * @returns List of classes with course information
- */
-export async function getStudentClasses(studentId: string) {
-  try {
-    const enrollments = await db.enrollment.findMany({
-      where: { studentId },
-      include: {
-        class: {
-          include: {
-            course: {
-              include: {
-                teacher: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    picture: true,
-                  },
-                },
-              },
-            },
-            _count: {
-              select: {
-                enrollments: true,
-                assignmentAreas: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { enrolledAt: 'desc' },
-    });
-
-    return enrollments.map((enrollment) => ({
-      enrollmentId: enrollment.id,
-      enrolledAt: enrollment.enrolledAt,
-      class: enrollment.class,
-    }));
-  } catch (error) {
-    logger.error({ err: error }, '❌ Error fetching student classes:');
-    return [];
   }
 }
 

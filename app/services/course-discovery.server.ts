@@ -1,6 +1,6 @@
 import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
-import type { DiscoverableCourse, ClassCard, ClassSchedule } from '@/types/course';
+import type { DiscoverableCourse, ClassSchedule } from '@/types/course';
 
 /**
  * Safely parse class schedule from database JSON
@@ -309,66 +309,5 @@ export async function createEnrollment(studentId: string, classId: string) {
     }
     logger.error({ error, studentId, classId }, 'Unexpected error creating enrollment:');
     throw new Error('Failed to enroll. Please try again or contact support.');
-  }
-}
-
-/**
- * Checks if a student is currently enrolled in a specific class
- *
- * @param studentId - The student's unique user ID (UUID)
- * @param classId - The class section's unique ID (UUID)
- *
- * @returns true if the student has an active enrollment in this class, false otherwise
- *
- * @example
- * const isEnrolled = await isStudentEnrolledInClass(studentId, classId);
- * if (isEnrolled) {
- *   console.log('Student is already enrolled');
- * }
- */
-export async function isStudentEnrolledInClass(studentId: string, classId: string): Promise<boolean> {
-  try {
-    const enrollment = await db.enrollment.findUnique({
-      where: {
-        studentId_classId: {
-          studentId,
-          classId,
-        },
-      },
-    });
-
-    logger.debug(`Enrollment check: studentId=${studentId}, classId=${classId}, enrolled=${!!enrollment}`);
-    return !!enrollment;
-  } catch (error) {
-    logger.error({ error, studentId, classId }, 'Error checking student enrollment:');
-    return false;
-  }
-}
-
-/**
- * Gets the current number of active enrollments for a class
- * Used for capacity validation and displaying enrollment statistics
- *
- * @param classId - The class section's unique ID (UUID)
- *
- * @returns Number of active student enrollments in the class (0 if class not found or no enrollments)
- *
- * @throws Error if database query fails unexpectedly
- *
- * @example
- * const count = await getClassEnrollmentCount(classId);
- * console.log(`${count} students enrolled`);
- */
-export async function getClassEnrollmentCount(classId: string): Promise<number> {
-  try {
-    const count = await db.enrollment.count({
-      where: { classId },
-    });
-
-    logger.debug(`Enrollment count for class ${classId}: ${count}`);
-    return count;
-  } catch (error) {
-    logger.error({ error, classId }, 'Error getting enrollment count:');
-    throw new Error('Failed to get enrollment count. Please try again.');
   }
 }

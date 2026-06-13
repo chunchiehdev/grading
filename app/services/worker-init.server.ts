@@ -14,7 +14,7 @@ import logger from '@/utils/logger';
  * - Worker continues running until process termination (SIGTERM/SIGINT)
  * - All shutdown logic is managed by StartupService
  */
-export async function initializeGradingWorker(): Promise<void> {
+async function initializeGradingWorker(): Promise<void> {
   // Guard: Skip in browser environment
   if (typeof window !== 'undefined') {
     logger.warn('[Worker Init] Skipping initialization in browser environment');

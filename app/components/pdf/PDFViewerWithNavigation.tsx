@@ -1,8 +1,7 @@
 // app/components/pdf/PDFViewerWithNavigation.tsx
 import { useState, useCallback, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PDFTextHighlighter, type HighlightOptions } from '@/utils/pdf-text-highlighter';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -10,7 +9,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 // Type definitions for react-pdf components since we're importing them dynamically
 type ReactPdfModule = typeof import('react-pdf');
 
-export interface PageMarker {
+interface PageMarker {
   pageNumber: number;
   feedbacks: Array<{
     id: string;
@@ -106,23 +105,22 @@ export const PDFViewerWithNavigation = forwardRef<PDFViewerHandle, PDFViewerWith
       };
 
       updateWidth();
-      
+
       let resizeTimer: NodeJS.Timeout;
 
       const resizeObserver = new ResizeObserver((entries) => {
         clearTimeout(resizeTimer);
-        
+
         resizeTimer = setTimeout(() => {
           updateWidth(entries);
         }, 200);
       });
 
       resizeObserver.observe(containerRef.current);
-      
-      
+
       return () => {
         resizeObserver.disconnect();
-        clearTimeout(resizeTimer); 
+        clearTimeout(resizeTimer);
       };
     }, [isClient, pdfModule]);
 
@@ -174,7 +172,7 @@ export const PDFViewerWithNavigation = forwardRef<PDFViewerHandle, PDFViewerWith
     // Get markers for current page
     const currentPageMarkers = pageMarkers.filter((m) => m.pageNumber === pageNumber);
     const totalFeedbacks = currentPageMarkers.reduce((sum, m) => sum + m.feedbacks.length, 0);
-    
+
     if (error) {
       return (
         <div className="overflow-hidden h-full flex items-center justify-center bg-card">

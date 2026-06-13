@@ -185,5 +185,3 @@ export function getSimpleOpenAIService(): SimpleOpenAIService {
   }
   return openaiService;
 }
-
-export default SimpleOpenAIService;

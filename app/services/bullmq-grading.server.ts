@@ -4,7 +4,7 @@ import logger from '@/utils/logger';
 import { processGradingResult } from './grading-engine.server';
 import { updateGradingSessionProgress } from './grading-session.server';
 
-export interface GradingJob {
+interface GradingJob {
   resultId: string;
   userId: string;
   sessionId: string;
@@ -67,9 +67,7 @@ async function closeServicesInternal(): Promise<void> {
   }
 
   if (events) {
-    tasks.push(
-      events.close().catch((error) => logger.error({ err: error }, '[BullMQ] Error closing queue events:'))
-    );
+    tasks.push(events.close().catch((error) => logger.error({ err: error }, '[BullMQ] Error closing queue events:')));
   }
 
   if (tasks.length > 0) {
@@ -125,9 +123,7 @@ async function initializeBullMQ(): Promise<void> {
         async (job) => {
           const { resultId, userId, sessionId, userLanguage } = job.data;
 
-          logger.info(
-            `🏃 [BullMQ] Processing job ${job.id} for result ${resultId} (attempt ${job.attemptsMade + 1})`
-          );
+          logger.info(`🏃 [BullMQ] Processing job ${job.id} for result ${resultId} (attempt ${job.attemptsMade + 1})`);
 
           try {
             const result = await processGradingResult(resultId, userId, sessionId, userLanguage || 'en');
@@ -162,7 +158,7 @@ async function initializeBullMQ(): Promise<void> {
         },
         {
           connection: bullmqRedis,
-          concurrency: 1,  // 改為 1，避免同時多個任務消耗 API 配額
+          concurrency: 1, // 改為 1，避免同時多個任務消耗 API 配額
         }
       );
       state.worker = worker;
@@ -209,47 +205,6 @@ async function ensureInitialized(): Promise<void> {
   }
   if (!state.queue || !state.worker || !state.events) {
     await initializeBullMQ();
-  }
-}
-
-export async function addGradingJobs(jobs: GradingJob[]): Promise<{
-  success: boolean;
-  addedCount: number;
-  error?: string;
-}> {
-  await ensureInitialized();
-  const queue = state.queue;
-
-  if (!queue) {
-    const message = state.initializationError
-      ? `BullMQ initialization failed: ${state.initializationError.message}`
-      : 'Grading queue is not initialized';
-    logger.error({ err: message }, '[BullMQ] Failed to add jobs:');
-    return {
-      success: false,
-      addedCount: 0,
-      error: message,
-    };
-  }
-
-  try {
-    const addedJobs = await queue.addBulk(
-      jobs.map((job) => ({
-        name: 'grade',
-        data: job,
-      }))
-    );
-
-    logger.info(`📝 [BullMQ] Added ${addedJobs.length} jobs to queue`);
-
-    return { success: true, addedCount: addedJobs.length };
-  } catch (error) {
-    logger.error({ err: error }, '[BullMQ] Failed to add jobs:');
-    return {
-      success: false,
-      addedCount: 0,
-      error: error instanceof Error ? error.message : 'Failed to add jobs',
-    };
   }
 }
 
@@ -355,22 +310,6 @@ export async function getQueueStatus() {
   }
 }
 
-export async function closeGradingServices() {
-  if (state.disposePromise) {
-    return state.disposePromise;
-  }
-
-  state.disposePromise = closeServicesInternal()
-    .catch((error) => {
-      logger.error({ err: error }, '[BullMQ] Error closing grading services:');
-    })
-    .finally(() => {
-      state.disposePromise = undefined;
-    });
-
-  return state.disposePromise;
-}
-
 // Vite HMR cleanup - prevents zombie workers during development
 if (import.meta.hot) {
   import.meta.hot.accept();
@@ -380,28 +319,4 @@ if (import.meta.hot) {
       state.disposePromise = undefined;
     });
   });
-}
-
-/**
- * Get the current queue instance
- * Returns live reference to the queue, not a snapshot
- */
-export function getQueue(): Queue<GradingJob> | null {
-  return state.queue ?? null;
-}
-
-/**
- * Get the current worker instance
- * Returns live reference to the worker, not a snapshot
- */
-export function getWorker(): Worker<GradingJob> | null {
-  return state.worker ?? null;
-}
-
-/**
- * Get the current queue events instance
- * Returns live reference to the events, not a snapshot
- */
-export function getEvents(): QueueEvents | null {
-  return state.events ?? null;
 }

@@ -22,35 +22,6 @@ export function formatDateForDisplay(date: Date, locale: string = 'zh'): string 
 }
 
 /**
- * Formats a date for HTML datetime-local input
- * @param date - Date to format
- * @returns ISO string formatted for datetime-local input
- */
-export function formatDateForForm(date: Date): string {
-  // datetime-local input expects YYYY-MM-DDTHH:mm format
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-/**
- * Calculates days until a due date
- * @param dueDate - Due date
- * @returns Number of days (negative if overdue)
- */
-export function getDaysUntilDue(dueDate: Date): number {
-  const now = new Date();
-  const due = new Date(dueDate);
-  const timeDiff = due.getTime() - now.getTime();
-  return Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-}
-
-/**
  * Formats a relative time string (e.g., "2 days ago", "in 3 hours")
  * @param date - Date to format
  * @returns Relative time string
@@ -83,23 +54,4 @@ export function formatRelativeTime(date: Date): string {
   } else {
     return 'just now';
   }
-}
-
-/**
- * Formats a full date-time string for SSR compatibility
- * Uses UTC to ensure consistency between server and client
- * @param date - Date to format
- * @param locale - Locale code (default: 'en-US')
- * @returns Formatted date-time string
- */
-export function formatFullDateTime(date: Date, locale: string = 'en-US'): string {
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'UTC',
-  }).format(new Date(date));
 }

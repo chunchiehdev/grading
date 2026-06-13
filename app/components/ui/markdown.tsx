@@ -46,17 +46,34 @@ export function Markdown({ children, className, allowHtml = false, disableSaniti
       const isInline = !match;
 
       if (isInline) {
-        return <code className="text-sm bg-muted px-1.5 py-0.5 rounded font-mono text-foreground" {...props}>{children}</code>;
+        return (
+          <code className="text-sm bg-muted px-1.5 py-0.5 rounded font-mono text-foreground" {...props}>
+            {children}
+          </code>
+        );
       }
 
-      return <code className={cn("text-sm font-mono", codeClassName)} {...props}>{children}</code>;
+      return (
+        <code className={cn('text-sm font-mono', codeClassName)} {...props}>
+          {children}
+        </code>
+      );
     },
-    pre: ({ children }) => <pre className="bg-muted border rounded-lg p-4 overflow-x-auto mb-3 text-sm">{children}</pre>,
+    pre: ({ children }) => (
+      <pre className="bg-muted border rounded-lg p-4 overflow-x-auto mb-3 text-sm">{children}</pre>
+    ),
     blockquote: ({ children }) => (
       <blockquote className="border-l-4 border-primary bg-muted/30 pl-4 py-2 my-3 italic">{children}</blockquote>
     ),
     a: ({ children, href }) => (
-      <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors" target="_blank" rel="noopener noreferrer">{children}</a>
+      <a
+        href={href}
+        className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
     ),
     table: ({ children }) => (
       <div className="overflow-x-auto mb-3">
@@ -81,50 +98,9 @@ export function Markdown({ children, className, allowHtml = false, disableSaniti
         className
       )}
     >
-      <ReactMarkdown
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={rehypePlugins}
-        components={components}
-      >
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
         {children}
       </ReactMarkdown>
     </div>
   );
-}
-
-/**
- * Fallback component that renders plain text with basic formatting
- * Used when Markdown content is not available
- */
-export function PlainTextFallback({ children, className }: { children: string; className?: string }) {
-  return (
-    <div className={cn('text-sm leading-relaxed', className)}>
-      {children.split('\n').map((para, i) => (
-        <p key={i} className={i > 0 ? 'mt-3' : ''}>
-          {para}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Smart content renderer that uses Markdown if available, falls back to plain text
- */
-export function SmartContent({
-  markdown,
-  plainText,
-  className,
-  fallbackClassName,
-}: {
-  markdown?: string;
-  plainText: string;
-  className?: string;
-  fallbackClassName?: string;
-}) {
-  if (markdown && markdown.trim()) {
-    return <Markdown className={className}>{markdown}</Markdown>;
-  }
-
-  return <PlainTextFallback className={fallbackClassName || className}>{plainText}</PlainTextFallback>;
 }

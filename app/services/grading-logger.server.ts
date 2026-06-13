@@ -8,7 +8,7 @@ import logger from '@/utils/logger';
  * 每個 grading session 都有一個完整的 JSON 日誌文件，記錄所有輸入輸出數據
  */
 
-export interface GradingLogEntry {
+interface GradingLogEntry {
   sessionId: string;
   resultId: string;
   timestamp: string;
@@ -115,12 +115,7 @@ class GradingLogger {
    * 添加用戶信息到日誌
    * Add user information to log
    */
-  public addUserInfo(
-    sessionId: string,
-    userId: string,
-    email?: string,
-    role?: string
-  ): void {
+  public addUserInfo(sessionId: string, userId: string, email?: string, role?: string): void {
     const log = this.sessionLogs.get(sessionId);
     if (log) {
       log.user = { id: userId, email, role };
@@ -131,12 +126,7 @@ class GradingLogger {
    * 添加作業信息到日誌
    * Add assignment information to log
    */
-  public addAssignmentInfo(
-    sessionId: string,
-    assignmentId: string,
-    assignmentName: string,
-    courseId?: string
-  ): void {
+  public addAssignmentInfo(sessionId: string, assignmentId: string, assignmentName: string, courseId?: string): void {
     const log = this.sessionLogs.get(sessionId);
     if (log) {
       log.assignment = { id: assignmentId, name: assignmentName, courseId };
@@ -147,12 +137,7 @@ class GradingLogger {
    * 添加文件信息到日誌
    * Add file information to log
    */
-  public addFileInfo(
-    sessionId: string,
-    fileId: string,
-    fileName: string,
-    filePath: string
-  ): void {
+  public addFileInfo(sessionId: string, fileId: string, fileName: string, filePath: string): void {
     const log = this.sessionLogs.get(sessionId);
     if (log) {
       if (!log.files) log.files = [];
@@ -164,12 +149,7 @@ class GradingLogger {
    * 添加評分標準信息到日誌
    * Add rubric information to log
    */
-  public addRubricInfo(
-    sessionId: string,
-    rubricId: string,
-    rubricName: string,
-    totalPoints?: number
-  ): void {
+  public addRubricInfo(sessionId: string, rubricId: string, rubricName: string, totalPoints?: number): void {
     const log = this.sessionLogs.get(sessionId);
     if (log) {
       log.rubric = { id: rubricId, name: rubricName, totalPoints };
@@ -207,12 +187,7 @@ class GradingLogger {
    * 添加完整的 prompt 到日誌
    * Add complete prompt to log
    */
-  public addPromptInfo(
-    sessionId: string,
-    prompt: string,
-    estimatedTokens: number,
-    language: string = 'en'
-  ): void {
+  public addPromptInfo(sessionId: string, prompt: string, estimatedTokens: number, language: string = 'en'): void {
     const log = this.sessionLogs.get(sessionId);
     if (log) {
       log.prompt = {
@@ -394,5 +369,3 @@ export function getGradingLogger(): GradingLogger {
   }
   return gradingLoggerInstance;
 }
-
-export default GradingLogger;

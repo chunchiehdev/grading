@@ -20,7 +20,7 @@ type Language = 'en' | 'zh';
  * Grading workflow step enumeration
  * @typedef {'upload'|'select-rubric'|'grading'|'result'} GradingStep
  */
-export type GradingStep = 'upload' | 'select-rubric' | 'grading' | 'result';
+type GradingStep = 'upload' | 'select-rubric' | 'grading' | 'result';
 
 /**
  * Interface for UI store state management

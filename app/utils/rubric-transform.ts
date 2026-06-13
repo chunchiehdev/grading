@@ -1,11 +1,5 @@
 import { ZodError } from 'zod';
-import {
-  type RubricCriteria,
-  type UIRubricData,
-  type UICategory,
-  type UICriterion,
-  type UILevel,
-} from '@/types/rubric';
+import { UIRubricData, UICategory, UICriterion, UILevel } from '@/types/rubric';
 import { UIRubricDataSchema, RubricCompletionSchema, type Level } from '@/schemas/rubric';
 
 export type { Level, UICriterion, UICategory, UIRubricData };
@@ -30,23 +24,6 @@ export function dbCriteriaToUICategories(categories: any[]): UICategory[] {
       levels: criterion.levels as UILevel[],
     })),
   }));
-}
-
-/**
- * Converts UI categories to database criteria structure (for new JSON schema)
- * @param {UICategory[]} categories - Array of UI category objects
- * @returns {RubricCriteria[]} Array of criteria for database storage as JSON
- */
-export function uiCategoriesToDbCriteria(categories: UICategory[]): RubricCriteria[] {
-  return categories.flatMap((category) =>
-    category.criteria.map((criterion) => ({
-      id: criterion.id,
-      name: criterion.name,
-      description: criterion.description || '',
-      maxScore: Math.max(...criterion.levels.map((l) => l.score)),
-      levels: criterion.levels,
-    }))
-  );
 }
 
 /**
@@ -158,36 +135,6 @@ export function calculateRubricStats(categories: UICategory[]): {
     maxScore,
     completionRate,
   };
-}
-
-/**
- * Safely parses JSON string to categories array with validation
- * @param {string} jsonString - JSON string representing categories data
- * @returns {Object} Parse result with success status and data or error
- * @returns {boolean} returns.success - Whether parsing was successful
- * @returns {UICategory[]} [returns.data] - Parsed categories array if successful
- * @returns {string} [returns.error] - Error message if parsing failed
- */
-export function safeParseCategoriesJson(jsonString: string): {
-  success: boolean;
-  data?: UICategory[];
-  error?: string;
-} {
-  try {
-    const parsed = JSON.parse(jsonString);
-    const categories = Array.isArray(parsed) ? parsed : [];
-
-    // 基本驗證每個 category 的結構
-    for (const category of categories) {
-      if (!category.id || !category.name || !Array.isArray(category.criteria)) {
-        return { success: false, error: '無效的類別資料結構' };
-      }
-    }
-
-    return { success: true, data: categories };
-  } catch (error) {
-    return { success: false, error: 'JSON 格式錯誤' };
-  }
 }
 
 /**

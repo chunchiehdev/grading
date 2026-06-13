@@ -4,7 +4,7 @@ import type { StudentAssignmentInfo } from '@/types/student';
 import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 // Use StudentAssignmentInfo as the base type
-export type Assignment = StudentAssignmentInfo & {
+type Assignment = StudentAssignmentInfo & {
   formattedDueDate?: string;
 };
 

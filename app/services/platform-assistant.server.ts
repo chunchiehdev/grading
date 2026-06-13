@@ -6,7 +6,15 @@
  * Handles database queries and report generation for comprehensive learning analytics.
  */
 
-import { ToolLoopAgent, stepCountIs, type ToolSet, generateText, generateObject, type LanguageModel, convertToModelMessages } from 'ai';
+import {
+  ToolLoopAgent,
+  stepCountIs,
+  type ToolSet,
+  generateText,
+  generateObject,
+  type LanguageModel,
+  convertToModelMessages,
+} from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
@@ -23,7 +31,7 @@ interface TokenUsage {
   [key: string]: any;
 }
 
-export type AssistantProgressPhase =
+type AssistantProgressPhase =
   | 'step_started'
   | 'step_completed'
   | 'tool_started'
@@ -32,7 +40,7 @@ export type AssistantProgressPhase =
   | 'agent_completed'
   | 'agent_error';
 
-export interface AssistantProgressEvent {
+interface AssistantProgressEvent {
   sessionId: string;
   userId: string;
   userRole: 'TEACHER' | 'STUDENT';
@@ -82,7 +90,8 @@ function getProgressLocaleText(language: AssistantUiLanguage): ProgressLocaleTex
     isEnglish: false,
     noData: '無資料',
     noParams: '無參數',
-    languageReminder: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.',
+    languageReminder:
+      'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.',
     agentCompletedTitle: '助手已完成本次回覆',
     agentCompletedSummary: () => '回覆已完成。',
     agentFailedTitle: '助手執行失敗',
@@ -142,7 +151,8 @@ function summarizeParams(params: Record<string, unknown> | undefined, localeText
 function stripProcessLeakage(text: string): string {
   if (!text) return text;
 
-  const leakagePattern = /(think\s*tool|think\s*\(|think\s*參數|內部\s*prompt|internal\s*prompt|流程規則|process rules)/i;
+  const leakagePattern =
+    /(think\s*tool|think\s*\(|think\s*參數|內部\s*prompt|internal\s*prompt|流程規則|process rules)/i;
   const lines = text
     .split(/\n+/)
     .map((line) => line.trim())
@@ -178,11 +188,7 @@ function getQueryDisplayName(queryType: string, isEnglish: boolean): string {
   return isEnglish ? fallback : fallback;
 }
 
-function createProgressReporter(
-  sessionId: string,
-  userId: string,
-  userRole: 'TEACHER' | 'STUDENT'
-): ProgressReporter {
+function createProgressReporter(sessionId: string, userId: string, userRole: 'TEACHER' | 'STUDENT'): ProgressReporter {
   return (event) => {
     const payload: AssistantProgressEvent = {
       ...event,
@@ -277,51 +283,57 @@ export type ModelProvider = 'gemini' | 'local' | 'auto';
 
 /**
  * Resilient Model Factory (Session-Level Circuit Breaker)
- * 
+ *
  * Checks if vLLM is available before starting the session.
  * If available -> Returns vLLM model (Privacy & Local Compute)
  * If broken/timeout -> Returns Gemini model (Cloud Fallback)
- * 
+ *
  * Update: Supports user preference
  * - 'gemini': Force Gemini
  * - 'local': Force Local (Throws if unavailable)
  * - 'auto': Try Local, Fallback to Gemini
  */
-async function selectResilientModel(sessionId: string, preferredProvider: ModelProvider = 'auto'): Promise<{ model: LanguageModel; provider: string }> {
+async function selectResilientModel(
+  sessionId: string,
+  preferredProvider: ModelProvider = 'auto'
+): Promise<{ model: LanguageModel; provider: string }> {
   // 0. Check User Preference - specific overrides
   if (preferredProvider === 'gemini') {
     logger.info({ sessionId }, '[Model Factory] Using Gemini (User Preference)');
-    return { 
-      model: gemini('gemini-2.5-flash'), 
-      provider: 'Gemini' 
+    return {
+      model: gemini('gemini-2.5-flash'),
+      provider: 'Gemini',
     };
   }
   const start = Date.now();
-  
+
   try {
     // 1. Health Check (Ping)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), VLLM_CONFIG.timeoutMs);
-    
+
     logger.debug({ url: VLLM_CONFIG.baseURL }, '[Model Factory] Checking vLLM health...');
 
     // Use a lightweight call to check availability (list models)
     const response = await fetch(`${VLLM_CONFIG.baseURL}/models`, {
       method: 'GET',
-      headers: { 
-        'Authorization': `Bearer ${VLLM_CONFIG.apiKey}`,
-        'Content-Type': 'application/json'
+      headers: {
+        Authorization: `Bearer ${VLLM_CONFIG.apiKey}`,
+        'Content-Type': 'application/json',
       },
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
 
     if (response.ok) {
-      logger.info({ 
-        latency: Date.now() - start,
-        model: VLLM_CONFIG.modelName 
-      }, '[Model Factory] vLLM is HEALTHY. Using local model.');
+      logger.info(
+        {
+          latency: Date.now() - start,
+          model: VLLM_CONFIG.modelName,
+        },
+        '[Model Factory] vLLM is HEALTHY. Using local model.'
+      );
 
       const openai = createOpenAI({
         baseURL: VLLM_CONFIG.baseURL,
@@ -337,39 +349,45 @@ async function selectResilientModel(sessionId: string, preferredProvider: ModelP
       // Server must be started with: --enable-auto-tool-choice --tool-call-parser hermes
       // This ensures OpenAI JSON tool calls instead of Qwen XML tags
       // See: docs/vllm-server-config.md for details
-      
-      logger.info({
-        model: VLLM_CONFIG.modelName,
-        baseURL: VLLM_CONFIG.baseURL,
-        endpoint: '/v1/chat/completions (forced via openai.chat())',
-        note: 'Ensure vLLM is configured with --tool-call-parser hermes'
-      }, '[Model Factory] Using vLLM with OpenAI-compatible endpoint');
 
-      return { 
-        model: openai.chat(VLLM_CONFIG.modelName), 
-        provider: 'vLLM' 
+      logger.info(
+        {
+          model: VLLM_CONFIG.modelName,
+          baseURL: VLLM_CONFIG.baseURL,
+          endpoint: '/v1/chat/completions (forced via openai.chat())',
+          note: 'Ensure vLLM is configured with --tool-call-parser hermes',
+        },
+        '[Model Factory] Using vLLM with OpenAI-compatible endpoint'
+      );
+
+      return {
+        model: openai.chat(VLLM_CONFIG.modelName),
+        provider: 'vLLM',
       };
     } else {
       logger.warn({ status: response.status }, '[Model Factory] vLLM returned error status');
     }
   } catch (error) {
-    logger.warn({ 
-      error: error instanceof Error ? error.message : String(error),
-      latency: Date.now() - start
-    }, '[Model Factory] vLLM unreachable (Circuit Open)');
+    logger.warn(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        latency: Date.now() - start,
+      },
+      '[Model Factory] vLLM unreachable (Circuit Open)'
+    );
   }
 
-    // 2. Fallback / Limit Logic
-    if (preferredProvider === 'local') {
-       logger.error({ sessionId }, '[Model Factory] vLLM unreachable but required by user preference');
-       throw new Error('Local model is unreachable. Please check your connection or switch to Auto/Gemini mode.');
-    }
+  // 2. Fallback / Limit Logic
+  if (preferredProvider === 'local') {
+    logger.error({ sessionId }, '[Model Factory] vLLM unreachable but required by user preference');
+    throw new Error('Local model is unreachable. Please check your connection or switch to Auto/Gemini mode.');
+  }
 
   // 3. Fallback to Gemini (Auto mode or default)
   logger.info({ sessionId }, '[Model Factory] Falling back to Gemini 2.5 Flash');
-  return { 
-    model: gemini('gemini-2.5-flash'), 
-    provider: 'Gemini' 
+  return {
+    model: gemini('gemini-2.5-flash'),
+    provider: 'Gemini',
   };
 }
 
@@ -535,8 +553,6 @@ Help teachers manage their courses by retrieving accurate data about students, a
 - Use friendly, warm, and encouraging tone`;
 }
 
-
-
 /**
  * Build system prompt for STUDENT
  */
@@ -660,10 +676,20 @@ function createTeacherAgent(
 **Usage Principle:**
 You are an intelligent agent. If you don't have an ID (like 'assignmentId'), look for a parent object (like 'course_assignments') to find it.`,
       inputSchema: z.object({
-        queryType: teacherQueryTypeEnum.describe('Teacher query type - use ONLY teacher queries (teacher_courses, course_detail, course_students, etc.)'),
-        params: z.record(z.any()).optional().describe('Query parameters like courseId, assignmentId, submissionId, etc. REQUIRED params depend on queryType - check usage flow above'),
+        queryType: teacherQueryTypeEnum.describe(
+          'Teacher query type - use ONLY teacher queries (teacher_courses, course_detail, course_students, etc.)'
+        ),
+        params: z
+          .record(z.any())
+          .optional()
+          .describe(
+            'Query parameters like courseId, assignmentId, submissionId, etc. REQUIRED params depend on queryType - check usage flow above'
+          ),
       }),
-      execute: async (input: { queryType: TeacherQueryType; params?: Record<string, any> }): Promise<DatabaseQueryResponse> => {
+      execute: async (input: {
+        queryType: TeacherQueryType;
+        params?: Record<string, any>;
+      }): Promise<DatabaseQueryResponse> => {
         const startedAt = Date.now();
         const queryLabel = getQueryDisplayName(input.queryType, isEnglish);
         if (thinkingState) {
@@ -677,14 +703,14 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         });
 
         logger.info(
-          { 
-            queryType: input.queryType, 
+          {
+            queryType: input.queryType,
             hasParams: !!input.params,
-            teacherId: userId || 'UNDEFINED'
+            teacherId: userId || 'UNDEFINED',
           },
           '[Platform Assistant] Teacher database_query tool called'
         );
-        
+
         if (input.params) {
           logger.debug(
             { queryType: input.queryType, params: JSON.stringify(input.params) },
@@ -693,9 +719,9 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         }
 
         try {
-          const result = await executeDatabaseQuery(input.queryType as QueryType, { 
+          const result = await executeDatabaseQuery(input.queryType as QueryType, {
             teacherId: userId,
-            ...input.params 
+            ...input.params,
           });
 
           if (!result.success) {
@@ -708,8 +734,8 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
             });
 
             logger.warn(
-              { 
-                queryType: input.queryType, 
+              {
+                queryType: input.queryType,
                 error: result.error,
               },
               '[Platform Assistant] Teacher database_query failed'
@@ -810,13 +836,20 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
           phase: 'tool_started',
           title: isEnglish ? 'Start generating student learning report' : '開始生成學習報告',
           toolName: 'generate_report',
-          thinking: isEnglish ? 'Need to combine student data, analysis, charts, and PDF.' : '需要整合學生資料、分析、圖表與 PDF。',
-          action: isEnglish ? 'Query data -> generate charts -> render PDF -> upload' : '依序查詢資料 -> 生成圖表 -> 產生 PDF -> 上傳',
+          thinking: isEnglish
+            ? 'Need to combine student data, analysis, charts, and PDF.'
+            : '需要整合學生資料、分析、圖表與 PDF。',
+          action: isEnglish
+            ? 'Query data -> generate charts -> render PDF -> upload'
+            : '依序查詢資料 -> 生成圖表 -> 產生 PDF -> 上傳',
           expectedOutcome: isEnglish ? 'Get a downloadable report link' : '得到可下載的報告連結',
-          inputSummary: summarizeParams({
-            studentId: input.studentId,
-            includeCharts: input.includeCharts ?? true,
-          }, localeText),
+          inputSummary: summarizeParams(
+            {
+              studentId: input.studentId,
+              includeCharts: input.includeCharts ?? true,
+            },
+            localeText
+          ),
         });
 
         logger.info(
@@ -1096,7 +1129,6 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         }
       },
     }),
-
   } satisfies ToolSet;
 
   return new ToolLoopAgent({
@@ -1109,29 +1141,35 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
     prepareStep: async ({ stepNumber, messages }) => {
       const stepReminder = localeText.languageReminder;
 
-      logger.debug({
-        stepNumber,
-        messageCount: messages.length,
-      }, '[Platform Assistant] Teacher prepareStep');
+      logger.debug(
+        {
+          stepNumber,
+          messageCount: messages.length,
+        },
+        '[Platform Assistant] Teacher prepareStep'
+      );
 
       // Context Management - Keep conversation within token limits
       if (messages.length > 25) {
-        logger.info({
-          stepNumber,
-          beforeCount: messages.length,
-          afterCount: 13,
-          reason: 'Token optimization - keeping system + recent messages',
-        }, '[Platform Assistant] Teacher pruning messages');
+        logger.info(
+          {
+            stepNumber,
+            beforeCount: messages.length,
+            afterCount: 13,
+            reason: 'Token optimization - keeping system + recent messages',
+          },
+          '[Platform Assistant] Teacher pruning messages'
+        );
 
         // Force language reminder even when pruning
         return {
           messages: [
             messages[0], // Keep system message
             ...messages.slice(-12), // Keep last 12 messages
-            { 
-              role: 'user', 
-              content: stepReminder
-            }
+            {
+              role: 'user',
+              content: stepReminder,
+            },
           ],
           toolChoice: 'auto',
         };
@@ -1141,10 +1179,10 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
       return {
         messages: [
           ...messages,
-          { 
-            role: 'user', 
-            content: stepReminder
-          }
+          {
+            role: 'user',
+            content: stepReminder,
+          },
         ],
         toolChoice: 'auto',
       };
@@ -1198,10 +1236,15 @@ Combine these tools to answer questions.
 - Need detailed grades? Find submissionId -> Call my_submission_detail.
 - Need assignment info? Find assignmentId -> Call assignment_detail_student.`,
       inputSchema: z.object({
-        queryType: studentQueryTypeEnum.describe('Student query type - use ONLY student queries (student_courses, student_submissions, my_submission_detail, etc.)'),
+        queryType: studentQueryTypeEnum.describe(
+          'Student query type - use ONLY student queries (student_courses, student_submissions, my_submission_detail, etc.)'
+        ),
         params: z.record(z.any()).optional().describe('Query parameters like courseId, submissionId, etc.'),
       }),
-      execute: async (input: { queryType: StudentQueryType; params?: Record<string, any> }): Promise<DatabaseQueryResponse> => {
+      execute: async (input: {
+        queryType: StudentQueryType;
+        params?: Record<string, any>;
+      }): Promise<DatabaseQueryResponse> => {
         const startedAt = Date.now();
         const queryLabel = getQueryDisplayName(input.queryType, isEnglish);
         if (thinkingState) {
@@ -1215,10 +1258,10 @@ Combine these tools to answer questions.
         });
 
         logger.info(
-          { 
-            queryType: input.queryType, 
+          {
+            queryType: input.queryType,
             hasParams: !!input.params,
-            studentId: userId || 'UNDEFINED'
+            studentId: userId || 'UNDEFINED',
           },
           '[Platform Assistant] Student database_query tool called'
         );
@@ -1232,9 +1275,9 @@ Combine these tools to answer questions.
         }
 
         try {
-          const result = await executeDatabaseQuery(input.queryType as QueryType, { 
+          const result = await executeDatabaseQuery(input.queryType as QueryType, {
             studentId: userId,
-            ...input.params 
+            ...input.params,
           });
 
           if (!result.success) {
@@ -1341,7 +1384,9 @@ Combine these tools to answer questions.
           phase: 'tool_started',
           title: isEnglish ? 'Start generating personal learning report' : '開始生成個人學習報告',
           toolName: 'generate_report',
-          thinking: isEnglish ? 'Need to combine course, submission, and score data.' : '需要整合課程、提交與成績資料。',
+          thinking: isEnglish
+            ? 'Need to combine course, submission, and score data.'
+            : '需要整合課程、提交與成績資料。',
           action: isEnglish ? 'Query data -> analyze charts -> export PDF' : '查詢資料、分析圖表、輸出 PDF',
           expectedOutcome: isEnglish ? 'Get a downloadable personal report' : '得到可下載的個人報告',
           inputSummary: summarizeParams({ includeCharts: input.includeCharts ?? true }, localeText),
@@ -1639,7 +1684,6 @@ Combine these tools to answer questions.
         }
       },
     }),
-
   } satisfies ToolSet;
 
   return new ToolLoopAgent({
@@ -1651,28 +1695,34 @@ Combine these tools to answer questions.
     prepareStep: async ({ stepNumber, messages }) => {
       const stepReminder = localeText.languageReminder;
 
-      logger.debug({
-        stepNumber,
-        messageCount: messages.length,
-      }, '[Platform Assistant] Student prepareStep');
+      logger.debug(
+        {
+          stepNumber,
+          messageCount: messages.length,
+        },
+        '[Platform Assistant] Student prepareStep'
+      );
 
       // Context Management - Keep conversation within token limits
       if (messages.length > 25) {
-        logger.info({
-          stepNumber,
-          beforeCount: messages.length,
-          afterCount: 13,
-          reason: 'Token optimization - keeping system + recent messages',
-        }, '[Platform Assistant] Student pruning messages');
+        logger.info(
+          {
+            stepNumber,
+            beforeCount: messages.length,
+            afterCount: 13,
+            reason: 'Token optimization - keeping system + recent messages',
+          },
+          '[Platform Assistant] Student pruning messages'
+        );
 
         return {
           messages: [
             messages[0], // Keep system message
             ...messages.slice(-12), // Keep last 12 messages
-             { 
-              role: 'user', 
-              content: stepReminder
-            }
+            {
+              role: 'user',
+              content: stepReminder,
+            },
           ],
           toolChoice: 'auto',
         };
@@ -1682,10 +1732,10 @@ Combine these tools to answer questions.
       return {
         messages: [
           ...messages,
-           { 
-            role: 'user', 
-            content: stepReminder
-          }
+          {
+            role: 'user',
+            content: stepReminder,
+          },
         ],
         toolChoice: 'auto',
       };
@@ -1713,7 +1763,7 @@ function createPlatformAssistant(
 /**
  * Stream the agent response with ToolLoopAgent
  * Supports both TEACHER and STUDENT roles with context-specific prompts
- * 
+ *
  * @param userRole - 'TEACHER' or 'STUDENT'
  * @param messages - Chat messages
  * @param userId - User ID
@@ -1738,13 +1788,16 @@ export async function streamWithPlatformAssistant(
     sawThinkSinceDataTool: false,
   };
 
-  logger.info({
-    userRole,
-    messageCount: messages.length,
-    userId: userId ? '***' : undefined,
-    hasCallOptions: !!callOptions,
-    sessionId,
-  }, '[Platform Assistant] Initializing agent stream');
+  logger.info(
+    {
+      userRole,
+      messageCount: messages.length,
+      userId: userId ? '***' : undefined,
+      hasCallOptions: !!callOptions,
+      sessionId,
+    },
+    '[Platform Assistant] Initializing agent stream'
+  );
 
   try {
     // 0. Check AI Access Permission
@@ -1756,7 +1809,7 @@ export async function streamWithPlatformAssistant(
 
     // 1. Select Model (Circuit Breaker)
     const { model, provider } = await selectResilientModel(sessionId, preferredProvider);
-    
+
     logger.info({ sessionId, provider }, '[Platform Assistant] Model selected');
 
     // 2. Create agent with role-specific configuration and selected model
@@ -1768,20 +1821,26 @@ export async function streamWithPlatformAssistant(
     // 1. Convert UIMessages to ModelMessages
     // 2. Stream with agent
     // 3. Convert back to UIMessageStreamResponse
-    logger.info({ 
-      hasOptions: !!callOptions,
-      sessionId,
-      messagesCount: messages?.length || 0,
-    }, '[Platform Assistant] Using manual convertToModelMessages -> agent.stream() flow');
-    
+    logger.info(
+      {
+        hasOptions: !!callOptions,
+        sessionId,
+        messagesCount: messages?.length || 0,
+      },
+      '[Platform Assistant] Using manual convertToModelMessages -> agent.stream() flow'
+    );
+
     try {
       // 1. Convert UIMessages to ModelMessages explicitly
       const modelMessages = await convertToModelMessages(messages as any[]);
-      
-      logger.debug({
-        count: modelMessages.length,
-        firstRole: modelMessages[0]?.role,
-      }, '[Platform Assistant] Converted to ModelMessages');
+
+      logger.debug(
+        {
+          count: modelMessages.length,
+          firstRole: modelMessages[0]?.role,
+        },
+        '[Platform Assistant] Converted to ModelMessages'
+      );
 
       // 2. Stream the agent with ModelMessages
       const streamResult = await agent.stream({
@@ -1799,7 +1858,7 @@ export async function streamWithPlatformAssistant(
             const safeFinalText = stripProcessLeakage(finalText);
             let usage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
             try {
-              const resultUsage = await streamResult.usage as any;
+              const resultUsage = (await streamResult.usage) as any;
               usage = {
                 promptTokens: resultUsage.promptTokens || 0,
                 completionTokens: resultUsage.completionTokens || 0,
@@ -1808,11 +1867,11 @@ export async function streamWithPlatformAssistant(
             } catch (usageError) {
               logger.warn({ sessionId }, '[Platform Assistant] Could not retrieve token usage');
             }
-            
-            await onFinish({ 
+
+            await onFinish({
               text: safeFinalText || finalText,
               usage,
-              provider 
+              provider,
             });
 
             if (thinkingState.sawDataToolCall && !thinkingState.sawThinkSinceDataTool) {
@@ -1830,7 +1889,10 @@ export async function streamWithPlatformAssistant(
             reportProgress({
               phase: 'agent_completed',
               title: localeText.agentCompletedTitle,
-              outputSummary: localeText.agentCompletedSummary((safeFinalText || finalText).length, usage.totalTokens || 0),
+              outputSummary: localeText.agentCompletedSummary(
+                (safeFinalText || finalText).length,
+                usage.totalTokens || 0
+              ),
             });
           } catch (err) {
             logger.error({ err: err }, '[Platform Assistant] Failed to process onFinish');
@@ -1840,11 +1902,10 @@ export async function streamWithPlatformAssistant(
 
       // Return the stream response - agent streams should use toUIMessageStreamResponse for useChat compatibility
       const response = streamResult.toUIMessageStreamResponse();
-      
+
       logger.info({ sessionId }, '[Platform Assistant] Stream response created successfully');
-      
+
       return response;
-      
     } catch (streamError) {
       reportProgress({
         phase: 'agent_error',
@@ -1862,7 +1923,7 @@ export async function streamWithPlatformAssistant(
       // Try to extract more details from the error
       if (streamError instanceof Error) {
         errorDetails.stack = streamError.stack;
-        
+
         // Check if it's a response error with details
         if ('response' in streamError) {
           errorDetails.response = (streamError as any).response;
@@ -1873,19 +1934,22 @@ export async function streamWithPlatformAssistant(
         if ('statusCode' in streamError) {
           errorDetails.statusCode = (streamError as any).statusCode;
         }
-        
+
         // Log the full error object structure
         errorDetails.errorKeys = Object.keys(streamError);
       }
 
       logger.error({ err: errorDetails }, '[Platform Assistant] Stream failed - DETAILED ERROR');
-      
+
       // Also log as string for easy reading
-      logger.error({
-        sessionId,
-        errorString: JSON.stringify(streamError, null, 2),
-      }, '[Platform Assistant] Stream failed - STRING');
-      
+      logger.error(
+        {
+          sessionId,
+          errorString: JSON.stringify(streamError, null, 2),
+        },
+        '[Platform Assistant] Stream failed - STRING'
+      );
+
       throw streamError;
     }
   } catch (error) {
@@ -1895,12 +1959,15 @@ export async function streamWithPlatformAssistant(
       outputSummary: error instanceof Error ? error.message : String(error),
     });
 
-    logger.error({
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      userRole,
-      sessionId,
-    }, '[Platform Assistant] Fatal error in streamWithGradingAgent');
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        userRole,
+        sessionId,
+      },
+      '[Platform Assistant] Fatal error in streamWithGradingAgent'
+    );
     throw error;
   }
 }

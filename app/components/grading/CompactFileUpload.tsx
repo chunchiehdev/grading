@@ -185,5 +185,3 @@ export const CompactFileUpload = ({
     </div>
   );
 };
-
-export default CompactFileUpload;

@@ -12,12 +12,7 @@ import {
   CalculateConfidenceInputSchema,
   GenerateFeedbackInputSchema,
 } from '@/schemas/agent';
-import type {
-  ReferenceSearchResult,
-  SimilarityCheckResult,
-  ConfidenceScore,
-  ReferenceDocument,
-} from '@/types/agent';
+import type { ReferenceSearchResult, SimilarityCheckResult, ConfidenceScore, ReferenceDocument } from '@/types/agent';
 import { db } from '@/lib/db.server';
 import { redis } from '@/lib/redis';
 import logger from '@/utils/logger';
@@ -105,10 +100,10 @@ This is a mandatory requirement. Please retry and include the 'sparringQuestions
 You MUST provide at least 1 challenging "sparring question" based on your grading.
 This is a mandatory requirement. Please retry and include the 'sparringQuestions' array.`,
     similarityNoIssue: 'No unusual similarity detected',
-    similarityDetected: 'Detected {{count}} high-similarity submissions (≥{{threshold}}%). Manual plagiarism review is recommended.',
+    similarityDetected:
+      'Detected {{count}} high-similarity submissions (≥{{threshold}}%). Manual plagiarism review is recommended.',
   };
 }
-
 
 /**
  * Tool 5: Calculate Confidence
@@ -149,16 +144,15 @@ function createCalculateConfidenceTool(isZh: boolean, localeText: AgentLocaleTex
       evidenceQuality: 'high' | 'medium' | 'low';
       criteriaAmbiguity: number;
     }): Promise<ConfidenceScore> => {
-      const evidenceScore = ({
-        high: 1.0,
-        medium: 0.7,
-        low: 0.4,
-      } as Record<'high' | 'medium' | 'low', number>)[evidenceQuality];
+      const evidenceScore = (
+        {
+          high: 1.0,
+          medium: 0.7,
+          low: 0.4,
+        } as Record<'high' | 'medium' | 'low', number>
+      )[evidenceQuality];
 
-      const confidenceScore =
-        rubricCoverage * 0.4 +
-        evidenceScore * 0.4 +
-        (1 - criteriaAmbiguity) * 0.2;
+      const confidenceScore = rubricCoverage * 0.4 + evidenceScore * 0.4 + (1 - criteriaAmbiguity) * 0.2;
 
       const shouldReview = confidenceScore < 0.7;
 
@@ -182,11 +176,14 @@ function createCalculateConfidenceTool(isZh: boolean, localeText: AgentLocaleTex
         reason += `${localeText.issuePrefix}${issues.join(isZh ? '、' : '; ')}`;
       }
 
-      logger.debug({
-        confidenceScore,
-        shouldReview,
-        factors: { rubricCoverage, evidenceQuality, criteriaAmbiguity },
-      }, '[Agent Tool] Confidence calculated');
+      logger.debug(
+        {
+          confidenceScore,
+          shouldReview,
+          factors: { rubricCoverage, evidenceQuality, criteriaAmbiguity },
+        },
+        '[Agent Tool] Confidence calculated'
+      );
 
       return {
         confidenceScore,
@@ -262,7 +259,9 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
       encouragement,
       sparringQuestions,
     }) => {
-      logger.info(`🎯 [Agent Tool] generate_feedback called - sparringQuestions: ${sparringQuestions ? `YES (${sparringQuestions.length})` : 'NO/UNDEFINED'}`);
+      logger.info(
+        `🎯 [Agent Tool] generate_feedback called - sparringQuestions: ${sparringQuestions ? `YES (${sparringQuestions.length})` : 'NO/UNDEFINED'}`
+      );
       if (sparringQuestions && sparringQuestions.length > 0) {
         logger.info(`🎯 [Agent Tool] sparringQuestions[0]: ${JSON.stringify(sparringQuestions[0]).substring(0, 300)}`);
       }
@@ -277,7 +276,8 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
           .slice(0, 3);
 
         const baseQuestions = weakestCriteria.map((c, idx) => {
-          const quote = c.evidence?.trim() || (isZh ? '文中未提供可引用句子。' : 'No direct quote available from submission.');
+          const quote =
+            c.evidence?.trim() || (isZh ? '文中未提供可引用句子。' : 'No direct quote available from submission.');
           const question = isZh
             ? `你在「${c.name}」這一項目前得分是 ${c.score}/${c.maxScore}。如果你要把這段內容修到更高層次，你會先改哪一句，為什麼？`
             : `Your score for "${c.name}" is ${c.score}/${c.maxScore}. If you revise this part to a higher level, which sentence would you change first, and why?`;
@@ -296,7 +296,9 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
         while (baseQuestions.length < 3) {
           baseQuestions.push({
             related_rubric_id: weakestCriteria[0]?.criteriaId || 'general',
-            target_quote: isZh ? '請回到你的作業內容，選一段最想強化的段落。' : 'Please return to your submission and choose one paragraph you most want to improve.',
+            target_quote: isZh
+              ? '請回到你的作業內容，選一段最想強化的段落。'
+              : 'Please return to your submission and choose one paragraph you most want to improve.',
             provocation_strategy: 'metacognitive',
             question: isZh
               ? '若要讓你的觀點更有說服力，你會補哪一個證據或反例？'
@@ -311,9 +313,7 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
       };
 
       const safeSparringQuestions =
-        sparringQuestions && sparringQuestions.length > 0
-          ? sparringQuestions
-          : buildFallbackSparringQuestions();
+        sparringQuestions && sparringQuestions.length > 0 ? sparringQuestions : buildFallbackSparringQuestions();
 
       if (!sparringQuestions || sparringQuestions.length === 0) {
         logger.warn('[Agent Tool] Missing sparringQuestions; using auto-generated fallback questions');
@@ -385,12 +385,10 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
       }
 
       const finalOverallFeedback =
-        overallFeedback.trim() || (percentage >= 70 ? localeText.defaultOverallGood : localeText.defaultOverallNeedsWork);
+        overallFeedback.trim() ||
+        (percentage >= 70 ? localeText.defaultOverallGood : localeText.defaultOverallNeedsWork);
 
-      const combinedVisibleText = [
-        finalOverallFeedback,
-        ...breakdown.map((item) => item.feedback || ''),
-      ].join('\n');
+      const combinedVisibleText = [finalOverallFeedback, ...breakdown.map((item) => item.feedback || '')].join('\n');
       const cjkCount = (combinedVisibleText.match(/[\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
       const alphaCount = (combinedVisibleText.match(/[A-Za-z]/g) || []).length;
       const visibleCount = cjkCount + alphaCount;
@@ -399,20 +397,25 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
 
       if (isZh) {
         if (visibleCount >= 80 && cjkRatio < 0.4) {
-          throw new Error('LANGUAGE_MISMATCH: feedback fields must be predominantly Traditional Chinese when UI language is zh.');
+          throw new Error(
+            'LANGUAGE_MISMATCH: feedback fields must be predominantly Traditional Chinese when UI language is zh.'
+          );
         }
       } else if (visibleCount >= 80 && (cjkRatio > 0.15 || alphaRatio < 0.5)) {
         throw new Error('LANGUAGE_MISMATCH: feedback fields must be English when UI language is non-zh.');
       }
 
-      logger.debug({
-        totalScore,
-        maxScore,
-        percentage: percentage.toFixed(1),
-        hasReasoning: !!reasoning,
-        reasoningLength: reasoning?.length || 0,
-        sparringQuestionsCount: safeSparringQuestions.length,
-      }, '[Agent Tool] Feedback generated');
+      logger.debug(
+        {
+          totalScore,
+          maxScore,
+          percentage: percentage.toFixed(1),
+          hasReasoning: !!reasoning,
+          reasoningLength: reasoning?.length || 0,
+          sparringQuestionsCount: safeSparringQuestions.length,
+        },
+        '[Agent Tool] Feedback generated'
+      );
 
       return {
         reasoning,
@@ -440,7 +443,6 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
  */
 // export const matchToLevelTool = ... (Removed for efficiency)
 
-
 /**
  * All Agent tools collection
  */
@@ -457,7 +459,8 @@ export const createAgentTools = (context: {
   const hasCjk = (text: string): boolean => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(text);
   const countCjk = (text: string): number => (text.match(/[\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
   const countAlpha = (text: string): number => (text.match(/[A-Za-z]/g) || []).length;
-  const countVisibleLetters = (text: string): number => (text.match(/[A-Za-z\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
+  const countVisibleLetters = (text: string): number =>
+    (text.match(/[A-Za-z\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
 
   const searchReferenceTool = tool({
     description: `搜尋參考文件中與學生作業相關的內容。
@@ -471,10 +474,7 @@ export const createAgentTools = (context: {
 
     inputSchema: SearchReferenceInputSchema.omit({ referenceDocuments: true }),
 
-    execute: async ({
-      query,
-      topK = 3,
-    }: any): Promise<ReferenceSearchResult> => {
+    execute: async ({ query, topK = 3 }: any): Promise<ReferenceSearchResult> => {
       const { referenceDocuments } = context;
       if (!referenceDocuments || referenceDocuments.length === 0) {
         return {
@@ -527,11 +527,14 @@ export const createAgentTools = (context: {
         .sort((a: any, b: any) => b.relevanceScore - a.relevanceScore)
         .slice(0, topK);
 
-      logger.debug({
-        query,
-        totalDocuments: referenceDocuments.length,
-        foundMatches: results.length,
-      }, '[Agent Tool] Reference search completed');
+      logger.debug(
+        {
+          query,
+          totalDocuments: referenceDocuments.length,
+          foundMatches: results.length,
+        },
+        '[Agent Tool] Reference search completed'
+      );
 
       return {
         foundReferences: results,
@@ -553,10 +556,7 @@ export const createAgentTools = (context: {
 
     inputSchema: CheckSimilarityInputSchema.omit({ currentSubmission: true }),
 
-    execute: async ({
-      assignmentAreaId,
-      threshold = 0.8,
-    }: any): Promise<SimilarityCheckResult> => {
+    execute: async ({ assignmentAreaId, threshold = 0.8 }: any): Promise<SimilarityCheckResult> => {
       const { currentContent: currentSubmission } = context;
       try {
         // 從資料庫取得同作業區的已評分提交（排除當前提交）
@@ -627,11 +627,14 @@ export const createAgentTools = (context: {
             .replace('{{threshold}}', (threshold * 100).toFixed(0));
         }
 
-        logger.info({
-          assignmentAreaId,
-          checked: historicalSubmissions.length,
-          suspicious: similarities.length,
-        }, '[Agent Tool] Similarity check completed');
+        logger.info(
+          {
+            assignmentAreaId,
+            checked: historicalSubmissions.length,
+            suspicious: similarities.length,
+          },
+          '[Agent Tool] Similarity check completed'
+        );
 
         return {
           hasSuspiciousSimilarity,
@@ -696,8 +699,9 @@ export const createAgentTools = (context: {
     Your analysis will be streamed live to the user.`,
 
     inputSchema: z.object({
-      analysis: z.string().describe(isZh
-        ? `請用繁體中文完成結構化分析（可保留必要專有名詞），使用 Hattie & Timperley 框架。
+      analysis: z.string().describe(
+        isZh
+          ? `請用繁體中文完成結構化分析（可保留必要專有名詞），使用 Hattie & Timperley 框架。
 
 請使用以下格式：
 
@@ -714,7 +718,7 @@ export const createAgentTools = (context: {
 [你的評分策略]
 
 請使用 Markdown 讓內容清楚可讀。`
-        : `Complete structured analysis using the Hattie & Timperley framework in English.
+          : `Complete structured analysis using the Hattie & Timperley framework in English.
 
 Use this format:
 
@@ -730,7 +734,8 @@ Use this format:
 ## Strategy
 [Your grading approach]
 
-Use Markdown formatting for clarity.`)
+Use Markdown formatting for clarity.`
+      ),
     }),
 
     execute: async ({ analysis }: { analysis: string }) => {
@@ -745,7 +750,9 @@ Use Markdown formatting for clarity.`)
           throw new Error('LANGUAGE_MISMATCH: think_aloud must be Traditional Chinese when UI language is zh.');
         }
         if (visibleCount >= 60 && cjkRatio < 0.5) {
-          throw new Error('LANGUAGE_MISMATCH: think_aloud must be predominantly Traditional Chinese when UI language is zh.');
+          throw new Error(
+            'LANGUAGE_MISMATCH: think_aloud must be predominantly Traditional Chinese when UI language is zh.'
+          );
         }
       } else if (visibleCount >= 60 && (cjkRatio > 0.2 || alphaRatio < 0.5)) {
         throw new Error('LANGUAGE_MISMATCH: think_aloud must be English when UI language is non-zh.');
@@ -761,11 +768,14 @@ Use Markdown formatting for clarity.`)
               content: analysis,
             })
           );
-          
-          logger.info({
-            analysisLength: analysis.length,
-            sessionId: context.sessionId
-          }, '[Agent ThinkAloud] Streaming analysis via tool');
+
+          logger.info(
+            {
+              analysisLength: analysis.length,
+              sessionId: context.sessionId,
+            },
+            '[Agent ThinkAloud] Streaming analysis via tool'
+          );
         } catch (error) {
           logger.error({ err: error }, '[Agent ThinkAloud] Failed to publish analysis');
         }
@@ -775,7 +785,7 @@ Use Markdown formatting for clarity.`)
         acknowledged: true,
         message: isZh
           ? '框架分析已記錄。請繼續計算信心度並生成最終回饋。'
-          : 'Framework analysis recorded. Proceed to calculate confidence and generate feedback.'
+          : 'Framework analysis recorded. Proceed to calculate confidence and generate feedback.',
       };
     },
   });
@@ -798,7 +808,11 @@ Use Markdown formatting for clarity.`)
     **After thinking, then call calculate_confidence and generate_feedback.**`,
 
     inputSchema: z.object({
-      thought: z.string().describe('Your detailed step-by-step thinking and analysis process. Be thorough and quote evidence from the student work.')
+      thought: z
+        .string()
+        .describe(
+          'Your detailed step-by-step thinking and analysis process. Be thorough and quote evidence from the student work.'
+        ),
     }),
 
     execute: async ({ thought }: { thought: string }) => {
@@ -829,11 +843,14 @@ Use Markdown formatting for clarity.`)
               content: thought,
             })
           );
-          
-          logger.info({
-            thoughtLength: thought.length,
-            sessionId: context.sessionId
-          }, '[Agent Think] Streaming thinking via tool');
+
+          logger.info(
+            {
+              thoughtLength: thought.length,
+              sessionId: context.sessionId,
+            },
+            '[Agent Think] Streaming thinking via tool'
+          );
         } catch (error) {
           logger.error({ err: error }, '[Agent Think] Failed to publish thinking');
         }
@@ -843,14 +860,14 @@ Use Markdown formatting for clarity.`)
         acknowledged: true,
         message: isZh
           ? '思考過程已記錄。請繼續計算信心度並生成最終回饋。'
-          : 'Thinking process recorded. Proceed to calculate confidence and generate feedback.'
+          : 'Thinking process recorded. Proceed to calculate confidence and generate feedback.',
       };
     },
   });
 
   return {
     // think: thinkTool,  // Temporarily disabled for testing
-    think_aloud: thinkAloudTool,  // Testing Hattie & Timperley framework
+    think_aloud: thinkAloudTool, // Testing Hattie & Timperley framework
     search_reference: searchReferenceTool,
     check_similarity: checkSimilarityTool,
     calculate_confidence: createCalculateConfidenceTool(isZh, localeText),
@@ -859,5 +876,3 @@ Use Markdown formatting for clarity.`)
     // match_to_level: matchToLevelTool, // Removed for efficiency
   };
 };
-
-export type AgentToolName = keyof ReturnType<typeof createAgentTools>;

@@ -1,6 +1,6 @@
 // 統一的 Rubric 類型定義，適配新的資料庫架構
 
-export interface RubricCriteria {
+interface RubricCriteria {
   id: string;
   name: string;
   description: string;
@@ -11,7 +11,7 @@ export interface RubricCriteria {
   }[];
 }
 
-export interface Rubric {
+interface Rubric {
   id: string;
   name: string;
   description: string;
@@ -52,15 +52,4 @@ export interface UILevel {
   description: string;
 }
 
-// 評分相關類型移到 @/types/grading 統一管理
-
-export interface GradingProgress {
-  phase: 'upload' | 'check' | 'grade' | 'verify' | 'completed' | 'error';
-  progress: number; // 0-100
-  message: string;
-  gradingId?: string;
-  error?: string;
-}
-
 // 從 @/types/database 重新導出需要的枚舉
-export { GradingStatus } from '@/types/database';

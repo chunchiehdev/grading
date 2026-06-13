@@ -47,17 +47,3 @@ export const updateAssignmentSchema = z.object({
     .optional()
     .nullable(),
 });
-
-/**
- * Schema for assignment ID parameter
- */
-export const assignmentIdSchema = z.object({
-  assignmentId: z.string().uuid('Invalid assignment ID'),
-});
-
-/**
- * Type exports for TypeScript
- */
-export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
-export type UpdateAssignmentInput = z.infer<typeof updateAssignmentSchema>;
-export type AssignmentIdInput = z.infer<typeof assignmentIdSchema>;

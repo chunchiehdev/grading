@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Schema for validating enrollment requests
  */
-export const enrollmentSchema = z.object({
+const enrollmentSchema = z.object({
   classId: z.string().uuid('Invalid class ID format'),
   courseId: z.string().uuid('Invalid course ID format'),
   studentId: z.string().uuid('Invalid student ID format').optional(),
@@ -26,7 +26,3 @@ export const courseDiscoveryQuerySchema = z.object({
   sort: z.enum(['newest', 'teacher', 'name']).default('newest').optional(),
   search: z.string().optional(),
 });
-
-// Type exports for use in handlers
-export type EnrollmentRequest = z.infer<typeof createEnrollmentSchema>;
-export type CourseDiscoveryQuery = z.infer<typeof courseDiscoveryQuerySchema>;
