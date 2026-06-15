@@ -1,0 +1,47 @@
+@startuml
+' --- 字體設定區域 ---
+' 設定預設字體，系統會依序匹配：英文優先用 Times，中文匹配標楷體
+skinparam defaultFontName "Times New Roman, 標楷體"
+' 針對特定元件強制指定中文字體（確保在不同渲染引擎下的穩定性）
+skinparam usecaseFontName "標楷體"
+skinparam actorFontName "標楷體"
+skinparam packageFontName "標楷體" ' 這行能百分之百確保 frame 標題是標楷體
+
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+skinparam actorStyle awesome
+left to right direction
+
+actor "學生" as student
+
+frame "AI 回饋、對話互動與文本修正" {
+    usecase "啟動 AI 評分" as UC6
+    usecase "查看即時分析進度" as UC6a
+    
+    usecase "檢視 AI 評分結果" as UC7
+    usecase "查看分項分數與回饋" as UC7a
+    
+    usecase "進行挑戰式對話回饋" as UC8
+    usecase "多輪對話互動" as UC8a
+    
+    usecase "檢視收斂建議" as UC9
+    usecase "採納或保留建議" as UC9a
+    
+    usecase "修正作業並重新提交" as UC10
+}
+
+student --> UC6
+student --> UC7
+student --> UC8
+student --> UC9
+student --> UC10
+
+UC6 ..> UC6a : <<include>>
+UC7 ..> UC7a : <<include>>
+UC8 ..> UC8a : <<include>>
+UC9 ..> UC9a : <<include>>
+@enduml

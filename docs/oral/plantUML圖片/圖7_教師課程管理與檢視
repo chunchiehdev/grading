@@ -1,0 +1,56 @@
+@startuml
+' --- 字體全面鎖定設定 ---
+skinparam defaultFontName "Times New Roman, 標楷體"
+
+' 強制指定各個元件的中文字體
+skinparam usecaseFontName "標楷體"
+skinparam actorFontName "標楷體"
+skinparam packageFontName "標楷體"
+
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+skinparam actorStyle awesome
+left to right direction
+
+actor "教師" as teacher
+
+frame "教師課程管理與檢視" {
+    usecase "建立課程" as UC16
+    usecase "填寫課程資訊" as UC16a
+
+    usecase "建立班級" as UC17
+    usecase "設定班級資訊" as UC17a
+
+    usecase "產生邀請碼" as UC18
+
+    usecase "設定評分規準" as UC19
+    usecase "建立或選用規準" as UC19a
+
+    usecase "建立作業" as UC20
+    usecase "連結評分規準" as UC20a
+    usecase "填寫作業內容" as UC20b
+
+    usecase "檢視課程與班級" as UC21
+    usecase "檢視學生名單" as UC22
+}
+
+' 角色連線：無箭頭
+teacher -- UC16
+teacher -- UC17
+teacher -- UC18
+teacher -- UC19
+teacher -- UC20
+teacher -- UC21
+teacher -- UC22
+
+' Include 連線：保留箭頭
+UC16 ..> UC16a : <<include>>
+UC17 ..> UC17a : <<include>>
+UC19 ..> UC19a : <<include>>
+UC20 ..> UC20a : <<include>>
+UC20 ..> UC20b : <<include>>
+@enduml

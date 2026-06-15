@@ -52,7 +52,7 @@
 | 地端模型對外公開方式 | Cloudflare Tunnel |
 | 地端模型用途 | 提供系統對話、評分、引導互動與輔助分析等模型推論能力 |
 | 雲端大型語言模型服務 | Gemini |
-| 雲端模型名稱 | `gemini-3.1-flash-lite-preview` |
+| 雲端模型名稱 | `gemini-3.1-flash-lite` |
 | 雲端模型用途 | 作為地端模型不可用時之備援模型，並支援部分生成功能 |
 | AI 快取機制 | Gemini Context Cache 搭配 Redis 快取索引 |
 | AI 快取用途 | 快取可重複使用之提示上下文，以降低重複請求成本並提升回應效率 |

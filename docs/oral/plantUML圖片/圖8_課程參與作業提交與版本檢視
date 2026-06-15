@@ -1,0 +1,46 @@
+@startuml
+skinparam defaultFontName "Times New Roman, 標楷體"
+skinparam usecaseFontName "標楷體"
+skinparam actorFontName "標楷體"
+skinparam packageFontName "標楷體"
+
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+skinparam actorStyle awesome
+left to right direction
+
+actor "學生" as student
+actor "教師" as teacher
+
+frame "課程參與、作業提交與版本檢視" {
+    usecase "加入課程" as UC1
+    usecase "輸入邀請碼" as UC1a
+
+    usecase "查看課程與作業" as UC2
+    usecase "查看評分規準" as UC2a
+
+    usecase "提交作業" as UC3
+    usecase "上傳反思文件" as UC3a
+
+    usecase "暫存草稿" as UC4
+
+    usecase "檢視提交紀錄與版本歷程" as UC5
+}
+
+' 角色連線：無箭頭
+student -- UC1
+student -- UC2
+student -- UC3
+student -- UC4
+student -- UC5
+teacher -- UC5
+
+' Include 連線：保留箭頭
+UC1 ..> UC1a : <<include>>
+UC2 ..> UC2a : <<include>>
+UC3 ..> UC3a : <<include>>
+@enduml

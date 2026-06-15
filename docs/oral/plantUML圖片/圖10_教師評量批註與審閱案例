@@ -1,0 +1,47 @@
+@startuml
+' --- 字體全面鎖定設定 ---
+skinparam defaultFontName "Times New Roman, 標楷體"
+
+' 強制指定各個元件的中文字體
+skinparam usecaseFontName "標楷體"
+skinparam actorFontName "標楷體"
+skinparam packageFontName "標楷體" ' 這行能百分之百確保 frame 標題是標楷體
+
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+skinparam actorStyle awesome
+left to right direction
+
+actor "教師" as teacher
+
+frame "教師評量、批注與審閱" {
+    usecase "檢視學生提交與版本歷程" as UC11
+    usecase "查看提交狀態與版本" as UC11a
+
+    usecase "人工評分" as UC12
+    usecase "依規準輸入分項分數" as UC12a
+
+    usecase "作業文本批注" as UC13
+    usecase "標註段落與撰寫評語" as UC13a
+
+    usecase "審閱 AI 評分結果" as UC14
+    usecase "檢視 AI 評分依據" as UC14a
+
+    usecase "發布成績與回饋" as UC15
+}
+
+teacher --> UC11
+teacher --> UC12
+teacher --> UC13
+teacher --> UC14
+teacher --> UC15
+
+UC11 ..> UC11a : <<include>>
+UC12 ..> UC12a : <<include>>
+UC13 ..> UC13a : <<include>>
+UC14 ..> UC14a : <<include>>
+@enduml
