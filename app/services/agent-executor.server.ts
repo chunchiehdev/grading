@@ -15,6 +15,8 @@
 
 import { ToolLoopAgent, generateObject } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import { redis } from '@/lib/redis';
 
@@ -24,14 +26,70 @@ import { redis } from '@/lib/redis';
 
 function createGeminiModel(apiKey: string) {
   const gemini = createGoogleGenerativeAI({ apiKey });
-  return gemini('gemini-3.1-flash-lite');
+  return gemini(JUDGE_MODEL_NAMES.gemini);
 }
-import type {
-  AgentGradingParams,
-  AgentGradingResult,
-  AgentStep,
-  ParsedCriterion,
-  ReferenceDocument,
+
+function createOpenAIModel(apiKey: string) {
+  const openai = createOpenAI({ apiKey });
+  return openai(JUDGE_MODEL_NAMES.openai);
+}
+
+function createAnthropicModel(apiKey: string) {
+  const anthropic = createAnthropic({ apiKey });
+  return anthropic(JUDGE_MODEL_NAMES.anthropic);
+}
+
+/**
+ * Resolve a LanguageModel + key info for the requested provider.
+ * For Gemini we still consult the rotating key health tracker; for OpenAI/Anthropic we just read the env.
+ */
+async function selectModelForProvider(
+  provider: JudgeProvider,
+  healthTracker: ReturnType<typeof getKeyHealthTracker>
+): Promise<{ model: unknown; selectedKeyId: string | null; modelName: string }> {
+  const modelName = JUDGE_MODEL_NAMES[provider];
+
+  if (provider === 'gemini') {
+    const availableKeyIds = ['1'];
+    if (process.env.GEMINI_API_KEY2) availableKeyIds.push('2');
+    if (process.env.GEMINI_API_KEY3) availableKeyIds.push('3');
+
+    const selectedKeyId = await healthTracker.selectBestKey(availableKeyIds);
+    if (!selectedKeyId) throw new Error('All Gemini API keys are throttled');
+
+    const apiKey =
+      selectedKeyId === '1'
+        ? process.env.GEMINI_API_KEY
+        : selectedKeyId === '2'
+          ? process.env.GEMINI_API_KEY2
+          : process.env.GEMINI_API_KEY3;
+    if (!apiKey) throw new Error(`Gemini API key not found for keyId: ${selectedKeyId}`);
+
+    return { model: createGeminiModel(apiKey), selectedKeyId, modelName };
+  }
+
+  if (provider === 'openai') {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+    return { model: createOpenAIModel(apiKey), selectedKeyId: null, modelName };
+  }
+
+  if (provider === 'anthropic') {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+    return { model: createAnthropicModel(apiKey), selectedKeyId: null, modelName };
+  }
+
+  throw new Error(`Unknown provider: ${provider}`);
+}
+import {
+  JUDGE_MODEL_NAMES,
+  type AgentGradingParams,
+  type AgentGradingResult,
+  type AgentStep,
+  type JudgeProvider,
+  type ParsedCriterion,
+  type ReferenceDocument,
 } from '@/types/agent';
 import { createAgentTools } from './agent-tools.server';
 import logger from '@/utils/logger';
@@ -51,6 +109,9 @@ interface GradingContext {
   assignmentDescription?: string;
   assignmentType?: string;
   userLanguage?: string;
+  // spec 020: which provider is running this agent. Used to tag Redis events
+  // so the Phase 3 UI can demultiplex the 3 parallel streams.
+  provider?: JudgeProvider;
 }
 
 type InterruptionReasonCode =
@@ -636,6 +697,9 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
   const isZh = (params.userLanguage || 'zh-TW').startsWith('zh');
   const localeText = getGradingLocaleText(params.userLanguage);
 
+  // spec 020: hoisted so the outer catch block can tag error events with the provider.
+  const provider: JudgeProvider = params.provider ?? 'gemini';
+
   try {
     logger.info(
       {
@@ -646,26 +710,13 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       '[Agent] Starting autonomous grading (ToolLoopAgent)'
     );
 
-    // 1. Setup Model (Google Generative AI)
-    let model: any;
-
-    // Flexible key detection (supports 1, 2, or 3 keys)
-    const availableKeyIds = ['1'];
-    if (process.env.GEMINI_API_KEY2) availableKeyIds.push('2');
-    if (process.env.GEMINI_API_KEY3) availableKeyIds.push('3');
-
-    selectedKeyId = await healthTracker.selectBestKey(availableKeyIds);
-    if (!selectedKeyId) throw new Error('All Gemini API keys are throttled');
-
-    const apiKey =
-      selectedKeyId === '1'
-        ? process.env.GEMINI_API_KEY
-        : selectedKeyId === '2'
-          ? process.env.GEMINI_API_KEY2
-          : process.env.GEMINI_API_KEY3;
-    if (!apiKey) throw new Error(`API key not found for keyId: ${selectedKeyId}`);
-
-    model = createGeminiModel(apiKey);
+    // 1. Setup Model — provider-aware (spec 020). Defaults to 'gemini'.
+    const selected = await selectModelForProvider(provider, healthTracker);
+    // ponytail: cast through any to match the existing model variable style (see prior `let model: any`)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const model: any = selected.model;
+    selectedKeyId = selected.selectedKeyId;
+    logger.info({ provider, modelName: selected.modelName, selectedKeyId }, '[Agent] Model selected');
 
     // 2. Optimize Rubric
     let effectiveCriteria = params.criteria;
@@ -686,6 +737,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       assignmentDescription: params.assignmentDescription,
       assignmentType: params.assignmentType,
       userLanguage: params.userLanguage,
+      provider, // spec 020: pass through to ctx for Redis event tagging
     };
 
     // CHECK FOR DIRECT GRADING MODE
@@ -753,6 +805,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             JSON.stringify({
               type: 'text-delta',
               content: directThinking,
+              provider,
             })
           );
         }
@@ -791,6 +844,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             JSON.stringify({
               type: 'finish',
               result: mappedData,
+              provider,
               // Telemetry for thesis data analysis
               meta: {
                 executionTimeMs: directExecutionTimeMs,
@@ -825,6 +879,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       assignmentType: params.assignmentType,
       sessionId: params.sessionId,
       userLanguage: params.userLanguage,
+      provider, // spec 020: tag Redis events emitted from tools
     });
 
     // 5. Execute Agent (ToolLoopAgent)
@@ -1115,6 +1170,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             JSON.stringify({
               type: 'text-delta',
               content: text,
+              provider,
             })
           );
         }
@@ -1249,6 +1305,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               args: part.input, // For observability in logs
+              provider,
             })
           );
         }
@@ -1383,7 +1440,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     // 8. Build Response
     const executionTimeMs = Date.now() - startTime;
-    await healthTracker.recordSuccess(selectedKeyId, executionTimeMs);
+    // spec 020: OpenAI/Anthropic don't use the Gemini key rotation tracker — skip when no key id.
+    if (selectedKeyId) {
+      await healthTracker.recordSuccess(selectedKeyId, executionTimeMs);
+    }
 
     // Ensure finalResult has breakdown
     if (finalResult && finalResult.criteriaScores && !finalResult.breakdown) {
@@ -1431,6 +1491,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         JSON.stringify({
           type: 'finish',
           result: finalResult,
+          provider,
           // Telemetry for thesis data analysis
           meta: {
             executionTimeMs,
@@ -1471,6 +1532,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         JSON.stringify({
           type: 'error',
           error: error instanceof Error ? error.message : String(error),
+          provider,
         })
       );
     }

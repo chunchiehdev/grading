@@ -59,6 +59,7 @@ export const ModelName = {
   GradingSession: 'GradingSession',
   UploadedFile: 'UploadedFile',
   GradingResult: 'GradingResult',
+  JudgeAttempt: 'JudgeAttempt',
   AgentExecutionLog: 'AgentExecutionLog',
   Enrollment: 'Enrollment',
   InvitationCode: 'InvitationCode',
@@ -291,10 +292,31 @@ export const GradingResultScalarFieldEnum = {
   agentExecutionTime: 'agentExecutionTime',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  completedAt: 'completedAt'
+  completedAt: 'completedAt',
+  isMultiModelJudged: 'isMultiModelJudged',
+  consensusMetrics: 'consensusMetrics'
 } as const
 
 export type GradingResultScalarFieldEnum = (typeof GradingResultScalarFieldEnum)[keyof typeof GradingResultScalarFieldEnum]
+
+
+export const JudgeAttemptScalarFieldEnum = {
+  id: 'id',
+  gradingResultId: 'gradingResultId',
+  provider: 'provider',
+  modelName: 'modelName',
+  success: 'success',
+  result: 'result',
+  agentSteps: 'agentSteps',
+  confidenceScore: 'confidenceScore',
+  errorMessage: 'errorMessage',
+  durationMs: 'durationMs',
+  inputTokens: 'inputTokens',
+  outputTokens: 'outputTokens',
+  createdAt: 'createdAt'
+} as const
+
+export type JudgeAttemptScalarFieldEnum = (typeof JudgeAttemptScalarFieldEnum)[keyof typeof JudgeAttemptScalarFieldEnum]
 
 
 export const AgentExecutionLogScalarFieldEnum = {

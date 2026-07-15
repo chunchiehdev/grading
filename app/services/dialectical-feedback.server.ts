@@ -12,7 +12,7 @@
 import { generateText, type LanguageModelUsage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import logger from '@/utils/logger';
-import type { SparringQuestion } from '@/types/grading';
+import type { SparringQuestion, ReflectionLevel } from '@/types/grading';
 
 const VLLM_CONFIG = {
   baseURL: process.env.VLLM_BASE_URL || '',
@@ -35,16 +35,40 @@ export interface DialecticalFeedbackParams {
     maxScore: number;
     levels?: Array<{ score: number; description: string }>;
   };
-  fullAssignmentContent?: string;  // 學生完整作業內容（避免斷章取義）
+  fullAssignmentContent?: string; // 學生完整作業內容（避免斷章取義）
   language?: 'zh' | 'en';
 }
 
 export interface DialecticalFeedbackResult {
   success: boolean;
   feedback?: string;
+  /** Kember 反思層級，由模型對「學生這次回應」判定 (fallback 路徑為 undefined) */
+  reflectionLevel?: ReflectionLevel;
+  /** 決策流程回應狀態 A-F */
+  responseState?: string;
   error?: string;
   provider?: 'vllm' | 'fallback';
   usage?: LanguageModelUsage;
+}
+
+/**
+ * 解析模型輸出第一行的機器可讀標記 <<L2|D>>，剝離後回傳給學生的純文字。
+ * 找不到標記時 graceful degrade：level/state 為 undefined，body 為原文。
+ */
+const REFLECTION_TAG_RE = /^\s*<<\s*(L[1-4])\s*\|\s*([A-F])\s*>>\s*\n?/i;
+
+export function parseReflectionTag(text: string): {
+  level?: ReflectionLevel;
+  state?: string;
+  body: string;
+} {
+  const match = text.match(REFLECTION_TAG_RE);
+  if (!match) return { body: text.trim() };
+  return {
+    level: match[1].toUpperCase() as ReflectionLevel,
+    state: match[2].toUpperCase(),
+    body: text.slice(match[0].length).trim(),
+  };
 }
 
 // ============================================================================
@@ -52,17 +76,30 @@ export interface DialecticalFeedbackResult {
 // ============================================================================
 
 function generateDialecticalPrompt(params: DialecticalFeedbackParams): string {
-  const { sparringQuestion, studentResponse, rubricCriterionName, rubricCriterion, fullAssignmentContent, language = 'en' } = params;
+  const {
+    sparringQuestion,
+    studentResponse,
+    rubricCriterionName,
+    rubricCriterion,
+    fullAssignmentContent,
+    language = 'en',
+  } = params;
 
   // 組合完整的評分標準說明
-  const rubricContextSection = rubricCriterion ? `
+  const rubricContextSection = rubricCriterion
+    ? `
 - 評分標準說明：${rubricCriterion.description}
-- 滿分：${rubricCriterion.maxScore} 分${rubricCriterion.levels && rubricCriterion.levels.length > 0 ? `
+- 滿分：${rubricCriterion.maxScore} 分${
+        rubricCriterion.levels && rubricCriterion.levels.length > 0
+          ? `
 - 評分等級：
-${rubricCriterion.levels.map(l => `  * ${l.score} 分：${l.description}`).join('\n')}` : ''}` : '';
+${rubricCriterion.levels.map((l) => `  * ${l.score} 分：${l.description}`).join('\n')}`
+          : ''
+      }`
+    : '';
 
   // 如果有完整作業內容，加入 context
-  const fullContentSection = fullAssignmentContent 
+  const fullContentSection = fullAssignmentContent
     ? `
 
 ## Student's Complete Assignment
@@ -110,16 +147,24 @@ First, classify the student's response into ONE of these states, then apply the 
 
 If the response shows multiple states, prioritize: B (Off-Topic) > A (Stuck) > C (Defensive) > D (Engaged)
 
-## Output Requirements
-1. Do NOT output your classification or thinking process
-2. Reply directly to the student
-3. Keep it warm, conversational, and supportive
-4. Maximum 3-5 sentences
+## Reflection Level (Kember)
+Judge the reflection depth of THIS student response:
+- L1 Habitual: only describes facts, no personal insight
+- L2 Understanding: states concepts/definitions, no link to personal experience
+- L3 Reflection: links concepts to personal experience, explains how/why
+- L4 Critical Reflection: questions own prior assumptions ("I used to think... but now...")
+
+## Output Format (strict)
+**First line**: a single machine tag \`<<level|state>>\`, e.g. \`<<L2|D>>\` (level = L1–L4 above; state = A–D from the protocol).
+**From the second line on**, write the reply to the student:
+1. Do NOT repeat, explain, or leak your tag/classification
+2. Warm, conversational, and supportive
+3. Maximum 3-5 sentences
 `;
   }
 
   // 中文版完整作業 section
-  const fullContentSectionZh = fullAssignmentContent 
+  const fullContentSectionZh = fullAssignmentContent
     ? `
 
 ## 學生的完整作業
@@ -227,11 +272,16 @@ ${fullAssignmentContent}
 
 如果學生回應包含多種狀態，按優先順序處理：E (測試) > F (反思覺醒) > B (離題) > A (卡關) > C (防禦) > D (認真)
 
-## 輸出要求
-1. 不要輸出你的分類判斷或思考過程
-2. 直接輸出給學生的回覆
-3. 語氣要像對話一樣自然、溫暖、有支持感
-4. 長度控制在 3-5 句話以內
+## 輸出格式（嚴格遵守）
+
+**第一行**只輸出一個機器標記，格式為 \`<<反思層級|回應狀態>>\`，例如 \`<<L2|D>>\`：
+- 反思層級：依上方 Kember 框架判斷學生「這次回應」的反思深度，取 L1–L4
+- 回應狀態：依上方決策流程，取 A–F
+
+**從第二行開始**才是給學生看的回覆：
+1. 不要重複、解釋或洩漏你的標記與分類
+2. 直接、自然、溫暖、有支持感，像對話一樣
+3. 長度控制在 3-5 句話以內
 `;
 }
 
@@ -249,9 +299,10 @@ export async function generateDialecticalFeedback(
   if (!studentResponse || studentResponse.trim().length < 5) {
     return {
       success: true,
-      feedback: params.language === 'en'
-        ? "It seems like you haven't fully engaged with the question. Would you like to think about it more carefully?"
-        : '你的回應似乎還沒有完整地回答問題。要不要再想想看？',
+      feedback:
+        params.language === 'en'
+          ? "It seems like you haven't fully engaged with the question. Would you like to think about it more carefully?"
+          : '你的回應似乎還沒有完整地回答問題。要不要再想想看？',
       provider: 'fallback',
     };
   }
@@ -261,9 +312,10 @@ export async function generateDialecticalFeedback(
   if (uniqueChars < 3 && studentResponse.length > 10) {
     return {
       success: true,
-      feedback: params.language === 'en'
-        ? "Your response doesn't seem to address my question. Let me rephrase: I'm curious about your reasoning for this specific choice in your writing."
-        : '你的回應似乎沒有針對我的問題。讓我換個方式問：我很好奇你在寫作時做這個選擇的原因是什麼？',
+      feedback:
+        params.language === 'en'
+          ? "Your response doesn't seem to address my question. Let me rephrase: I'm curious about your reasoning for this specific choice in your writing."
+          : '你的回應似乎沒有針對我的問題。讓我換個方式問：我很好奇你在寫作時做這個選擇的原因是什麼？',
       provider: 'fallback',
     };
   }
@@ -295,9 +347,12 @@ export async function generateDialecticalFeedback(
     clearTimeout(timeoutId);
 
     if (!healthResponse.ok) {
-      logger.warn({
-        status: healthResponse.status,
-      }, '[DialecticalFeedback] vLLM health check failed, using fallback');
+      logger.warn(
+        {
+          status: healthResponse.status,
+        },
+        '[DialecticalFeedback] vLLM health check failed, using fallback'
+      );
       return {
         success: true,
         feedback: sparringQuestion.ai_hidden_reasoning,
@@ -310,41 +365,55 @@ export async function generateDialecticalFeedback(
       apiKey: VLLM_CONFIG.apiKey,
     });
 
-    logger.info({
-      model: VLLM_CONFIG.modelName,
-      questionStrategy: sparringQuestion.provocation_strategy,
-      responseLength: studentResponse.length,
-    }, '[DialecticalFeedback] Generating feedback via vLLM');
+    logger.info(
+      {
+        model: VLLM_CONFIG.modelName,
+        questionStrategy: sparringQuestion.provocation_strategy,
+        responseLength: studentResponse.length,
+      },
+      '[DialecticalFeedback] Generating feedback via vLLM'
+    );
 
     const result = await generateText({
       model: openai.chat(VLLM_CONFIG.modelName),
       prompt,
-      temperature: 0.7, 
+      temperature: 0.7,
       maxOutputTokens: 8192,
     });
 
     const responseTimeMs = Date.now() - startTime;
+    const { level, state, body } = parseReflectionTag(result.text);
 
-    logger.info({
-      model: VLLM_CONFIG.modelName,
-      responseTimeMs,
-      outputLength: result.text.length,
-      usage: result.usage,
-    }, '[DialecticalFeedback] Success via vLLM');
+    logger.info(
+      {
+        model: VLLM_CONFIG.modelName,
+        responseTimeMs,
+        outputLength: result.text.length,
+        reflectionLevel: level,
+        responseState: state,
+        usage: result.usage,
+      },
+      '[DialecticalFeedback] Success via vLLM'
+    );
 
     return {
       success: true,
-      feedback: result.text.trim(),
+      feedback: body,
+      reflectionLevel: level,
+      responseState: state,
       provider: 'vllm',
       usage: result.usage,
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
 
-    logger.error({
-      responseTimeMs,
-      error: error instanceof Error ? error.message : String(error),
-    }, '[DialecticalFeedback] vLLM failed, using fallback');
+    logger.error(
+      {
+        responseTimeMs,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      '[DialecticalFeedback] vLLM failed, using fallback'
+    );
 
     // Fallback: 顯示原本的 AI 推理
     return {

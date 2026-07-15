@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
 import { CompactStructuredFeedback } from './StructuredFeedback';
+import { MultiModelThinking, type ModelKey } from './MultiModelThinking';
+import { MultiModelFeedback } from './MultiModelFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,6 +31,13 @@ interface GradingResultDisplayProps {
   submissionId?: string;
   aiFeedbackComments?: SubmissionAiFeedbackCommentView[];
   annotationMode?: 'editable' | 'readonly';
+  // spec 020: per-provider live thinking streams. When present, renders a tabbed view
+  // for Gemini / GPT / Claude instead of the single thinkingProcess block.
+  thinkingByProvider?: Partial<Record<ModelKey, string>>;
+  /** Providers still streaming (drives the animated dot in the tab trigger). */
+  thinkingInflight?: Partial<Record<ModelKey, boolean>>;
+  /** spec 020: per-provider raw grading results for the "三家原始評分" drill-down. */
+  resultsByProvider?: Partial<Record<ModelKey, GradingResultData>>;
 }
 
 interface ChatMessagePart {
@@ -83,6 +92,9 @@ export function GradingResultDisplay({
   isLoading,
   studentName,
   studentPicture,
+  thinkingByProvider,
+  thinkingInflight,
+  resultsByProvider,
 }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
   const chatHeaderRef = useRef<HTMLDivElement | null>(null);
@@ -100,7 +112,11 @@ export function GradingResultDisplay({
     activeThinkingProcess = thoughtSummary;
   }
 
-  const showThinkingArea = isLoading || (activeThinkingProcess && activeThinkingProcess.length > 0);
+  // spec 020: multi-provider streams take priority over the single thinkingProcess when present.
+  const multiModelKeys: ModelKey[] = ['gemini', 'openai', 'anthropic'];
+  const hasMultiModel = !!thinkingByProvider && multiModelKeys.some((k) => (thinkingByProvider[k]?.length ?? 0) > 0);
+
+  const showThinkingArea = isLoading || hasMultiModel || (activeThinkingProcess && activeThinkingProcess.length > 0);
 
   const safeResult = result
     ? {
@@ -154,24 +170,22 @@ export function GradingResultDisplay({
 
           <CollapsibleContent>
             <div className="pb-4 pt-2">
-              {/* Vertical Timeline Container */}
-              <div className="relative pl-6">
-                {/* Vertical Line - 左側貫穿的灰色線條，對齊上方的下拉按鈕 */}
-                <div className="absolute left-2 top-0 bottom-0 w-px bg-border" />
+              {hasMultiModel ? (
+                <MultiModelThinking streams={thinkingByProvider ?? {}} inflight={thinkingInflight} />
+              ) : (
+                /* Vertical Timeline Container (legacy single-model) */
+                <div className="relative pl-6">
+                  {/* Vertical Line - 左側貫穿的灰色線條，對齊上方的下拉按鈕 */}
+                  <div className="absolute left-2 top-0 bottom-0 w-px bg-border" />
 
-                {/* Content */}
-                <div className="text-sm text-muted-foreground/90 leading-relaxed">
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
-                    {isLoading ? (
-                      <>
-                        <Markdown>{activeThinkingProcess || ''}</Markdown>
-                      </>
-                    ) : (
+                  {/* Content */}
+                  <div className="text-sm text-muted-foreground/90 leading-relaxed">
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
                       <Markdown>{activeThinkingProcess || ''}</Markdown>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -188,28 +202,35 @@ export function GradingResultDisplay({
             </span>
           </div>
 
-          {/* Overall Feedback (compact) */}
-          <section className="p-2 space-y-2">
-            <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
-            <div className="text-sm text-muted-foreground">
-              {typeof safeResult.overallFeedback === 'string' ? (
-                <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
-              ) : (
-                <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
-              )}
-            </div>
-          </section>
+          {/* spec 020: when multi-model judge ran, show ONLY the three-provider tabs.
+              The aggregated overall feedback + criteria details are hidden because each
+              provider's tab already contains its own整體建議 + per-criterion breakdown. */}
+          {resultsByProvider && Object.keys(resultsByProvider).length > 0 ? (
+            <section className="p-2">
+              <MultiModelFeedback results={resultsByProvider} />
+            </section>
+          ) : (
+            <>
+              {/* Overall Feedback (compact) */}
+              <section className="p-2 space-y-2">
+                <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
+                <div className="text-sm text-muted-foreground">
+                  <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
+                </div>
+              </section>
 
-          {/* Detailed criteria: direct stack */}
-          <section>
-            <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
-            <div className="space-y-3 overflow-auto pr-1">
-              <CriteriaDetails breakdown={safeResult.breakdown} />
-              {safeResult.breakdown.length === 0 && (
-                <div className="text-sm text-muted-foreground">{t('result.noCriteria')}</div>
-              )}
-            </div>
-          </section>
+              {/* Detailed criteria: direct stack */}
+              <section>
+                <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
+                <div className="space-y-3 overflow-auto pr-1">
+                  <CriteriaDetails breakdown={safeResult.breakdown} />
+                  {safeResult.breakdown.length === 0 && (
+                    <div className="text-sm text-muted-foreground">{t('result.noCriteria')}</div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
 
           {/* Chat History — collapsible, default open */}
           {safeResult.chatHistory &&

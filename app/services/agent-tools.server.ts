@@ -452,6 +452,8 @@ export const createAgentTools = (context: {
   assignmentType?: string;
   sessionId?: string;
   userLanguage?: string;
+  // spec 020: provider tag for multi-model judge — included on every Redis event emitted from tools
+  provider?: 'gemini' | 'openai' | 'anthropic';
 }) => {
   const isZh = (context.userLanguage || 'zh-TW').startsWith('zh');
   const localeText = getAgentLocaleText(context.userLanguage);
@@ -766,6 +768,7 @@ Use Markdown formatting for clarity.`
             JSON.stringify({
               type: 'text-delta',
               content: analysis,
+              provider: context.provider,
             })
           );
 
@@ -841,6 +844,7 @@ Use Markdown formatting for clarity.`
             JSON.stringify({
               type: 'text-delta',
               content: thought,
+              provider: context.provider,
             })
           );
 

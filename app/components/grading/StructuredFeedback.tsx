@@ -13,9 +13,12 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
   const { t } = useTranslation('grading');
 
   if (typeof feedback === 'string') {
+    // spec 020: strip a leading markdown heading (e.g. "# 整合後的回饋") that older
+    // USC-merged feedback may have on the first line — it duplicates the section title above.
+    const cleaned = feedback.replace(/^\s*#{1,6}\s.*\n+/, '').trim();
     return (
       <div className={className}>
-        <Markdown className="prose-sm">{feedback}</Markdown>
+        <Markdown className="prose-sm">{cleaned}</Markdown>
       </div>
     );
   }

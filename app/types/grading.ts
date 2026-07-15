@@ -8,6 +8,9 @@ type ProvocationStrategy =
   | 'clarification' // legacy/agent variant
   | 'extension'; // legacy/agent variant
 
+/** Kember (2008) 反思深度四層級 — 論文核心依變項 */
+export type ReflectionLevel = 'L1' | 'L2' | 'L3' | 'L4';
+
 export interface SparringQuestion {
   related_rubric_id: string; // 對應的評分維度 ID (用於量化分析)
   target_quote: string; // 學生文章中的具體引文
@@ -49,6 +52,9 @@ interface SparringResponseData {
   respondedAt: string;
   // Dialectical Feedback (1.5 輪對練)
   dialecticalFeedback?: string;
+  // 對練回應的反思深度 (Kember L1-L4) 與回應狀態 (決策流程 A-F) — 量化分析用
+  reflectionLevel?: ReflectionLevel;
+  responseState?: string;
   studentDecision?: 'agree' | 'disagree';
   decisionAt?: string;
 }

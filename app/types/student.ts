@@ -58,6 +58,8 @@ export interface SubmissionInfo {
   thoughtSummary: string | null; // Feature 005 & 012: AI confidence summary
   thinkingProcess: string | null; // Feature 012: AI detailed thinking process
   gradingRationale: string | null; // Feature 012: AI grading rationale
+  // spec 020: link to GradingSession (used to load per-provider judge attempts on revisit)
+  sessionId?: string | null;
   aiFeedbackComments?: Array<{
     id: string;
     annotationId: string;

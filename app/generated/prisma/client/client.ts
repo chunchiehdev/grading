@@ -99,6 +99,11 @@ export type UploadedFile = Prisma.UploadedFileModel
  */
 export type GradingResult = Prisma.GradingResultModel
 /**
+ * Model JudgeAttempt
+ * 
+ */
+export type JudgeAttempt = Prisma.JudgeAttemptModel
+/**
  * Model AgentExecutionLog
  * 
  */

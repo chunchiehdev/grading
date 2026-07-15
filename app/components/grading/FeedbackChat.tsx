@@ -11,6 +11,9 @@ import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Markdown } from '@/components/ui/markdown';
+import { MultiModelThinking, type ModelKey } from './MultiModelThinking';
+import { MultiModelFeedback } from './MultiModelFeedback';
+import type { GradingResultData } from '@/types/grading';
 import { Textarea } from '@/components/ui/textarea';
 import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
 import type { DraftChatMessage } from '@/types/draft';
@@ -238,6 +241,10 @@ interface FeedbackChatProps {
   initialConversationsMap?: Record<number, DraftChatMessage[]>;
   thinkingProcess?: string | null;
   gradingRationale?: string | null;
+  // spec 020: per-provider thinking when multi-model judge ran. Triggers the tabbed view.
+  thinkingByProvider?: Partial<Record<ModelKey, string>>;
+  /** spec 020: per-provider raw GradingResultData for the "三家原始評分" drill-down. */
+  resultsByProvider?: Partial<Record<ModelKey, GradingResultData>>;
   normalizedScore?: number | null;
   maxRounds?: number;
   /** Emits the FULL conversations map (all questions) whenever messages change */
@@ -256,6 +263,8 @@ export function FeedbackChat({
   initialConversationsMap,
   thinkingProcess,
   gradingRationale,
+  thinkingByProvider,
+  resultsByProvider,
   normalizedScore,
   maxRounds = 5,
   onChatChange,
@@ -840,91 +849,121 @@ export function FeedbackChat({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="px-4 sm:px-6 pb-3 max-h-[50vh] overflow-y-auto space-y-1">
-            {(thinkingProcess || gradingRationale) && (
-              <Collapsible open={isThinkingOpen} onOpenChange={setIsThinkingOpen} className="group/thinking">
-                <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center justify-between py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <BrainCircuit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <p className="text-sm font-medium text-foreground">
-                        {isThinkingOpen
-                          ? t('grading:thinkingProcess.hideProcess')
-                          : t('grading:thinkingProcess.viewProcess')}
-                      </p>
+            {(() => {
+              const hasMulti =
+                !!thinkingByProvider &&
+                (['gemini', 'openai', 'anthropic'] as ModelKey[]).some((k) => (thinkingByProvider[k]?.length ?? 0) > 0);
+              const hasLegacy = !!(thinkingProcess || gradingRationale);
+              if (!hasMulti && !hasLegacy) return null;
+              return (
+                <Collapsible open={isThinkingOpen} onOpenChange={setIsThinkingOpen} className="group/thinking">
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center justify-between py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <BrainCircuit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <p className="text-sm font-medium text-foreground">
+                          {isThinkingOpen
+                            ? t('grading:thinkingProcess.hideProcess')
+                            : t('grading:thinkingProcess.viewProcess')}
+                        </p>
+                      </div>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/thinking:rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="py-1 pb-3">
+                      {hasMulti ? (
+                        <MultiModelThinking streams={thinkingByProvider ?? {}} />
+                      ) : (
+                        <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+                          <Markdown>{thinkingProcess || gradingRationale || ''}</Markdown>
+                        </div>
+                      )}
                     </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/thinking:rotate-180" />
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
-                    <Markdown>{thinkingProcess || gradingRationale || ''}</Markdown>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })()}
 
-            {result.overallFeedback && (
+            {/* spec 020: when multi-model judge ran, show ONLY the three-provider tabs.
+                Each tab contains that model's整體建議 + per-criterion breakdown. */}
+            {resultsByProvider && Object.keys(resultsByProvider).length > 0 ? (
               <div className="py-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  {t('grading:result.overallFeedback')}
-                </p>
-                <div className="text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-                  <Markdown>{result.overallFeedback}</Markdown>
-                </div>
+                <MultiModelFeedback results={resultsByProvider} />
               </div>
-            )}
-            {result.breakdown && result.breakdown.length > 0 && (
-              <div className="pt-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  {t('grading:result.criteriaDetails')}
-                </p>
-                <div className="space-y-1">
-                  {result.breakdown.map(
-                    (
-                      item: { criteriaId?: string; name?: string; maxScore?: number; score: number; feedback: string },
-                      idx: number
-                    ) => {
-                      const maxScore = item.maxScore ?? 0;
-                      const ratio = maxScore > 0 ? item.score / maxScore : 0;
-                      const color: 'green' | 'amber' | 'red' = ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
+            ) : (
+              <>
+                {result.overallFeedback && (
+                  <div className="py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                      {t('grading:result.overallFeedback')}
+                    </p>
+                    <div className="text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                      <Markdown>{result.overallFeedback}</Markdown>
+                    </div>
+                  </div>
+                )}
+                {result.breakdown && result.breakdown.length > 0 && (
+                  <div className="pt-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                      {t('grading:result.criteriaDetails')}
+                    </p>
+                    <div className="space-y-1">
+                      {result.breakdown.map(
+                        (
+                          item: {
+                            criteriaId?: string;
+                            name?: string;
+                            maxScore?: number;
+                            score: number;
+                            feedback: string;
+                          },
+                          idx: number
+                        ) => {
+                          const maxScore = item.maxScore ?? 0;
+                          const ratio = maxScore > 0 ? item.score / maxScore : 0;
+                          const color: 'green' | 'amber' | 'red' =
+                            ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
 
-                      return (
-                        <Collapsible key={item.criteriaId || idx} className="group/item">
-                          <CollapsibleTrigger asChild>
-                            <button className="w-full flex items-center gap-3 py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">
-                                  {idx + 1}. {item.name}
-                                </p>
-                              </div>
-                              <Badge
-                                variant="secondary"
-                                className={cn(
-                                  'flex-shrink-0 tabular-nums',
-                                  color === 'green'
-                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                    : color === 'amber'
-                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                )}
-                              >
-                                {item.score}
-                                {item.maxScore != null ? `/${item.maxScore}` : ''}
-                              </Badge>
-                              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/item:rotate-180" />
-                            </button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
-                              <Markdown>{item.feedback}</Markdown>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      );
-                    }
-                  )}
-                </div>
-              </div>
+                          return (
+                            <Collapsible key={item.criteriaId || idx} className="group/item">
+                              <CollapsibleTrigger asChild>
+                                <button className="w-full flex items-center gap-3 py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {idx + 1}. {item.name}
+                                    </p>
+                                  </div>
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      'flex-shrink-0 tabular-nums',
+                                      color === 'green'
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                        : color === 'amber'
+                                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    )}
+                                  >
+                                    {item.score}
+                                    {item.maxScore != null ? `/${item.maxScore}` : ''}
+                                  </Badge>
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/item:rotate-180" />
+                                </button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+                                  <Markdown>{item.feedback}</Markdown>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </CollapsibleContent>

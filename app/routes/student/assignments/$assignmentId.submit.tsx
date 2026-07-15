@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse, Link } from 'react-router';
+import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import React, { useReducer, useEffect, useRef } from 'react';
 import { requireStudent } from '@/services/auth.server';
@@ -7,7 +7,6 @@ import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/s
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { FeedbackChat, type SparringState } from '@/components/grading/FeedbackChat';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
-import { ClientOnly } from '@/components/ui/client-only';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -20,7 +19,7 @@ import { useUploadStore } from '@/stores/uploadStore';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { dbCriteriaToUICategories } from '@/utils/rubric-transform';
-import type { DraftChatMessage, DraftUiState } from '@/types/draft';
+import type { DraftChatMessage } from '@/types/draft';
 import { normalizeDraftPhase, parseDraftUiState, parseLegacyDraftUiState } from '@/utils/draft-ui-state';
 import { parseGradingResult, type GradingResultData } from '@/utils/grading-helpers';
 
@@ -56,7 +55,9 @@ function parseSubmissionResult(value: unknown): SubmissionResult | null {
           })),
         overallFeedback:
           typeof record.overallFeedback === 'string' ||
-          (record.overallFeedback && typeof record.overallFeedback === 'object' && !Array.isArray(record.overallFeedback))
+          (record.overallFeedback &&
+            typeof record.overallFeedback === 'object' &&
+            !Array.isArray(record.overallFeedback))
             ? (record.overallFeedback as GradingResultData['overallFeedback'])
             : '',
         ...(sparringQuestions ? { sparringQuestions } : {}),
@@ -82,7 +83,8 @@ function toFeedbackChatResult(result: SubmissionResult): {
   return {
     totalScore: result.totalScore,
     maxScore: result.maxScore,
-    overallFeedback: typeof result.overallFeedback === 'string' ? result.overallFeedback : result.overallFeedback.summary,
+    overallFeedback:
+      typeof result.overallFeedback === 'string' ? result.overallFeedback : result.overallFeedback.summary,
     breakdown: result.breakdown,
   };
 }
@@ -137,7 +139,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
 
-  return { student, assignment, draftSubmission };
+  // spec 020: if the draft has a multi-model judged session, hydrate the per-provider
+  // thinking from judge_attempts so a page reload restores the three-tab view.
+  const { getJudgeAttemptsForSession } = await import('@/services/judge-attempts.server');
+  const judgeBundle = await getJudgeAttemptsForSession(draftSubmission?.sessionId ?? null);
+
+  return { student, assignment, draftSubmission, judgeBundle };
 }
 
 // Simplified state machine - Linus style: one clear data structure
@@ -152,6 +159,11 @@ interface SubmissionState {
     gradingRationale?: string; // Feature 012
     /** Per-question conversation map: { [questionIdx]: messages[] } */
     chatMessagesMap?: Record<number, DraftChatMessage[]>;
+    // spec 020: per-provider live thinking streams when USE_PARALLEL_AGENTS=true.
+    thinkingByProvider?: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
+    thinkingInflight?: Partial<Record<'gemini' | 'openai' | 'anthropic', boolean>>;
+    // spec 020: per-provider raw GradingResultData for the "三家原始評分" drill-down.
+    resultsByProvider?: Partial<Record<'gemini' | 'openai' | 'anthropic', SubmissionResult>>;
   } | null;
   error: string | null;
   loading: boolean;
@@ -174,7 +186,18 @@ type Action =
   | { type: 'chat_updated'; conversationsMap: Record<number, DraftChatMessage[]> }
   | { type: 'error'; message: string }
   | { type: 'reset' }
-  | { type: 'thought_update'; thought: string };
+  | {
+      type: 'thought_update';
+      thought: string;
+      thinkingByProvider?: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
+      thinkingInflight?: Partial<Record<'gemini' | 'openai' | 'anthropic', boolean>>;
+    }
+  | {
+      // spec 020: emitted after streaming finishes, once we've fetched judge_attempts
+      type: 'judge_bundle_loaded';
+      thinkingByProvider: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
+      resultsByProvider: Partial<Record<'gemini' | 'openai' | 'anthropic', SubmissionResult>>;
+    };
 
 function submissionReducer(state: SubmissionState, action: Action): SubmissionState {
   switch (action.type) {
@@ -183,7 +206,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       return { ...state, phase: 'analyze', file: action.file, session: null, error: null };
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
-    case 'analysis_completed':
+    case 'analysis_completed': {
       // Check if there are sparring questions
       const hasSparring = (action.result.sparringQuestions?.length ?? 0) > 0;
       return {
@@ -196,9 +219,15 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
           thoughtSummary: action.thoughtSummary,
           thinkingProcess: action.thinkingProcess,
           gradingRationale: action.gradingRationale,
+          // spec 020: preserve multi-model thinking + per-provider raw results so the
+          // pre-sparring "view thinking process" and "看三家原始評分" still show the three tabs.
+          thinkingByProvider: state.session?.thinkingByProvider,
+          thinkingInflight: undefined,
+          resultsByProvider: state.session?.resultsByProvider,
           chatMessagesMap: undefined,
         },
       };
+    }
     case 'sparring_completed':
       return { ...state, phase: 'submit' };
     case 'submission_completed':
@@ -217,19 +246,33 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       return { ...state, error: action.message, loading: false };
     case 'reset':
       return { phase: 'upload', file: null, session: null, error: null, loading: false, lastSubmittedSessionId: null };
-    case 'thought_update':
+    case 'judge_bundle_loaded': {
       if (!state.session) return state;
-      // Only update if there's actual new content (avoid overwriting with empty strings)
-      if (!action.thought || action.thought.length === 0) return state;
-
-      // Use the new thought directly (useChat already accumulates for us)
       return {
         ...state,
         session: {
           ...state.session,
-          thinkingProcess: action.thought,
+          thinkingByProvider: action.thinkingByProvider,
+          resultsByProvider: action.resultsByProvider,
         },
       };
+    }
+    case 'thought_update': {
+      if (!state.session) return state;
+      const hasLegacyText = !!action.thought && action.thought.length > 0;
+      const hasMulti =
+        !!action.thinkingByProvider && Object.values(action.thinkingByProvider).some((v) => (v?.length ?? 0) > 0);
+      if (!hasLegacyText && !hasMulti) return state;
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          ...(hasLegacyText ? { thinkingProcess: action.thought } : {}),
+          ...(action.thinkingByProvider ? { thinkingByProvider: action.thinkingByProvider } : {}),
+          ...(action.thinkingInflight ? { thinkingInflight: action.thinkingInflight } : {}),
+        },
+      };
+    }
     default:
       return state;
   }
@@ -237,10 +280,11 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
 
 export default function SubmitAssignment() {
   const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
-  const { student, assignment, draftSubmission } = useLoaderData<typeof loader>();
+  const { student, assignment, draftSubmission, judgeBundle } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const persistedDraftUiState = React.useMemo(
-    () => parseDraftUiState(draftSubmission?.draftUiState) || parseLegacyDraftUiState(draftSubmission?.aiAnalysisResult),
+    () =>
+      parseDraftUiState(draftSubmission?.draftUiState) || parseLegacyDraftUiState(draftSubmission?.aiAnalysisResult),
     [draftSubmission?.draftUiState, draftSubmission?.aiAnalysisResult]
   );
   const [useDirectGrading, setUseDirectGrading] = React.useState(false);
@@ -374,6 +418,11 @@ export default function SubmitAssignment() {
             thoughtSummary: draftSubmission.thoughtSummary || undefined,
             thinkingProcess: draftSubmission.thinkingProcess || undefined,
             gradingRationale: draftSubmission.gradingRationale || undefined,
+            // spec 020: hydrate three-tab thinking from judge_attempts so page reloads keep the tabs.
+            thinkingByProvider: judgeBundle?.hasMultiModel ? judgeBundle.thinkingByProvider : undefined,
+            resultsByProvider: judgeBundle?.hasMultiModel
+              ? (judgeBundle.resultsByProvider as Partial<Record<'gemini' | 'openai' | 'anthropic', SubmissionResult>>)
+              : undefined,
             chatMessagesMap: persistedDraftUiState?.chatMessagesMap,
           }
         : null,
@@ -594,13 +643,30 @@ export default function SubmitAssignment() {
   }, [state.loading, state.session?.id]);
 
   // AI SDK UI Hook for Streaming Bridge
-  const { messages, sendMessage, status: chatStatus } = useChat({
+  const {
+    messages,
+    sendMessage,
+    status: chatStatus,
+  } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/grading/bridge',
     }),
-    onFinish: (message) => {
-      // When streaming finishes, we can trigger a final poll or update state
-      // console.log('[Frontend] Streaming finished:', message);
+    onFinish: () => {
+      // spec 020: after the parallel streams complete, hydrate per-provider thinking + raw results
+      // from judge_attempts so the "看三家原始評分" / "查看思考過程" tabs are populated immediately.
+      const sid = state.session?.id;
+      if (!sid) return;
+      fetch(`/api/grading/judge-attempts/${sid}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((bundle) => {
+          if (!bundle || !bundle.hasMultiModel) return;
+          dispatch({
+            type: 'judge_bundle_loaded',
+            thinkingByProvider: bundle.thinkingByProvider ?? {},
+            resultsByProvider: bundle.resultsByProvider ?? {},
+          });
+        })
+        .catch((err) => console.error('[Frontend] Failed to load judge bundle:', err));
     },
     onError: (error) => {
       console.error('[Frontend] Streaming error:', error);
@@ -612,33 +678,49 @@ export default function SubmitAssignment() {
 
   // Sync streaming messages to local state for display
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      // console.log('[Frontend] Received message update:', lastMessage);
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== 'assistant') return;
 
-      if (lastMessage.role === 'assistant') {
-        // Update thought stream
-        // Strictly prioritize 'parts' to separate text from tool calls
-        let thought = '';
-        const parts = lastMessage.parts;
+    const parts = lastMessage.parts;
+    if (!Array.isArray(parts)) return;
 
-        if (parts && Array.isArray(parts)) {
-          // Only extract text parts, ignoring tool-invocations
-          thought = parts
-            .filter((p: { type?: string; text?: string }) => p.type === 'text')
-            .map((p: { type?: string; text?: string }) => p.text)
-            .join('');
-        }
+    // spec 020: Vercel AI SDK does NOT expose the chunk `id` on TextUIPart, so the
+    // bridge piggy-backs the provider tag through `providerMetadata.multimodel.provider`.
+    // Legacy single-mode parts have no multimodel metadata → routed to the single thinkingProcess slot.
+    type PartLike = {
+      type?: string;
+      text?: string;
+      state?: 'streaming' | 'done';
+      providerMetadata?: { multimodel?: { provider?: string } };
+    };
+    const byProvider: Record<'gemini' | 'openai' | 'anthropic', string> = { gemini: '', openai: '', anthropic: '' };
+    const inflight: Partial<Record<'gemini' | 'openai' | 'anthropic', boolean>> = {};
+    let legacyText = '';
 
-        // Clean up thought content: remove raw tool call logs if they leaked into text
-        // This regex looks for patterns like "Calling tool X with arguments: {...}"
-        thought = thought.replace(/Calling tool \w+ with arguments: \{[\s\S]*?\}/g, '');
-        thought = thought.replace(/tool_code[\s\S]*?```/g, ''); // Remove code blocks that might be tool calls
-
-        // console.log('[Frontend] Extracted thought:', thought.substring(0, 50) + '...');
-        dispatch({ type: 'thought_update', thought });
+    for (const raw of parts as PartLike[]) {
+      if (raw.type !== 'text' || typeof raw.text !== 'string') continue;
+      const provider = raw.providerMetadata?.multimodel?.provider;
+      if (provider === 'gemini' || provider === 'openai' || provider === 'anthropic') {
+        byProvider[provider] += raw.text;
+        if (raw.state !== 'done') inflight[provider] = true;
+      } else {
+        legacyText += raw.text;
       }
     }
+
+    const cleanLegacy = legacyText
+      .replace(/Calling tool \w+ with arguments: \{[\s\S]*?\}/g, '')
+      .replace(/tool_code[\s\S]*?```/g, '');
+
+    const hasMulti = byProvider.gemini.length + byProvider.openai.length + byProvider.anthropic.length > 0;
+
+    dispatch({
+      type: 'thought_update',
+      thought: hasMulti ? '' : cleanLegacy,
+      thinkingByProvider: hasMulti ? byProvider : undefined,
+      thinkingInflight: hasMulti ? inflight : undefined,
+    });
   }, [messages]);
 
   // Trigger streaming when session starts
@@ -1223,6 +1305,8 @@ export default function SubmitAssignment() {
                       initialConversationsMap={state.session?.chatMessagesMap}
                       thinkingProcess={state.session?.thinkingProcess}
                       gradingRationale={state.session?.gradingRationale}
+                      thinkingByProvider={state.session?.thinkingByProvider}
+                      resultsByProvider={state.session?.resultsByProvider}
                       normalizedScore={state.session.result?.normalizedScore}
                       onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
                       onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
@@ -1230,10 +1314,22 @@ export default function SubmitAssignment() {
                       onSparringStateChange={setSparringState}
                     />
                   ) : (
-                    <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                    <GradingResultDisplay
+                      isLoading={state.loading}
+                      thinkingProcess={state.session?.thinkingProcess}
+                      thinkingByProvider={state.session?.thinkingByProvider}
+                      thinkingInflight={state.session?.thinkingInflight}
+                      resultsByProvider={state.session?.resultsByProvider}
+                    />
                   )
                 ) : (
-                  <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                  <GradingResultDisplay
+                    isLoading={state.loading}
+                    thinkingProcess={state.session?.thinkingProcess}
+                    thinkingByProvider={state.session?.thinkingByProvider}
+                    thinkingInflight={state.session?.thinkingInflight}
+                    resultsByProvider={state.session?.resultsByProvider}
+                  />
                 ))}
             </div>
 
@@ -1503,6 +1599,8 @@ export default function SubmitAssignment() {
                       initialConversationsMap={state.session?.chatMessagesMap}
                       thinkingProcess={state.session?.thinkingProcess}
                       gradingRationale={state.session?.gradingRationale}
+                      thinkingByProvider={state.session?.thinkingByProvider}
+                      resultsByProvider={state.session?.resultsByProvider}
                       normalizedScore={state.session.result?.normalizedScore}
                       onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
                       onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
@@ -1510,10 +1608,22 @@ export default function SubmitAssignment() {
                       onSparringStateChange={setSparringState}
                     />
                   ) : (
-                    <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                    <GradingResultDisplay
+                      isLoading={state.loading}
+                      thinkingProcess={state.session?.thinkingProcess}
+                      thinkingByProvider={state.session?.thinkingByProvider}
+                      thinkingInflight={state.session?.thinkingInflight}
+                      resultsByProvider={state.session?.resultsByProvider}
+                    />
                   )
                 ) : (
-                  <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
+                  <GradingResultDisplay
+                    isLoading={state.loading}
+                    thinkingProcess={state.session?.thinkingProcess}
+                    thinkingByProvider={state.session?.thinkingByProvider}
+                    thinkingInflight={state.session?.thinkingInflight}
+                    resultsByProvider={state.session?.resultsByProvider}
+                  />
                 ))}
             </div>
 

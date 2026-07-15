@@ -15,6 +15,8 @@ interface SparringResponseRecord {
   response?: string;
   respondedAt?: string;
   dialecticalFeedback?: string;
+  reflectionLevel?: string;
+  responseState?: string;
   studentDecision?: string;
   decisionAt?: string;
 }
@@ -102,6 +104,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     // ============================================================
     if (response && sparringQuestion) {
       let dialecticalFeedback: string | undefined;
+      let reflectionLevel: string | undefined;
+      let responseState: string | undefined;
 
       // 取得完整的評分標準（包含 description 和 levels）
       // 從 AssignmentArea → Rubric → criteria JSON 中查找對應的 criterion
@@ -167,6 +171,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
         if (feedbackResult.success && feedbackResult.feedback) {
           dialecticalFeedback = feedbackResult.feedback;
+          reflectionLevel = feedbackResult.reflectionLevel;
+          responseState = feedbackResult.responseState;
 
           // Record token usage (Feature: Sparring Token Tracking)
           // Prefer sessionId from request body, fallback to submission record
@@ -225,6 +231,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         response,
         respondedAt,
         dialecticalFeedback,
+        reflectionLevel,
+        responseState,
       };
 
       if (existingIdx >= 0) {

@@ -141,4 +141,16 @@ export interface AgentGradingParams {
   confidenceThreshold?: number; // Default: 0.7
   enableSimilarityCheck?: boolean; // Default: true
   useDirectGrading?: boolean; // Default: false
+
+  // Multi-model judge (spec 020): which provider to run this agent against.
+  // Defaults to 'gemini' for backward compatibility.
+  provider?: JudgeProvider;
 }
+
+export type JudgeProvider = 'gemini' | 'openai' | 'anthropic';
+
+export const JUDGE_MODEL_NAMES: Record<JudgeProvider, string> = {
+  gemini: 'gemini-3.1-flash-lite',
+  openai: 'gpt-4o-mini',
+  anthropic: 'claude-haiku-4-5-20251001',
+};

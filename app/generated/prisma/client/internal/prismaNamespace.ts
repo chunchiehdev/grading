@@ -400,6 +400,7 @@ export const ModelName = {
   GradingSession: 'GradingSession',
   UploadedFile: 'UploadedFile',
   GradingResult: 'GradingResult',
+  JudgeAttempt: 'JudgeAttempt',
   AgentExecutionLog: 'AgentExecutionLog',
   Enrollment: 'Enrollment',
   InvitationCode: 'InvitationCode',
@@ -429,7 +430,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "submissionAiFeedbackComment" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
+    modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "submissionAiFeedbackComment" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "judgeAttempt" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1170,6 +1171,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.GradingResultCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.GradingResultCountAggregateOutputType> | number
+        }
+      }
+    }
+    JudgeAttempt: {
+      payload: Prisma.$JudgeAttemptPayload<ExtArgs>
+      fields: Prisma.JudgeAttemptFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.JudgeAttemptFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.JudgeAttemptFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>
+        }
+        findFirst: {
+          args: Prisma.JudgeAttemptFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.JudgeAttemptFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>
+        }
+        findMany: {
+          args: Prisma.JudgeAttemptFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>[]
+        }
+        create: {
+          args: Prisma.JudgeAttemptCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>
+        }
+        createMany: {
+          args: Prisma.JudgeAttemptCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.JudgeAttemptCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>[]
+        }
+        delete: {
+          args: Prisma.JudgeAttemptDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>
+        }
+        update: {
+          args: Prisma.JudgeAttemptUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>
+        }
+        deleteMany: {
+          args: Prisma.JudgeAttemptDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.JudgeAttemptUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.JudgeAttemptUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>[]
+        }
+        upsert: {
+          args: Prisma.JudgeAttemptUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$JudgeAttemptPayload>
+        }
+        aggregate: {
+          args: Prisma.JudgeAttemptAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateJudgeAttempt>
+        }
+        groupBy: {
+          args: Prisma.JudgeAttemptGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.JudgeAttemptGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.JudgeAttemptCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.JudgeAttemptCountAggregateOutputType> | number
         }
       }
     }
@@ -2448,10 +2523,31 @@ export const GradingResultScalarFieldEnum = {
   agentExecutionTime: 'agentExecutionTime',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  completedAt: 'completedAt'
+  completedAt: 'completedAt',
+  isMultiModelJudged: 'isMultiModelJudged',
+  consensusMetrics: 'consensusMetrics'
 } as const
 
 export type GradingResultScalarFieldEnum = (typeof GradingResultScalarFieldEnum)[keyof typeof GradingResultScalarFieldEnum]
+
+
+export const JudgeAttemptScalarFieldEnum = {
+  id: 'id',
+  gradingResultId: 'gradingResultId',
+  provider: 'provider',
+  modelName: 'modelName',
+  success: 'success',
+  result: 'result',
+  agentSteps: 'agentSteps',
+  confidenceScore: 'confidenceScore',
+  errorMessage: 'errorMessage',
+  durationMs: 'durationMs',
+  inputTokens: 'inputTokens',
+  outputTokens: 'outputTokens',
+  createdAt: 'createdAt'
+} as const
+
+export type JudgeAttemptScalarFieldEnum = (typeof JudgeAttemptScalarFieldEnum)[keyof typeof JudgeAttemptScalarFieldEnum]
 
 
 export const AgentExecutionLogScalarFieldEnum = {
@@ -3009,6 +3105,7 @@ export type GlobalOmitConfig = {
   gradingSession?: Prisma.GradingSessionOmit
   uploadedFile?: Prisma.UploadedFileOmit
   gradingResult?: Prisma.GradingResultOmit
+  judgeAttempt?: Prisma.JudgeAttemptOmit
   agentExecutionLog?: Prisma.AgentExecutionLogOmit
   enrollment?: Prisma.EnrollmentOmit
   invitationCode?: Prisma.InvitationCodeOmit

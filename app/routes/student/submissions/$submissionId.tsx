@@ -2,6 +2,7 @@ import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link, useRouteError, isRouteErrorResponse } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
+import { getJudgeAttemptsForSession } from '@/services/judge-attempts.server';
 import { db } from '@/lib/db.server';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -97,8 +98,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     })
   );
 
+  // spec 020: pull per-provider think_aloud traces if this submission was multi-model judged.
+  const judgeBundle = await getJudgeAttemptsForSession(submission.sessionId);
+
   return {
     student: { name: student.name, picture: student.picture },
+    judgeBundle,
     submission: {
       ...submission,
       formattedUploadedAt,
@@ -112,7 +117,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function StudentSubmissionDetail() {
-  const { student, submission } = useLoaderData<typeof loader>();
+  const { student, submission, judgeBundle } = useLoaderData<typeof loader>();
   const { t } = useTranslation(['submissions']);
   const a = submission.assignmentArea;
   const teacherScore = submission.teacherScore;
@@ -219,6 +224,9 @@ export default function StudentSubmissionDetail() {
                   gradingRationale={submission.gradingRationale}
                   studentName={student.name}
                   studentPicture={student.picture}
+                  // spec 020: when this submission was multi-model judged, show per-provider tabs
+                  thinkingByProvider={judgeBundle.hasMultiModel ? judgeBundle.thinkingByProvider : undefined}
+                  resultsByProvider={judgeBundle.hasMultiModel ? judgeBundle.resultsByProvider : undefined}
                 />
               ) : (
                 <div className="border-2 border-[#2B2B2B] p-12 text-center dark:border-gray-200">

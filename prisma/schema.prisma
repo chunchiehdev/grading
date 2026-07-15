@@ -381,8 +381,13 @@ model GradingResult {
   updatedAt   DateTime  @updatedAt
   completedAt DateTime? // 評分完成時間
 
+  // Multi-model judge fields (spec 020)
+  isMultiModelJudged Boolean   @default(false)
+  consensusMetrics   Json?     // { perCriterionMaxMinusMin: { [criteriaId]: number }, anyCriterionDiverged: boolean, medianTotal: number }
+
   // Relations
-  agentLogs AgentExecutionLog[]
+  agentLogs      AgentExecutionLog[]
+  judgeAttempts  JudgeAttempt[]
 
   @@index([gradingSessionId, status])
   @@index([uploadedFileId])
@@ -390,7 +395,37 @@ model GradingResult {
   @@index([assignmentAreaId]) // NEW: Index for JOIN performance
   @@index([normalizedScore])
   @@index([requiresReview, createdAt]) // NEW: For review queue
+  @@index([isMultiModelJudged]) // spec 020: fast filter for IRR queries
   @@map("grading_results")
+}
+
+// One row per (gradingResult, provider) pair. Used for inter-rater reliability analysis (spec 020).
+model JudgeAttempt {
+  id              String        @id @default(uuid())
+
+  gradingResultId String
+  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
+
+  provider        String        @db.VarChar(50)   // 'gemini' | 'openai' | 'anthropic'
+  modelName       String        @db.VarChar(100)
+
+  success         Boolean
+  result          Json?         // GradingResultData (totalScore, maxScore, breakdown, overallFeedback, sparringQuestions)
+  agentSteps      Json?         // full ReAct steps from this provider
+  confidenceScore Float?
+
+  errorMessage    String?       @db.Text
+
+  durationMs      Int
+  inputTokens     Int?
+  outputTokens    Int?
+
+  createdAt       DateTime      @default(now())
+
+  @@index([gradingResultId, provider])
+  @@index([provider, success])
+  @@index([gradingResultId, success])
+  @@map("judge_attempts")
 }
 
 // Agent執行記錄 - 詳細追蹤每個步驟

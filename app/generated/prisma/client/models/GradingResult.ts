@@ -72,6 +72,7 @@ export type GradingResultMinAggregateOutputType = {
   createdAt: Date | null
   updatedAt: Date | null
   completedAt: Date | null
+  isMultiModelJudged: boolean | null
 }
 
 export type GradingResultMaxAggregateOutputType = {
@@ -100,6 +101,7 @@ export type GradingResultMaxAggregateOutputType = {
   createdAt: Date | null
   updatedAt: Date | null
   completedAt: Date | null
+  isMultiModelJudged: boolean | null
 }
 
 export type GradingResultCountAggregateOutputType = {
@@ -132,6 +134,8 @@ export type GradingResultCountAggregateOutputType = {
   createdAt: number
   updatedAt: number
   completedAt: number
+  isMultiModelJudged: number
+  consensusMetrics: number
   _all: number
 }
 
@@ -182,6 +186,7 @@ export type GradingResultMinAggregateInputType = {
   createdAt?: true
   updatedAt?: true
   completedAt?: true
+  isMultiModelJudged?: true
 }
 
 export type GradingResultMaxAggregateInputType = {
@@ -210,6 +215,7 @@ export type GradingResultMaxAggregateInputType = {
   createdAt?: true
   updatedAt?: true
   completedAt?: true
+  isMultiModelJudged?: true
 }
 
 export type GradingResultCountAggregateInputType = {
@@ -242,6 +248,8 @@ export type GradingResultCountAggregateInputType = {
   createdAt?: true
   updatedAt?: true
   completedAt?: true
+  isMultiModelJudged?: true
+  consensusMetrics?: true
   _all?: true
 }
 
@@ -361,6 +369,8 @@ export type GradingResultGroupByOutputType = {
   createdAt: Date
   updatedAt: Date
   completedAt: Date | null
+  isMultiModelJudged: boolean
+  consensusMetrics: runtime.JsonValue | null
   _count: GradingResultCountAggregateOutputType | null
   _avg: GradingResultAvgAggregateOutputType | null
   _sum: GradingResultSumAggregateOutputType | null
@@ -416,11 +426,14 @@ export type GradingResultWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"GradingResult"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GradingResult"> | Date | string
   completedAt?: Prisma.DateTimeNullableFilter<"GradingResult"> | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFilter<"GradingResult"> | boolean
+  consensusMetrics?: Prisma.JsonNullableFilter<"GradingResult">
   gradingSession?: Prisma.XOR<Prisma.GradingSessionScalarRelationFilter, Prisma.GradingSessionWhereInput>
   uploadedFile?: Prisma.XOR<Prisma.UploadedFileScalarRelationFilter, Prisma.UploadedFileWhereInput>
   rubric?: Prisma.XOR<Prisma.RubricScalarRelationFilter, Prisma.RubricWhereInput>
   assignmentArea?: Prisma.XOR<Prisma.AssignmentAreaNullableScalarRelationFilter, Prisma.AssignmentAreaWhereInput> | null
   agentLogs?: Prisma.AgentExecutionLogListRelationFilter
+  judgeAttempts?: Prisma.JudgeAttemptListRelationFilter
 }
 
 export type GradingResultOrderByWithRelationInput = {
@@ -453,11 +466,14 @@ export type GradingResultOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  isMultiModelJudged?: Prisma.SortOrder
+  consensusMetrics?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingSession?: Prisma.GradingSessionOrderByWithRelationInput
   uploadedFile?: Prisma.UploadedFileOrderByWithRelationInput
   rubric?: Prisma.RubricOrderByWithRelationInput
   assignmentArea?: Prisma.AssignmentAreaOrderByWithRelationInput
   agentLogs?: Prisma.AgentExecutionLogOrderByRelationAggregateInput
+  judgeAttempts?: Prisma.JudgeAttemptOrderByRelationAggregateInput
 }
 
 export type GradingResultWhereUniqueInput = Prisma.AtLeast<{
@@ -493,11 +509,14 @@ export type GradingResultWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"GradingResult"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GradingResult"> | Date | string
   completedAt?: Prisma.DateTimeNullableFilter<"GradingResult"> | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFilter<"GradingResult"> | boolean
+  consensusMetrics?: Prisma.JsonNullableFilter<"GradingResult">
   gradingSession?: Prisma.XOR<Prisma.GradingSessionScalarRelationFilter, Prisma.GradingSessionWhereInput>
   uploadedFile?: Prisma.XOR<Prisma.UploadedFileScalarRelationFilter, Prisma.UploadedFileWhereInput>
   rubric?: Prisma.XOR<Prisma.RubricScalarRelationFilter, Prisma.RubricWhereInput>
   assignmentArea?: Prisma.XOR<Prisma.AssignmentAreaNullableScalarRelationFilter, Prisma.AssignmentAreaWhereInput> | null
   agentLogs?: Prisma.AgentExecutionLogListRelationFilter
+  judgeAttempts?: Prisma.JudgeAttemptListRelationFilter
 }, "id">
 
 export type GradingResultOrderByWithAggregationInput = {
@@ -530,6 +549,8 @@ export type GradingResultOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  isMultiModelJudged?: Prisma.SortOrder
+  consensusMetrics?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.GradingResultCountOrderByAggregateInput
   _avg?: Prisma.GradingResultAvgOrderByAggregateInput
   _max?: Prisma.GradingResultMaxOrderByAggregateInput
@@ -570,6 +591,8 @@ export type GradingResultScalarWhereWithAggregatesInput = {
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"GradingResult"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"GradingResult"> | Date | string
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GradingResult"> | Date | string | null
+  isMultiModelJudged?: Prisma.BoolWithAggregatesFilter<"GradingResult"> | boolean
+  consensusMetrics?: Prisma.JsonNullableWithAggregatesFilter<"GradingResult">
 }
 
 export type GradingResultCreateInput = {
@@ -598,11 +621,14 @@ export type GradingResultCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession: Prisma.GradingSessionCreateNestedOneWithoutGradingResultsInput
   uploadedFile: Prisma.UploadedFileCreateNestedOneWithoutGradingResultsInput
   rubric: Prisma.RubricCreateNestedOneWithoutGradingResultsInput
   assignmentArea?: Prisma.AssignmentAreaCreateNestedOneWithoutGradingResultsInput
   agentLogs?: Prisma.AgentExecutionLogCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUncheckedCreateInput = {
@@ -635,7 +661,10 @@ export type GradingResultUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUpdateInput = {
@@ -664,11 +693,14 @@ export type GradingResultUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession?: Prisma.GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
   uploadedFile?: Prisma.UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
   rubric?: Prisma.RubricUpdateOneRequiredWithoutGradingResultsNestedInput
   assignmentArea?: Prisma.AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
   agentLogs?: Prisma.AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateInput = {
@@ -701,7 +733,10 @@ export type GradingResultUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultCreateManyInput = {
@@ -734,6 +769,8 @@ export type GradingResultCreateManyInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultUpdateManyMutationInput = {
@@ -762,6 +799,8 @@ export type GradingResultUpdateManyMutationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultUncheckedUpdateManyInput = {
@@ -794,6 +833,8 @@ export type GradingResultUncheckedUpdateManyInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultListRelationFilter = {
@@ -836,6 +877,8 @@ export type GradingResultCountOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
+  isMultiModelJudged?: Prisma.SortOrder
+  consensusMetrics?: Prisma.SortOrder
 }
 
 export type GradingResultAvgOrderByAggregateInput = {
@@ -874,6 +917,7 @@ export type GradingResultMaxOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
+  isMultiModelJudged?: Prisma.SortOrder
 }
 
 export type GradingResultMinOrderByAggregateInput = {
@@ -902,6 +946,7 @@ export type GradingResultMinOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
+  isMultiModelJudged?: Prisma.SortOrder
 }
 
 export type GradingResultSumOrderByAggregateInput = {
@@ -1091,6 +1136,20 @@ export type EnumGradingStatusFieldUpdateOperationsInput = {
   set?: $Enums.GradingStatus
 }
 
+export type GradingResultCreateNestedOneWithoutJudgeAttemptsInput = {
+  create?: Prisma.XOR<Prisma.GradingResultCreateWithoutJudgeAttemptsInput, Prisma.GradingResultUncheckedCreateWithoutJudgeAttemptsInput>
+  connectOrCreate?: Prisma.GradingResultCreateOrConnectWithoutJudgeAttemptsInput
+  connect?: Prisma.GradingResultWhereUniqueInput
+}
+
+export type GradingResultUpdateOneRequiredWithoutJudgeAttemptsNestedInput = {
+  create?: Prisma.XOR<Prisma.GradingResultCreateWithoutJudgeAttemptsInput, Prisma.GradingResultUncheckedCreateWithoutJudgeAttemptsInput>
+  connectOrCreate?: Prisma.GradingResultCreateOrConnectWithoutJudgeAttemptsInput
+  upsert?: Prisma.GradingResultUpsertWithoutJudgeAttemptsInput
+  connect?: Prisma.GradingResultWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.GradingResultUpdateToOneWithWhereWithoutJudgeAttemptsInput, Prisma.GradingResultUpdateWithoutJudgeAttemptsInput>, Prisma.GradingResultUncheckedUpdateWithoutJudgeAttemptsInput>
+}
+
 export type GradingResultCreateNestedOneWithoutAgentLogsInput = {
   create?: Prisma.XOR<Prisma.GradingResultCreateWithoutAgentLogsInput, Prisma.GradingResultUncheckedCreateWithoutAgentLogsInput>
   connectOrCreate?: Prisma.GradingResultCreateOrConnectWithoutAgentLogsInput
@@ -1131,10 +1190,13 @@ export type GradingResultCreateWithoutAssignmentAreaInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession: Prisma.GradingSessionCreateNestedOneWithoutGradingResultsInput
   uploadedFile: Prisma.UploadedFileCreateNestedOneWithoutGradingResultsInput
   rubric: Prisma.RubricCreateNestedOneWithoutGradingResultsInput
   agentLogs?: Prisma.AgentExecutionLogCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUncheckedCreateWithoutAssignmentAreaInput = {
@@ -1166,7 +1228,10 @@ export type GradingResultUncheckedCreateWithoutAssignmentAreaInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultCreateOrConnectWithoutAssignmentAreaInput = {
@@ -1228,6 +1293,8 @@ export type GradingResultScalarWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"GradingResult"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GradingResult"> | Date | string
   completedAt?: Prisma.DateTimeNullableFilter<"GradingResult"> | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFilter<"GradingResult"> | boolean
+  consensusMetrics?: Prisma.JsonNullableFilter<"GradingResult">
 }
 
 export type GradingResultCreateWithoutRubricInput = {
@@ -1256,10 +1323,13 @@ export type GradingResultCreateWithoutRubricInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession: Prisma.GradingSessionCreateNestedOneWithoutGradingResultsInput
   uploadedFile: Prisma.UploadedFileCreateNestedOneWithoutGradingResultsInput
   assignmentArea?: Prisma.AssignmentAreaCreateNestedOneWithoutGradingResultsInput
   agentLogs?: Prisma.AgentExecutionLogCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUncheckedCreateWithoutRubricInput = {
@@ -1291,7 +1361,10 @@ export type GradingResultUncheckedCreateWithoutRubricInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultCreateOrConnectWithoutRubricInput = {
@@ -1346,10 +1419,13 @@ export type GradingResultCreateWithoutGradingSessionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   uploadedFile: Prisma.UploadedFileCreateNestedOneWithoutGradingResultsInput
   rubric: Prisma.RubricCreateNestedOneWithoutGradingResultsInput
   assignmentArea?: Prisma.AssignmentAreaCreateNestedOneWithoutGradingResultsInput
   agentLogs?: Prisma.AgentExecutionLogCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUncheckedCreateWithoutGradingSessionInput = {
@@ -1381,7 +1457,10 @@ export type GradingResultUncheckedCreateWithoutGradingSessionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultCreateOrConnectWithoutGradingSessionInput = {
@@ -1436,10 +1515,13 @@ export type GradingResultCreateWithoutUploadedFileInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession: Prisma.GradingSessionCreateNestedOneWithoutGradingResultsInput
   rubric: Prisma.RubricCreateNestedOneWithoutGradingResultsInput
   assignmentArea?: Prisma.AssignmentAreaCreateNestedOneWithoutGradingResultsInput
   agentLogs?: Prisma.AgentExecutionLogCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUncheckedCreateWithoutUploadedFileInput = {
@@ -1471,7 +1553,10 @@ export type GradingResultUncheckedCreateWithoutUploadedFileInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultCreateOrConnectWithoutUploadedFileInput = {
@@ -1500,6 +1585,162 @@ export type GradingResultUpdateManyWithWhereWithoutUploadedFileInput = {
   data: Prisma.XOR<Prisma.GradingResultUpdateManyMutationInput, Prisma.GradingResultUncheckedUpdateManyWithoutUploadedFileInput>
 }
 
+export type GradingResultCreateWithoutJudgeAttemptsInput = {
+  id?: string
+  status?: $Enums.GradingStatus
+  progress?: number
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  errorMessage?: string | null
+  thoughtSummary?: string | null
+  thinkingProcess?: string | null
+  gradingRationale?: string | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  normalizedScore?: number | null
+  gradingModel?: string | null
+  gradingTokens?: number | null
+  sparringTokens?: number | null
+  gradingDuration?: number | null
+  agentSteps?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  toolCalls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidenceScore?: number | null
+  requiresReview?: boolean
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
+  agentModel?: string | null
+  agentExecutionTime?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  gradingSession: Prisma.GradingSessionCreateNestedOneWithoutGradingResultsInput
+  uploadedFile: Prisma.UploadedFileCreateNestedOneWithoutGradingResultsInput
+  rubric: Prisma.RubricCreateNestedOneWithoutGradingResultsInput
+  assignmentArea?: Prisma.AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+  agentLogs?: Prisma.AgentExecutionLogCreateNestedManyWithoutGradingResultInput
+}
+
+export type GradingResultUncheckedCreateWithoutJudgeAttemptsInput = {
+  id?: string
+  gradingSessionId: string
+  uploadedFileId: string
+  rubricId: string
+  assignmentAreaId?: string | null
+  status?: $Enums.GradingStatus
+  progress?: number
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  errorMessage?: string | null
+  thoughtSummary?: string | null
+  thinkingProcess?: string | null
+  gradingRationale?: string | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  normalizedScore?: number | null
+  gradingModel?: string | null
+  gradingTokens?: number | null
+  sparringTokens?: number | null
+  gradingDuration?: number | null
+  agentSteps?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  toolCalls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidenceScore?: number | null
+  requiresReview?: boolean
+  reviewedBy?: string | null
+  reviewedAt?: Date | string | null
+  agentModel?: string | null
+  agentExecutionTime?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  agentLogs?: Prisma.AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
+}
+
+export type GradingResultCreateOrConnectWithoutJudgeAttemptsInput = {
+  where: Prisma.GradingResultWhereUniqueInput
+  create: Prisma.XOR<Prisma.GradingResultCreateWithoutJudgeAttemptsInput, Prisma.GradingResultUncheckedCreateWithoutJudgeAttemptsInput>
+}
+
+export type GradingResultUpsertWithoutJudgeAttemptsInput = {
+  update: Prisma.XOR<Prisma.GradingResultUpdateWithoutJudgeAttemptsInput, Prisma.GradingResultUncheckedUpdateWithoutJudgeAttemptsInput>
+  create: Prisma.XOR<Prisma.GradingResultCreateWithoutJudgeAttemptsInput, Prisma.GradingResultUncheckedCreateWithoutJudgeAttemptsInput>
+  where?: Prisma.GradingResultWhereInput
+}
+
+export type GradingResultUpdateToOneWithWhereWithoutJudgeAttemptsInput = {
+  where?: Prisma.GradingResultWhereInput
+  data: Prisma.XOR<Prisma.GradingResultUpdateWithoutJudgeAttemptsInput, Prisma.GradingResultUncheckedUpdateWithoutJudgeAttemptsInput>
+}
+
+export type GradingResultUpdateWithoutJudgeAttemptsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+  progress?: Prisma.IntFieldUpdateOperationsInput | number
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  gradingModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gradingTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gradingDuration?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  agentSteps?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  toolCalls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidenceScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  requiresReview?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  agentModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  agentExecutionTime?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  gradingSession?: Prisma.GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
+  uploadedFile?: Prisma.UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
+  rubric?: Prisma.RubricUpdateOneRequiredWithoutGradingResultsNestedInput
+  assignmentArea?: Prisma.AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+  agentLogs?: Prisma.AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
+}
+
+export type GradingResultUncheckedUpdateWithoutJudgeAttemptsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  gradingSessionId?: Prisma.StringFieldUpdateOperationsInput | string
+  uploadedFileId?: Prisma.StringFieldUpdateOperationsInput | string
+  rubricId?: Prisma.StringFieldUpdateOperationsInput | string
+  assignmentAreaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+  progress?: Prisma.IntFieldUpdateOperationsInput | number
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  gradingModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gradingTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gradingDuration?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  agentSteps?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  toolCalls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  confidenceScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  requiresReview?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reviewedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  agentModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  agentExecutionTime?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  agentLogs?: Prisma.AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
+}
+
 export type GradingResultCreateWithoutAgentLogsInput = {
   id?: string
   status?: $Enums.GradingStatus
@@ -1526,10 +1767,13 @@ export type GradingResultCreateWithoutAgentLogsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession: Prisma.GradingSessionCreateNestedOneWithoutGradingResultsInput
   uploadedFile: Prisma.UploadedFileCreateNestedOneWithoutGradingResultsInput
   rubric: Prisma.RubricCreateNestedOneWithoutGradingResultsInput
   assignmentArea?: Prisma.AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+  judgeAttempts?: Prisma.JudgeAttemptCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultUncheckedCreateWithoutAgentLogsInput = {
@@ -1562,6 +1806,9 @@ export type GradingResultUncheckedCreateWithoutAgentLogsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedCreateNestedManyWithoutGradingResultInput
 }
 
 export type GradingResultCreateOrConnectWithoutAgentLogsInput = {
@@ -1606,10 +1853,13 @@ export type GradingResultUpdateWithoutAgentLogsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession?: Prisma.GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
   uploadedFile?: Prisma.UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
   rubric?: Prisma.RubricUpdateOneRequiredWithoutGradingResultsNestedInput
   assignmentArea?: Prisma.AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateWithoutAgentLogsInput = {
@@ -1642,6 +1892,9 @@ export type GradingResultUncheckedUpdateWithoutAgentLogsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultCreateManyAssignmentAreaInput = {
@@ -1673,6 +1926,8 @@ export type GradingResultCreateManyAssignmentAreaInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultUpdateWithoutAssignmentAreaInput = {
@@ -1701,10 +1956,13 @@ export type GradingResultUpdateWithoutAssignmentAreaInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession?: Prisma.GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
   uploadedFile?: Prisma.UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
   rubric?: Prisma.RubricUpdateOneRequiredWithoutGradingResultsNestedInput
   agentLogs?: Prisma.AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateWithoutAssignmentAreaInput = {
@@ -1736,7 +1994,10 @@ export type GradingResultUncheckedUpdateWithoutAssignmentAreaInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateManyWithoutAssignmentAreaInput = {
@@ -1768,6 +2029,8 @@ export type GradingResultUncheckedUpdateManyWithoutAssignmentAreaInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultCreateManyRubricInput = {
@@ -1799,6 +2062,8 @@ export type GradingResultCreateManyRubricInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultUpdateWithoutRubricInput = {
@@ -1827,10 +2092,13 @@ export type GradingResultUpdateWithoutRubricInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession?: Prisma.GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
   uploadedFile?: Prisma.UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
   assignmentArea?: Prisma.AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
   agentLogs?: Prisma.AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateWithoutRubricInput = {
@@ -1862,7 +2130,10 @@ export type GradingResultUncheckedUpdateWithoutRubricInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateManyWithoutRubricInput = {
@@ -1894,6 +2165,8 @@ export type GradingResultUncheckedUpdateManyWithoutRubricInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultCreateManyGradingSessionInput = {
@@ -1925,6 +2198,8 @@ export type GradingResultCreateManyGradingSessionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultUpdateWithoutGradingSessionInput = {
@@ -1953,10 +2228,13 @@ export type GradingResultUpdateWithoutGradingSessionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   uploadedFile?: Prisma.UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
   rubric?: Prisma.RubricUpdateOneRequiredWithoutGradingResultsNestedInput
   assignmentArea?: Prisma.AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
   agentLogs?: Prisma.AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateWithoutGradingSessionInput = {
@@ -1988,7 +2266,10 @@ export type GradingResultUncheckedUpdateWithoutGradingSessionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateManyWithoutGradingSessionInput = {
@@ -2020,6 +2301,8 @@ export type GradingResultUncheckedUpdateManyWithoutGradingSessionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultCreateManyUploadedFileInput = {
@@ -2051,6 +2334,8 @@ export type GradingResultCreateManyUploadedFileInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   completedAt?: Date | string | null
+  isMultiModelJudged?: boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 export type GradingResultUpdateWithoutUploadedFileInput = {
@@ -2079,10 +2364,13 @@ export type GradingResultUpdateWithoutUploadedFileInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   gradingSession?: Prisma.GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
   rubric?: Prisma.RubricUpdateOneRequiredWithoutGradingResultsNestedInput
   assignmentArea?: Prisma.AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
   agentLogs?: Prisma.AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateWithoutUploadedFileInput = {
@@ -2114,7 +2402,10 @@ export type GradingResultUncheckedUpdateWithoutUploadedFileInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   agentLogs?: Prisma.AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
+  judgeAttempts?: Prisma.JudgeAttemptUncheckedUpdateManyWithoutGradingResultNestedInput
 }
 
 export type GradingResultUncheckedUpdateManyWithoutUploadedFileInput = {
@@ -2146,6 +2437,8 @@ export type GradingResultUncheckedUpdateManyWithoutUploadedFileInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isMultiModelJudged?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consensusMetrics?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
 }
 
 
@@ -2155,10 +2448,12 @@ export type GradingResultUncheckedUpdateManyWithoutUploadedFileInput = {
 
 export type GradingResultCountOutputType = {
   agentLogs: number
+  judgeAttempts: number
 }
 
 export type GradingResultCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   agentLogs?: boolean | GradingResultCountOutputTypeCountAgentLogsArgs
+  judgeAttempts?: boolean | GradingResultCountOutputTypeCountJudgeAttemptsArgs
 }
 
 /**
@@ -2176,6 +2471,13 @@ export type GradingResultCountOutputTypeDefaultArgs<ExtArgs extends runtime.Type
  */
 export type GradingResultCountOutputTypeCountAgentLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.AgentExecutionLogWhereInput
+}
+
+/**
+ * GradingResultCountOutputType without action
+ */
+export type GradingResultCountOutputTypeCountJudgeAttemptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.JudgeAttemptWhereInput
 }
 
 
@@ -2209,11 +2511,14 @@ export type GradingResultSelect<ExtArgs extends runtime.Types.Extensions.Interna
   createdAt?: boolean
   updatedAt?: boolean
   completedAt?: boolean
+  isMultiModelJudged?: boolean
+  consensusMetrics?: boolean
   gradingSession?: boolean | Prisma.GradingSessionDefaultArgs<ExtArgs>
   uploadedFile?: boolean | Prisma.UploadedFileDefaultArgs<ExtArgs>
   rubric?: boolean | Prisma.RubricDefaultArgs<ExtArgs>
   assignmentArea?: boolean | Prisma.GradingResult$assignmentAreaArgs<ExtArgs>
   agentLogs?: boolean | Prisma.GradingResult$agentLogsArgs<ExtArgs>
+  judgeAttempts?: boolean | Prisma.GradingResult$judgeAttemptsArgs<ExtArgs>
   _count?: boolean | Prisma.GradingResultCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["gradingResult"]>
 
@@ -2247,6 +2552,8 @@ export type GradingResultSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   createdAt?: boolean
   updatedAt?: boolean
   completedAt?: boolean
+  isMultiModelJudged?: boolean
+  consensusMetrics?: boolean
   gradingSession?: boolean | Prisma.GradingSessionDefaultArgs<ExtArgs>
   uploadedFile?: boolean | Prisma.UploadedFileDefaultArgs<ExtArgs>
   rubric?: boolean | Prisma.RubricDefaultArgs<ExtArgs>
@@ -2283,6 +2590,8 @@ export type GradingResultSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   createdAt?: boolean
   updatedAt?: boolean
   completedAt?: boolean
+  isMultiModelJudged?: boolean
+  consensusMetrics?: boolean
   gradingSession?: boolean | Prisma.GradingSessionDefaultArgs<ExtArgs>
   uploadedFile?: boolean | Prisma.UploadedFileDefaultArgs<ExtArgs>
   rubric?: boolean | Prisma.RubricDefaultArgs<ExtArgs>
@@ -2319,15 +2628,18 @@ export type GradingResultSelectScalar = {
   createdAt?: boolean
   updatedAt?: boolean
   completedAt?: boolean
+  isMultiModelJudged?: boolean
+  consensusMetrics?: boolean
 }
 
-export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "assignmentAreaId" | "status" | "progress" | "result" | "errorMessage" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "usedContext" | "normalizedScore" | "gradingModel" | "gradingTokens" | "sparringTokens" | "gradingDuration" | "agentSteps" | "toolCalls" | "confidenceScore" | "requiresReview" | "reviewedBy" | "reviewedAt" | "agentModel" | "agentExecutionTime" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["gradingResult"]>
+export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "assignmentAreaId" | "status" | "progress" | "result" | "errorMessage" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "usedContext" | "normalizedScore" | "gradingModel" | "gradingTokens" | "sparringTokens" | "gradingDuration" | "agentSteps" | "toolCalls" | "confidenceScore" | "requiresReview" | "reviewedBy" | "reviewedAt" | "agentModel" | "agentExecutionTime" | "createdAt" | "updatedAt" | "completedAt" | "isMultiModelJudged" | "consensusMetrics", ExtArgs["result"]["gradingResult"]>
 export type GradingResultInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   gradingSession?: boolean | Prisma.GradingSessionDefaultArgs<ExtArgs>
   uploadedFile?: boolean | Prisma.UploadedFileDefaultArgs<ExtArgs>
   rubric?: boolean | Prisma.RubricDefaultArgs<ExtArgs>
   assignmentArea?: boolean | Prisma.GradingResult$assignmentAreaArgs<ExtArgs>
   agentLogs?: boolean | Prisma.GradingResult$agentLogsArgs<ExtArgs>
+  judgeAttempts?: boolean | Prisma.GradingResult$judgeAttemptsArgs<ExtArgs>
   _count?: boolean | Prisma.GradingResultCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type GradingResultIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2351,6 +2663,7 @@ export type $GradingResultPayload<ExtArgs extends runtime.Types.Extensions.Inter
     rubric: Prisma.$RubricPayload<ExtArgs>
     assignmentArea: Prisma.$AssignmentAreaPayload<ExtArgs> | null
     agentLogs: Prisma.$AgentExecutionLogPayload<ExtArgs>[]
+    judgeAttempts: Prisma.$JudgeAttemptPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2382,6 +2695,8 @@ export type $GradingResultPayload<ExtArgs extends runtime.Types.Extensions.Inter
     createdAt: Date
     updatedAt: Date
     completedAt: Date | null
+    isMultiModelJudged: boolean
+    consensusMetrics: runtime.JsonValue | null
   }, ExtArgs["result"]["gradingResult"]>
   composites: {}
 }
@@ -2781,6 +3096,7 @@ export interface Prisma__GradingResultClient<T, Null = never, ExtArgs extends ru
   rubric<T extends Prisma.RubricDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.RubricDefaultArgs<ExtArgs>>): Prisma.Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   assignmentArea<T extends Prisma.GradingResult$assignmentAreaArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GradingResult$assignmentAreaArgs<ExtArgs>>): Prisma.Prisma__AssignmentAreaClient<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   agentLogs<T extends Prisma.GradingResult$agentLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GradingResult$agentLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  judgeAttempts<T extends Prisma.GradingResult$judgeAttemptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GradingResult$judgeAttemptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$JudgeAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2839,6 +3155,8 @@ export interface GradingResultFieldRefs {
   readonly createdAt: Prisma.FieldRef<"GradingResult", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"GradingResult", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"GradingResult", 'DateTime'>
+  readonly isMultiModelJudged: Prisma.FieldRef<"GradingResult", 'Boolean'>
+  readonly consensusMetrics: Prisma.FieldRef<"GradingResult", 'Json'>
 }
     
 
@@ -3275,6 +3593,30 @@ export type GradingResult$agentLogsArgs<ExtArgs extends runtime.Types.Extensions
   take?: number
   skip?: number
   distinct?: Prisma.AgentExecutionLogScalarFieldEnum | Prisma.AgentExecutionLogScalarFieldEnum[]
+}
+
+/**
+ * GradingResult.judgeAttempts
+ */
+export type GradingResult$judgeAttemptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the JudgeAttempt
+   */
+  select?: Prisma.JudgeAttemptSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the JudgeAttempt
+   */
+  omit?: Prisma.JudgeAttemptOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.JudgeAttemptInclude<ExtArgs> | null
+  where?: Prisma.JudgeAttemptWhereInput
+  orderBy?: Prisma.JudgeAttemptOrderByWithRelationInput | Prisma.JudgeAttemptOrderByWithRelationInput[]
+  cursor?: Prisma.JudgeAttemptWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.JudgeAttemptScalarFieldEnum | Prisma.JudgeAttemptScalarFieldEnum[]
 }
 
 /**

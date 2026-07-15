@@ -1,6 +1,10 @@
 import { db, Prisma } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
-import { gradeWithAI, convertToLegacyFormat, isAISDKGradingEnabled } from './ai-grader-sdk.server';
+import {
+  runParallelAgents,
+  isParallelAgentsEnabled,
+  synthesizeAgentResultFromParallel,
+} from './parallel-agents.server';
 import { SimpleProgressService } from './progress-simple.server';
 import { loadReferenceDocuments, getCustomGradingInstructions } from './assignment-area.server';
 import { getGradingLogger } from './grading-logger.server';
@@ -8,7 +12,6 @@ import { GeminiPrompts } from './gemini-prompts.server';
 import logger from '@/utils/logger';
 import { parseRubricCriteria, flattenCategoriesToCriteria, type DbCriterion } from '@/schemas/rubric-data';
 import { extractOverallFeedback } from '@/utils/grading-helpers';
-import { gradingQueue } from './queue.server';
 import { GeminiCacheManager } from './gemini-cache.server';
 
 /**
@@ -219,11 +222,9 @@ export async function processGradingResult(
       }
     }
 
-    // Grade with AI - check feature flags
-    const useAgentGrading = process.env.USE_AGENT_GRADING === 'true';
-    const useAISDK = isAISDKGradingEnabled();
-
-    logger.info(`🤖 Using ${useAgentGrading ? 'Agent' : useAISDK ? 'AI SDK' : 'Legacy'} grading system`);
+    // Primary: Agent (ReAct: think_aloud → confidence → feedback with streaming).
+    // Fallback: simple grader (Gemini rotation → OpenAI) if Agent fails.
+    logger.info('🤖 Starting Agent-first grading');
 
     // Log prompt information for complete traceability
     const gradingRequest = {
@@ -262,15 +263,18 @@ export async function processGradingResult(
 
     let gradingResponse;
 
-    if (useAgentGrading) {
-      // ... (Agent path unchanged for now, it handles its own prompts)
-      // Agent-based grading path (AI SDK 6 beta)
+    try {
+      // Agent-based grading path (AI SDK 6 beta) — ReAct with streaming UX
       const { executeGradingAgent } = await import('./agent-executor.server');
       const { saveAgentExecution } = await import('./agent-logger.server');
 
-      logger.info({ resultId }, '🤖 Starting Agent-based grading');
+      const parallelEnabled = isParallelAgentsEnabled();
+      logger.info(
+        { resultId, parallelEnabled },
+        parallelEnabled ? '🤖 Starting parallel multi-model Agent grading' : '🤖 Starting single-model Agent grading'
+      );
 
-      const agentResult = await executeGradingAgent({
+      const agentParamsBase = {
         submissionId: result.uploadedFile.id,
         uploadedFileId: result.uploadedFile.id,
         fileName: result.uploadedFile.originalFileName,
@@ -299,7 +303,7 @@ export async function processGradingResult(
               }))
             : undefined,
         customInstructions: customInstructions || undefined,
-        assignmentType: 'other', // TODO: detect from assignment
+        assignmentType: 'other' as const, // TODO: detect from assignment
         assignmentTitle: result.assignmentArea?.name || 'Untitled Assignment',
         assignmentDescription: result.assignmentArea?.description || undefined,
         userId: _userId,
@@ -309,7 +313,11 @@ export async function processGradingResult(
         maxSteps: 50,
         confidenceThreshold: parseFloat(process.env.AGENT_CONFIDENCE_THRESHOLD || '0.7'),
         enableSimilarityCheck: result.assignmentAreaId !== null,
-      });
+      };
+
+      const agentResult = parallelEnabled
+        ? synthesizeAgentResultFromParallel(await runParallelAgents(agentParamsBase))
+        : await executeGradingAgent(agentParamsBase);
 
       // 🔍 CRITICAL: Check agentResult.data IMMEDIATELY after executeGradingAgent
       logger.info(`🔍 [IMMEDIATE] agentResult.data keys: ${Object.keys(agentResult.data || {}).join(', ')}`);
@@ -496,53 +504,17 @@ export async function processGradingResult(
           error: agentResult.error || 'Agent grading failed',
         };
       }
-    } else if (useAISDK) {
-      // New AI SDK grading path
-      const sdkResult = await gradeWithAI({
-        prompt, // Use full prompt as fallback / standard
-        userId: _userId,
-        resultId,
-        language: userLanguage,
-        contextHash,
-        contextContent,
-        userPrompt: splitPrompt.userPrompt,
-      });
+    } catch (agentError: unknown) {
+      const message = agentError instanceof Error ? agentError.message : 'Unknown Agent error';
+      logger.error(`❌ Agent path threw, will fall back to simple grader: ${message}`);
+      gradingResponse = { success: false, error: message };
+    }
 
-      if (sdkResult.success) {
-        // Convert AI SDK result to legacy format
-        const legacyFormat = convertToLegacyFormat(sdkResult.data);
-
-        // Calculate total and max scores from breakdown
-        const totalScore = legacyFormat.breakdown.reduce((sum, item) => sum + item.score, 0);
-        const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-
-        gradingResponse = {
-          success: true,
-          result: {
-            breakdown: legacyFormat.breakdown,
-            totalScore,
-            maxScore,
-            overallFeedback: legacyFormat.overallFeedback,
-          },
-          thoughtSummary: sdkResult.thoughtSummary,
-          provider: sdkResult.provider,
-          metadata: {
-            model: sdkResult.provider === 'gemini' ? 'gemini-3.1-flash-lite' : 'gpt-4o-mini',
-            tokens: sdkResult.usage.totalTokens,
-            duration: sdkResult.responseTimeMs,
-          },
-        };
-        logger.info(`  AI SDK grading succeeded with ${sdkResult.provider}`);
-      } else {
-        // AI SDK failed, return error
-        gradingResponse = {
-          success: false,
-          error: sdkResult.error,
-        };
-        logger.error(`❌ AI SDK grading failed: ${sdkResult.error}`);
-      }
-    } else {
-      // Legacy grading path
+    // Fallback to simple grader if Agent didn't produce a usable result
+    if (!gradingResponse?.success) {
+      logger.warn(
+        `🪂 Agent failed (${gradingResponse?.error || 'no result'}), falling back to simple grader (Gemini rotation → OpenAI)`
+      );
       const aiGrader = getAIGrader();
       gradingResponse = await aiGrader.grade(gradingRequest, userLanguage);
     }
@@ -633,6 +605,8 @@ export async function processGradingResult(
             // Sparring Questions for Productive Friction
             sparringQuestions: normalizedSparringQuestions,
             processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
+            // ponytail: judge attempts stored in result JSON; promote to dedicated column when querying IRR at scale
+            judgeMetadata: (gradingResponse as any).judgeMetadata || undefined,
           },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           thinkingProcess: gradingResponse.thinkingProcess, // Feature 012: Save raw thinking process
