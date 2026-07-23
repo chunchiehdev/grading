@@ -229,6 +229,13 @@ export type DateTimeNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
 }
 
+export type EnumAiFeedbackModeFilter<$PrismaModel = never> = {
+  equals?: $Enums.AiFeedbackMode | Prisma.EnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAiFeedbackModeFilter<$PrismaModel> | $Enums.AiFeedbackMode
+}
+
 export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   equals?: Date | string | Prisma.DateTimeFieldRefInput<$PrismaModel> | null
   in?: Date[] | string[] | Prisma.ListDateTimeFieldRefInput<$PrismaModel> | null
@@ -241,6 +248,16 @@ export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
+}
+
+export type EnumAiFeedbackModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AiFeedbackMode | Prisma.EnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAiFeedbackModeWithAggregatesFilter<$PrismaModel> | $Enums.AiFeedbackMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAiFeedbackModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAiFeedbackModeFilter<$PrismaModel>
 }
 
 export type IntFilter<$PrismaModel = never> = {
@@ -668,6 +685,13 @@ export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
 }
 
+export type NestedEnumAiFeedbackModeFilter<$PrismaModel = never> = {
+  equals?: $Enums.AiFeedbackMode | Prisma.EnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAiFeedbackModeFilter<$PrismaModel> | $Enums.AiFeedbackMode
+}
+
 export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   equals?: Date | string | Prisma.DateTimeFieldRefInput<$PrismaModel> | null
   in?: Date[] | string[] | Prisma.ListDateTimeFieldRefInput<$PrismaModel> | null
@@ -680,6 +704,16 @@ export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumAiFeedbackModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AiFeedbackMode | Prisma.EnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AiFeedbackMode[] | Prisma.ListEnumAiFeedbackModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAiFeedbackModeWithAggregatesFilter<$PrismaModel> | $Enums.AiFeedbackMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAiFeedbackModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAiFeedbackModeFilter<$PrismaModel>
 }
 
 export type NestedEnumSubmissionStatusFilter<$PrismaModel = never> = {

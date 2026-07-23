@@ -30,6 +30,14 @@ import { CustomInstructionsField } from '@/components/teacher/CustomInstructions
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 import { parseTaipeiDateTimeToUTC } from '@/lib/date';
+import {
+  AI_FEEDBACK_MODES,
+  DEFAULT_AI_FEEDBACK_MODE,
+  getFeedbackModeDescription,
+  getFeedbackModeLabel,
+  parseAiFeedbackMode,
+  type AiFeedbackMode,
+} from '@/types/feedback-mode';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
@@ -73,15 +81,14 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   }
 
   // Create a promise for the teacher to enable Suspense
-  const teacherPromise = new Promise<{ id: string; email: string; role: string; name: string }>(async (resolve) => {
-    await new Promise((res) => setTimeout(res, 100)); // Small delay for demo
-    resolve(teacher);
+  const teacherPromise = new Promise<{ id: string; email: string; role: string; name: string }>((resolve) => {
+    setTimeout(() => resolve(teacher), 100); // Small delay for demo
   });
 
   return {
     teacher: teacherPromise,
     course,
-    rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || [],
+    rubrics: rubricsResult.rubrics?.filter((rubric: RubricOption) => rubric.isActive) || [],
     classes,
   };
 }
@@ -104,6 +111,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const classId = formData.get('classId') as string;
   const referenceFileIds = formData.get('referenceFileIds') as string; // JSON string
   const customGradingPrompt = formData.get('customGradingPrompt') as string;
+  const aiFeedbackMode = parseAiFeedbackMode(formData.get('aiFeedbackMode'));
 
   // Basic validation
   if (!name || name.trim().length === 0) {
@@ -126,18 +134,21 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       rubricId,
       dueDate: parsedDueDate ?? undefined,
       classId: classTarget === 'specific' ? classId : null,
+      aiFeedbackMode,
     };
 
     const assignment = await createAssignmentArea(teacher.id, courseId, assignmentData);
 
     // Update reference files and custom grading prompt if provided
-    const updateData: any = {};
+    const updateData: { referenceFileIds?: string; customGradingPrompt?: string } = {};
 
     if (referenceFileIds && referenceFileIds.trim() !== '') {
       try {
-        const fileIds = JSON.parse(referenceFileIds);
+        const fileIds = JSON.parse(referenceFileIds) as unknown;
         // Filter out null/undefined values and only save if we have valid file IDs
-        const validFileIds = fileIds.filter((id: any) => id && typeof id === 'string');
+        const validFileIds = Array.isArray(fileIds)
+          ? fileIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+          : [];
         if (validFileIds.length > 0) {
           updateData.referenceFileIds = JSON.stringify(validFileIds);
         }
@@ -172,7 +183,6 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 export default function NewAssignmentArea() {
   const { teacher, course, rubrics, classes } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
-  const { t } = useTranslation(['course', 'common']);
 
   // Complete Skeleton that matches final layout exactly
   const PageSkeleton = () => (
@@ -224,37 +234,28 @@ export default function NewAssignmentArea() {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <Await resolve={teacher}>
-        {(resolvedTeacher) => (
-          <AssignmentForm
-            teacher={resolvedTeacher}
-            course={course}
-            rubrics={rubrics}
-            classes={classes}
-            actionData={actionData}
-          />
-        )}
+        {() => <AssignmentForm course={course} rubrics={rubrics} classes={classes} actionData={actionData} />}
       </Await>
     </Suspense>
   );
 }
 
 function AssignmentForm({
-  teacher,
   course,
   rubrics,
   classes,
   actionData,
 }: {
-  teacher: { id: string; email: string; role: string; name: string };
   course: CourseInfo;
   rubrics: LoaderData['rubrics'];
   classes: ClassInfo[];
   actionData: ActionData | undefined;
 }) {
-  const { t } = useTranslation(['course', 'common']);
+  const { t, i18n } = useTranslation(['course', 'common']);
   const [classTarget, setClassTarget] = useState<'all' | 'specific'>('all');
   const [referenceFileIds, setReferenceFileIds] = useState<string[]>([]);
   const [customGradingPrompt, setCustomGradingPrompt] = useState<string>('');
+  const [aiFeedbackMode, setAiFeedbackMode] = useState<AiFeedbackMode>(DEFAULT_AI_FEEDBACK_MODE);
   const [availableRubrics, setAvailableRubrics] = useState<RubricOption[]>(rubrics);
   const rubricFetcher = useFetcher<RubricListResponse>();
   const actionErrorMessage = actionData?.error
@@ -404,6 +405,29 @@ function AssignmentForm({
                 )}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+            <Label htmlFor="aiFeedbackMode" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.feedbackMode.title', 'AI 回饋模式')}
+            </Label>
+            <Select
+              name="aiFeedbackMode"
+              value={aiFeedbackMode}
+              onValueChange={(value) => setAiFeedbackMode(parseAiFeedbackMode(value))}
+            >
+              <SelectTrigger id="aiFeedbackMode" className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_FEEDBACK_MODES.map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {getFeedbackModeLabel(mode, i18n.language)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">{getFeedbackModeDescription(aiFeedbackMode, i18n.language)}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db.server';
 import { publishAssignmentCreatedNotification } from '@/services/notification.server';
+import { DEFAULT_AI_FEEDBACK_MODE, parseAiFeedbackMode, type AiFeedbackMode } from '@/types/feedback-mode';
 import logger from '@/utils/logger';
 
 export interface AssignmentAreaInfo {
@@ -14,6 +15,7 @@ export interface AssignmentAreaInfo {
   updatedAt: Date;
   referenceFileIds?: string | null; // Feature 004: JSON string of file IDs
   customGradingPrompt?: string | null; // Feature 004: Custom instructions
+  aiFeedbackMode: AiFeedbackMode;
   class?: {
     id: string;
     name: string;
@@ -43,6 +45,7 @@ export interface CreateAssignmentAreaData {
   rubricId: string;
   dueDate?: Date;
   classId?: string | null;
+  aiFeedbackMode?: AiFeedbackMode;
 }
 
 export interface UpdateAssignmentAreaData {
@@ -50,6 +53,7 @@ export interface UpdateAssignmentAreaData {
   description?: string;
   rubricId?: string;
   dueDate?: Date | null;
+  aiFeedbackMode?: AiFeedbackMode;
 }
 
 /**
@@ -97,6 +101,7 @@ export async function createAssignmentArea(
         rubricId: data.rubricId,
         dueDate: data.dueDate || null,
         classId: data.classId || null,
+        aiFeedbackMode: data.aiFeedbackMode || DEFAULT_AI_FEEDBACK_MODE,
       },
       include: {
         course: {
@@ -136,7 +141,10 @@ export async function createAssignmentArea(
       // 不阻斷作業建立流程，僅記錄錯誤
     }
 
-    return assignmentArea;
+    return {
+      ...assignmentArea,
+      aiFeedbackMode: parseAiFeedbackMode(assignmentArea.aiFeedbackMode),
+    };
   } catch (error) {
     logger.error({ err: error }, '❌ Error creating assignment area:');
     throw error;
@@ -194,7 +202,12 @@ export async function getAssignmentAreaById(
       },
     });
 
-    return assignmentArea;
+    return assignmentArea
+      ? {
+          ...assignmentArea,
+          aiFeedbackMode: parseAiFeedbackMode(assignmentArea.aiFeedbackMode),
+        }
+      : null;
   } catch (error) {
     logger.error({ err: error }, '❌ Error fetching assignment area:');
     return null;
@@ -240,7 +253,10 @@ export async function listAssignmentAreas(courseId: string, teacherId: string): 
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     });
 
-    return assignmentAreas;
+    return assignmentAreas.map((assignmentArea) => ({
+      ...assignmentArea,
+      aiFeedbackMode: parseAiFeedbackMode(assignmentArea.aiFeedbackMode),
+    }));
   } catch (error) {
     logger.error({ err: error }, '❌ Error fetching assignment areas:');
     return [];
@@ -287,6 +303,7 @@ export async function updateAssignmentArea(
         ...(data.description !== undefined && { description: data.description }),
         ...(data.rubricId && { rubricId: data.rubricId }),
         ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
+        ...(data.aiFeedbackMode && { aiFeedbackMode: data.aiFeedbackMode }),
       },
       include: {
         course: {
@@ -316,7 +333,10 @@ export async function updateAssignmentArea(
     });
 
     logger.info({ data: updatedArea.name }, '  Updated assignment area:');
-    return updatedArea;
+    return {
+      ...updatedArea,
+      aiFeedbackMode: parseAiFeedbackMode(updatedArea.aiFeedbackMode),
+    };
   } catch (error) {
     logger.error({ err: error }, '❌ Error updating assignment area:');
     throw error;

@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse, Link } from 'react-router';
+import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import React, { useReducer, useEffect, useRef } from 'react';
 import { requireStudent } from '@/services/auth.server';
@@ -7,8 +7,9 @@ import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/s
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { FeedbackChat, type SparringState } from '@/components/grading/FeedbackChat';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
-import { ClientOnly } from '@/components/ui/client-only';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -20,14 +21,25 @@ import { useUploadStore } from '@/stores/uploadStore';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { dbCriteriaToUICategories } from '@/utils/rubric-transform';
-import type { DraftChatMessage, DraftUiState } from '@/types/draft';
+import type { DraftChatMessage } from '@/types/draft';
 import { normalizeDraftPhase, parseDraftUiState, parseLegacyDraftUiState } from '@/utils/draft-ui-state';
 import { parseGradingResult, type GradingResultData } from '@/utils/grading-helpers';
+import {
+  getFeedbackModeCapabilities,
+  type AiFeedbackMode,
+  type FeedbackAcceptancePayload,
+} from '@/types/feedback-mode';
+import { getEffectiveAiFeedbackModeForStudent } from '@/services/assignment-feedback-mode.server';
 
 type SubmissionResult = GradingResultData & {
   id?: string;
   normalizedScore?: number;
 };
+
+interface FeedbackAcceptanceDraft {
+  acceptedCriteria: Record<string, boolean>;
+  note: string;
+}
 
 function parseSubmissionResult(value: unknown): SubmissionResult | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -56,7 +68,9 @@ function parseSubmissionResult(value: unknown): SubmissionResult | null {
           })),
         overallFeedback:
           typeof record.overallFeedback === 'string' ||
-          (record.overallFeedback && typeof record.overallFeedback === 'object' && !Array.isArray(record.overallFeedback))
+          (record.overallFeedback &&
+            typeof record.overallFeedback === 'object' &&
+            !Array.isArray(record.overallFeedback))
             ? (record.overallFeedback as GradingResultData['overallFeedback'])
             : '',
         ...(sparringQuestions ? { sparringQuestions } : {}),
@@ -82,9 +96,85 @@ function toFeedbackChatResult(result: SubmissionResult): {
   return {
     totalScore: result.totalScore,
     maxScore: result.maxScore,
-    overallFeedback: typeof result.overallFeedback === 'string' ? result.overallFeedback : result.overallFeedback.summary,
+    overallFeedback:
+      typeof result.overallFeedback === 'string' ? result.overallFeedback : result.overallFeedback.summary,
     breakdown: result.breakdown,
   };
+}
+
+function FeedbackAcceptancePanel({
+  result,
+  value,
+  onChange,
+}: {
+  result: SubmissionResult;
+  value: FeedbackAcceptanceDraft;
+  onChange: (value: FeedbackAcceptanceDraft) => void;
+}) {
+  const { t } = useTranslation(['assignment', 'grading']);
+
+  const setAccepted = (criteriaId: string, accepted: boolean) => {
+    onChange({
+      ...value,
+      acceptedCriteria: {
+        ...value.acceptedCriteria,
+        [criteriaId]: accepted,
+      },
+    });
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-card p-4">
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-foreground">
+          {t('assignment:submit.feedbackAcceptance.title', '哪些建議你覺得可以接受？')}
+        </h3>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t(
+            'assignment:submit.feedbackAcceptance.description',
+            '請勾選你覺得可以採納或願意嘗試的建議，這會和本次提交一起保存。'
+          )}
+        </p>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {result.breakdown.map((item, index) => {
+          const criteriaId = item.criteriaId || `criteria-${index}`;
+          return (
+            <label
+              key={criteriaId}
+              htmlFor={`accept-${criteriaId}`}
+              className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 p-3 hover:bg-muted/30"
+            >
+              <Checkbox
+                id={`accept-${criteriaId}`}
+                checked={value.acceptedCriteria[criteriaId] === true}
+                onCheckedChange={(checked) => setAccepted(criteriaId, checked === true)}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">{item.name}</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.feedback}</p>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <label htmlFor="feedbackAcceptanceNote" className="text-xs font-medium text-muted-foreground">
+          {t('assignment:submit.feedbackAcceptance.note', '補充想法')}
+        </label>
+        <Textarea
+          id="feedbackAcceptanceNote"
+          value={value.note}
+          onChange={(event) => onChange({ ...value, note: event.target.value })}
+          rows={3}
+          className="resize-none text-sm"
+          placeholder={t('assignment:submit.feedbackAcceptance.placeholder', '可以寫下你想先嘗試哪一項修改。')}
+        />
+      </div>
+    </div>
+  );
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -137,7 +227,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
 
-  return { student, assignment, draftSubmission };
+  const feedbackMode = await getEffectiveAiFeedbackModeForStudent(assignmentId, student.id);
+
+  return { student, assignment, draftSubmission, feedbackMode };
 }
 
 // Simplified state machine - Linus style: one clear data structure
@@ -165,6 +257,7 @@ type Action =
   | {
       type: 'analysis_completed';
       result: SubmissionResult;
+      requiresChallenge: boolean;
       thoughtSummary?: string;
       thinkingProcess?: string;
       gradingRationale?: string;
@@ -183,9 +276,9 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       return { ...state, phase: 'analyze', file: action.file, session: null, error: null };
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
-    case 'analysis_completed':
+    case 'analysis_completed': {
       // Check if there are sparring questions
-      const hasSparring = (action.result.sparringQuestions?.length ?? 0) > 0;
+      const hasSparring = action.requiresChallenge && (action.result.sparringQuestions?.length ?? 0) > 0;
       return {
         ...state,
         phase: hasSparring ? 'sparring' : 'submit',
@@ -199,6 +292,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
           chatMessagesMap: undefined,
         },
       };
+    }
     case 'sparring_completed':
       return { ...state, phase: 'submit' };
     case 'submission_completed':
@@ -237,14 +331,23 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
 
 export default function SubmitAssignment() {
   const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
-  const { student, assignment, draftSubmission } = useLoaderData<typeof loader>();
+  const { student, assignment, draftSubmission, feedbackMode } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const feedbackModeCapabilities = React.useMemo(
+    () => getFeedbackModeCapabilities(feedbackMode as AiFeedbackMode),
+    [feedbackMode]
+  );
   const persistedDraftUiState = React.useMemo(
-    () => parseDraftUiState(draftSubmission?.draftUiState) || parseLegacyDraftUiState(draftSubmission?.aiAnalysisResult),
+    () =>
+      parseDraftUiState(draftSubmission?.draftUiState) || parseLegacyDraftUiState(draftSubmission?.aiAnalysisResult),
     [draftSubmission?.draftUiState, draftSubmission?.aiAnalysisResult]
   );
-  const [useDirectGrading, setUseDirectGrading] = React.useState(false);
+  const [useDirectGrading] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('info'); // Mobile tab navigation
+  const [feedbackAcceptanceDraft, setFeedbackAcceptanceDraft] = React.useState<FeedbackAcceptanceDraft>({
+    acceptedCriteria: {},
+    note: '',
+  });
   const [isDesktop, setIsDesktop] = React.useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
   );
@@ -342,8 +445,6 @@ export default function SubmitAssignment() {
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const step1Ref = useRef<HTMLDivElement>(null);
-  const step2Ref = useRef<HTMLDivElement>(null);
-  const step3Ref = useRef<HTMLDivElement>(null);
 
   // Single state machine - "good taste" principle
   const isPersistedSubmitted = draftSubmission?.status === 'SUBMITTED' || draftSubmission?.status === 'GRADED';
@@ -352,7 +453,7 @@ export default function SubmitAssignment() {
     // Determine phase based on draft state
     phase: (() => {
       const normalizedLastState = normalizeDraftPhase(draftSubmission?.lastState);
-      if (normalizedLastState === 'sparring') return 'sparring';
+      if (normalizedLastState === 'sparring' && feedbackModeCapabilities.requiresChallenge) return 'sparring';
       if (normalizedLastState === 'completed') return 'submit';
       if (draftSubmission?.fileMetadata) return 'analyze';
       return 'upload';
@@ -394,6 +495,13 @@ export default function SubmitAssignment() {
       dispatch({ type: 'sparring_completed' });
     }
   }, [state.phase, sparringState?.phase]);
+
+  useEffect(() => {
+    if (feedbackModeCapabilities.requiresChallenge) return;
+    if (state.phase === 'sparring') {
+      dispatch({ type: 'sparring_completed' });
+    }
+  }, [feedbackModeCapabilities.requiresChallenge, state.phase]);
 
   // GSAP animations
   useGSAP(() => {
@@ -538,6 +646,7 @@ export default function SubmitAssignment() {
           dispatch({
             type: 'analysis_completed',
             result: parsedResult,
+            requiresChallenge: feedbackModeCapabilities.requiresChallenge,
             thoughtSummary,
             thinkingProcess,
             gradingRationale,
@@ -594,11 +703,15 @@ export default function SubmitAssignment() {
   }, [state.loading, state.session?.id]);
 
   // AI SDK UI Hook for Streaming Bridge
-  const { messages, sendMessage, status: chatStatus } = useChat({
+  const {
+    messages,
+    sendMessage,
+    status: chatStatus,
+  } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/grading/bridge',
     }),
-    onFinish: (message) => {
+    onFinish: () => {
       // When streaming finishes, we can trigger a final poll or update state
       // console.log('[Frontend] Streaming finished:', message);
     },
@@ -616,7 +729,7 @@ export default function SubmitAssignment() {
       const lastMessage = messages[messages.length - 1];
       // console.log('[Frontend] Received message update:', lastMessage);
 
-      if (lastMessage.role === 'assistant') {
+      if (feedbackModeCapabilities.showThinking && lastMessage.role === 'assistant') {
         // Update thought stream
         // Strictly prioritize 'parts' to separate text from tool calls
         let thought = '';
@@ -639,11 +752,17 @@ export default function SubmitAssignment() {
         dispatch({ type: 'thought_update', thought });
       }
     }
-  }, [messages]);
+  }, [feedbackModeCapabilities.showThinking, messages]);
 
   // Trigger streaming when session starts
   useEffect(() => {
-    if (state.loading && state.session?.id && !isChatLoading && messages.length === 0) {
+    if (
+      feedbackModeCapabilities.showThinking &&
+      state.loading &&
+      state.session?.id &&
+      !isChatLoading &&
+      messages.length === 0
+    ) {
       // console.log('Starting streaming bridge for session:', state.session.id);
 
       // Trigger the bridge API
@@ -671,6 +790,7 @@ export default function SubmitAssignment() {
     student.id,
     useDirectGrading,
     state.session?.result?.id,
+    feedbackModeCapabilities.showThinking,
   ]);
 
   const waitForParse = async (fileId: string): Promise<boolean> => {
@@ -681,7 +801,9 @@ export default function SubmitAssignment() {
         const file = payload?.data?.find((f: { id?: string; parseStatus?: string }) => f.id === fileId);
         if (file?.parseStatus === 'COMPLETED') return true;
         if (file?.parseStatus === 'FAILED') return false;
-      } catch {}
+      } catch {
+        // Ignore transient polling errors; the next poll will retry.
+      }
       await new Promise((r) => setTimeout(r, 2000));
     }
     return false;
@@ -744,6 +866,7 @@ export default function SubmitAssignment() {
     try {
       // New grading run should always start sparring from a clean state
       setSparringState(undefined);
+      setFeedbackAcceptanceDraft({ acceptedCriteria: {}, note: '' });
 
       // Wait for file parsing
       if (!(await waitForParse(state.file.id))) {
@@ -811,6 +934,24 @@ export default function SubmitAssignment() {
     }
   };
 
+  const buildFeedbackAcceptancePayload = (): FeedbackAcceptancePayload | null => {
+    if (feedbackMode !== 'THINKING_VISIBLE' || !state.session?.result) return null;
+
+    return {
+      mode: 'THINKING_VISIBLE',
+      acceptedCriteria: state.session.result.breakdown.map((item, index) => {
+        const criteriaId = item.criteriaId || `criteria-${index}`;
+        return {
+          criteriaId,
+          name: item.name || criteriaId,
+          accepted: feedbackAcceptanceDraft.acceptedCriteria[criteriaId] === true,
+        };
+      }),
+      note: feedbackAcceptanceDraft.note.trim() || null,
+      submittedAt: new Date().toISOString(),
+    };
+  };
+
   const submitFinal = async () => {
     if (!state.file?.id || !state.session?.id) {
       dispatch({ type: 'error', message: t('assignment:submit.errors.noFileUploaded') });
@@ -840,6 +981,7 @@ export default function SubmitAssignment() {
           uploadedFileId: state.file.id,
           sessionId: state.session.id,
           chatMessages: allMessages,
+          feedbackAcceptance: buildFeedbackAcceptancePayload(),
         }),
       });
 
@@ -908,15 +1050,17 @@ export default function SubmitAssignment() {
 
   // Require at least one real student reply before allowing submit
   const activeSparringQuestions = React.useMemo(() => {
+    if (!feedbackModeCapabilities.requiresChallenge) return [];
     const questions = state.session?.result?.sparringQuestions;
     if (!Array.isArray(questions) || questions.length === 0) return [];
     return [questions[0]];
-  }, [state.session?.result?.sparringQuestions]);
+  }, [feedbackModeCapabilities.requiresChallenge, state.session?.result?.sparringQuestions]);
 
   const hasCompletedSparringDecision = React.useMemo(() => {
     const sparringQuestions = activeSparringQuestions;
     const chatMessagesMap = state.session?.chatMessagesMap;
 
+    if (!feedbackModeCapabilities.requiresChallenge) return true;
     // 沒有 sparring 題目時，直接允許送出
     if (!sparringQuestions || sparringQuestions.length === 0) return true;
     if (!chatMessagesMap || Object.keys(chatMessagesMap).length === 0) return false;
@@ -929,7 +1073,57 @@ export default function SubmitAssignment() {
         return typeof m.studentDecisionReason === 'string' && m.studentDecisionReason.trim().length >= 10;
       })
     );
-  }, [activeSparringQuestions, state.session?.chatMessagesMap]);
+  }, [activeSparringQuestions, feedbackModeCapabilities.requiresChallenge, state.session?.chatMessagesMap]);
+
+  const visibleThinkingProcess = feedbackModeCapabilities.showThinking ? state.session?.thinkingProcess : null;
+  const visibleGradingRationale = feedbackModeCapabilities.showThinking ? state.session?.gradingRationale : null;
+
+  const renderFeedbackArea = () => {
+    if (!state.session?.result) {
+      return <GradingResultDisplay isLoading={state.loading} thinkingProcess={visibleThinkingProcess} />;
+    }
+
+    if (activeSparringQuestions.length > 0) {
+      return (
+        <FeedbackChat
+          sparringQuestions={activeSparringQuestions}
+          assignmentId={assignment.id}
+          sessionId={state.session.id}
+          result={toFeedbackChatResult(state.session.result)}
+          studentName={student.name}
+          studentPicture={student.picture}
+          fileId={state.file?.id}
+          initialConversationsMap={state.session?.chatMessagesMap}
+          thinkingProcess={visibleThinkingProcess}
+          gradingRationale={visibleGradingRationale}
+          normalizedScore={state.session.result?.normalizedScore}
+          onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
+          onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+          initialSparringState={sparringState}
+          onSparringStateChange={setSparringState}
+        />
+      );
+    }
+
+    return (
+      <div className="h-full overflow-y-auto p-4 sm:px-6 lg:px-8">
+        <GradingResultDisplay
+          result={state.session.result}
+          normalizedScore={state.session.result.normalizedScore}
+          isLoading={state.loading}
+          thinkingProcess={visibleThinkingProcess}
+          gradingRationale={visibleGradingRationale}
+        />
+        {feedbackMode === 'THINKING_VISIBLE' && (
+          <FeedbackAcceptancePanel
+            result={state.session.result}
+            value={feedbackAcceptanceDraft}
+            onChange={setFeedbackAcceptanceDraft}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div ref={containerRef} className="w-full flex h-full min-h-0 flex-col">
@@ -1208,34 +1402,7 @@ export default function SubmitAssignment() {
         {/* Right Column: AI Grading Results - Independent Scrolling */}
         <aside ref={rightPanelRef} className="w-full lg:w-7/12 overflow-y-auto bg-background hide-scrollbar">
           <div className="p-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
-            <div className="flex-1 min-h-0">
-              {isDesktop &&
-                (state.session?.result ? (
-                  activeSparringQuestions.length > 0 ? (
-                    <FeedbackChat
-                      sparringQuestions={activeSparringQuestions}
-                      assignmentId={assignment.id}
-                      sessionId={state.session.id}
-                      result={toFeedbackChatResult(state.session.result)}
-                      studentName={student.name}
-                      studentPicture={student.picture}
-                      fileId={state.file?.id}
-                      initialConversationsMap={state.session?.chatMessagesMap}
-                      thinkingProcess={state.session?.thinkingProcess}
-                      gradingRationale={state.session?.gradingRationale}
-                      normalizedScore={state.session.result?.normalizedScore}
-                      onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
-                      onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-                      initialSparringState={sparringState}
-                      onSparringStateChange={setSparringState}
-                    />
-                  ) : (
-                    <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
-                  )
-                ) : (
-                  <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
-                ))}
-            </div>
+            <div className="flex-1 min-h-0">{isDesktop && renderFeedbackArea()}</div>
 
             {state.phase === 'submit' &&
               getSubmissionStatus().hasAnalysis &&
@@ -1488,34 +1655,7 @@ export default function SubmitAssignment() {
 
         <TabsContent value="results" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
           <div className="flex h-full min-h-0 flex-col">
-            <div className="flex-1 min-h-0">
-              {!isDesktop &&
-                (state.session?.result ? (
-                  activeSparringQuestions.length > 0 ? (
-                    <FeedbackChat
-                      sparringQuestions={activeSparringQuestions}
-                      assignmentId={assignment.id}
-                      sessionId={state.session.id}
-                      result={toFeedbackChatResult(state.session.result)}
-                      studentName={student.name}
-                      studentPicture={student.picture}
-                      fileId={state.file?.id}
-                      initialConversationsMap={state.session?.chatMessagesMap}
-                      thinkingProcess={state.session?.thinkingProcess}
-                      gradingRationale={state.session?.gradingRationale}
-                      normalizedScore={state.session.result?.normalizedScore}
-                      onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
-                      onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-                      initialSparringState={sparringState}
-                      onSparringStateChange={setSparringState}
-                    />
-                  ) : (
-                    <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
-                  )
-                ) : (
-                  <GradingResultDisplay isLoading={state.loading} thinkingProcess={state.session?.thinkingProcess} />
-                ))}
-            </div>
+            <div className="flex-1 min-h-0">{!isDesktop && renderFeedbackArea()}</div>
 
             {/* Mobile submit action in Results tab (avoid forcing user back to Info tab) */}
             {state.phase === 'submit' &&

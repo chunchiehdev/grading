@@ -4,6 +4,12 @@ import { parseGradingResult, type GradingResultData, type UsedContext } from '@/
 import { UsedContextSchema } from '@/schemas/grading';
 import type { DraftUiState } from '@/types/draft';
 import { normalizeDraftPhase, parseDraftUiState } from '@/utils/draft-ui-state';
+import {
+  getFeedbackModeCapabilities,
+  parseAiFeedbackMode,
+  type AiFeedbackMode,
+  type FeedbackAcceptancePayload,
+} from '@/types/feedback-mode';
 import { publishSubmissionCreatedNotification } from './notification.server';
 import { deleteFromStorage } from './storage.server';
 import logger from '@/utils/logger';
@@ -144,7 +150,8 @@ export async function createSubmissionAndLinkGradingResult(
   assignmentAreaId: string,
   filePathOrId: string,
   sessionId: string,
-  chatMessages: unknown[] = []
+  chatMessages: unknown[] = [],
+  feedbackAcceptance: FeedbackAcceptancePayload | null = null
 ): Promise<{ submissionId: string }> {
   const SUBMIT_GUARD_PREFIX = 'SUBMIT_GUARD:';
   const triggerTexts = new Set([
@@ -268,6 +275,7 @@ export async function createSubmissionAndLinkGradingResult(
     select: {
       id: true,
       result: true,
+      aiFeedbackMode: true,
     },
   });
 
@@ -280,10 +288,13 @@ export async function createSubmissionAndLinkGradingResult(
       ? (completedGradingResult.result as { sparringQuestions?: unknown }).sparringQuestions
       : null;
 
+  const aiFeedbackMode = parseAiFeedbackMode(completedGradingResult.aiFeedbackMode);
+  const feedbackModeCapabilities = getFeedbackModeCapabilities(aiFeedbackMode);
   const hasSparringQuestions = Array.isArray(sparringQuestions) && sparringQuestions.length > 0;
+  const requiresSparringDecision = feedbackModeCapabilities.requiresChallenge && hasSparringQuestions;
   let roundsBeforeDecisionMetric: number | null = null;
 
-  if (hasSparringQuestions) {
+  if (requiresSparringDecision) {
     const normalizedTriggerTexts = new Set(
       Array.from(triggerTexts).map((text) => normalizeChatTypography(text).trim())
     );
@@ -519,7 +530,10 @@ export async function createSubmissionAndLinkGradingResult(
       }
       // Attach chat messages into the AI Analysis Result to preserve history in the DB
       if (aiAnalysisResult && chatMessages.length > 0) {
-        (aiAnalysisResult as any).chatHistory = chatMessages;
+        aiAnalysisResult = {
+          ...aiAnalysisResult,
+          chatHistory: chatMessages as GradingResultData['chatHistory'],
+        };
       }
 
       const totalScore = aiAnalysisResult?.totalScore;
@@ -528,8 +542,16 @@ export async function createSubmissionAndLinkGradingResult(
 
       // Get normalized score (100-point scale) from grading result
       const normalizedScore = gradingResult.normalizedScore ?? null;
-      const decisionMetrics = extractDecisionMetrics(chatMessages);
-      const roundsBeforeDecision = hasSparringQuestions ? roundsBeforeDecisionMetric : null;
+      const decisionMetrics = feedbackModeCapabilities.requiresChallenge
+        ? extractDecisionMetrics(chatMessages)
+        : {
+            decision: null,
+            decisionReason: null,
+            decisionAt: null,
+            convergenceShownAt: null,
+            decisionLatencyMs: null,
+          };
+      const roundsBeforeDecision = requiresSparringDecision ? roundsBeforeDecisionMetric : null;
 
       // Feature 004: Copy context transparency from GradingResult to Submission
       // Validate and parse usedContext from JsonValue to UsedContext type
@@ -557,6 +579,8 @@ export async function createSubmissionAndLinkGradingResult(
         ...(finalScore !== null && { finalScore }),
         normalizedScore, // Always include, even if null
         ...(usedContext !== null && { usedContext }), // Feature 004: Now properly typed
+        aiFeedbackMode,
+        feedbackAcceptance,
         sparringDecision: decisionMetrics.decision,
         sparringDecisionReason: decisionMetrics.decisionReason,
         sparringDecisionAt: decisionMetrics.decisionAt,
@@ -564,9 +588,9 @@ export async function createSubmissionAndLinkGradingResult(
         sparringDecisionLatencyMs: decisionMetrics.decisionLatencyMs,
         sparringRoundsBeforeDecision: roundsBeforeDecision,
         status: 'ANALYZED',
-        ...(gradingResult.thoughtSummary !== null && { thoughtSummary: gradingResult.thoughtSummary }), // Feature 005: Copy thought summary
-        ...(gradingResult.thinkingProcess !== null && { thinkingProcess: gradingResult.thinkingProcess }), // Feature 012: Copy thinking process
-        ...(gradingResult.gradingRationale !== null && { gradingRationale: gradingResult.gradingRationale }), // Feature 012: Copy grading rationale
+        thoughtSummary: gradingResult.thoughtSummary, // Feature 005: Copy thought summary
+        thinkingProcess: gradingResult.thinkingProcess, // Feature 012: Copy thinking process
+        gradingRationale: gradingResult.gradingRationale, // Feature 012: Copy grading rationale
       });
 
       logger.info(`✅ Successfully linked AI result to submission ${submission.id}`);
@@ -1205,6 +1229,8 @@ export async function getSubmissionById(submissionId: string, studentId: string)
  */
 export interface UpdateSubmissionOptions {
   aiAnalysisResult?: GradingResultData;
+  aiFeedbackMode?: AiFeedbackMode;
+  feedbackAcceptance?: FeedbackAcceptancePayload | null;
   finalScore?: number | null;
   normalizedScore?: number | null;
   usedContext?: UsedContext | null; // Feature 004: Context transparency
@@ -1241,6 +1267,8 @@ export async function updateSubmission(
   const prismaData: any = {};
 
   if ('aiAnalysisResult' in updateData) prismaData.aiAnalysisResult = updateData.aiAnalysisResult;
+  if ('aiFeedbackMode' in updateData) prismaData.aiFeedbackMode = updateData.aiFeedbackMode;
+  if ('feedbackAcceptance' in updateData) prismaData.feedbackAcceptance = updateData.feedbackAcceptance;
   if ('finalScore' in updateData) prismaData.finalScore = updateData.finalScore;
   if ('normalizedScore' in updateData) prismaData.normalizedScore = updateData.normalizedScore;
   if ('usedContext' in updateData) prismaData.usedContext = updateData.usedContext;

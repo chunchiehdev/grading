@@ -34,6 +34,7 @@ export type AssignmentAreaMinAggregateOutputType = {
   dueDate: Date | null
   referenceFileIds: string | null
   customGradingPrompt: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -48,6 +49,7 @@ export type AssignmentAreaMaxAggregateOutputType = {
   dueDate: Date | null
   referenceFileIds: string | null
   customGradingPrompt: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -62,6 +64,7 @@ export type AssignmentAreaCountAggregateOutputType = {
   dueDate: number
   referenceFileIds: number
   customGradingPrompt: number
+  aiFeedbackMode: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -78,6 +81,7 @@ export type AssignmentAreaMinAggregateInputType = {
   dueDate?: true
   referenceFileIds?: true
   customGradingPrompt?: true
+  aiFeedbackMode?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -92,6 +96,7 @@ export type AssignmentAreaMaxAggregateInputType = {
   dueDate?: true
   referenceFileIds?: true
   customGradingPrompt?: true
+  aiFeedbackMode?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -106,6 +111,7 @@ export type AssignmentAreaCountAggregateInputType = {
   dueDate?: true
   referenceFileIds?: true
   customGradingPrompt?: true
+  aiFeedbackMode?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -193,6 +199,7 @@ export type AssignmentAreaGroupByOutputType = {
   dueDate: Date | null
   referenceFileIds: string | null
   customGradingPrompt: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode
   createdAt: Date
   updatedAt: Date
   _count: AssignmentAreaCountAggregateOutputType | null
@@ -228,6 +235,7 @@ export type AssignmentAreaWhereInput = {
   dueDate?: Prisma.DateTimeNullableFilter<"AssignmentArea"> | Date | string | null
   referenceFileIds?: Prisma.StringNullableFilter<"AssignmentArea"> | string | null
   customGradingPrompt?: Prisma.StringNullableFilter<"AssignmentArea"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"AssignmentArea"> | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFilter<"AssignmentArea"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssignmentArea"> | Date | string
   course?: Prisma.XOR<Prisma.CourseScalarRelationFilter, Prisma.CourseWhereInput>
@@ -237,6 +245,7 @@ export type AssignmentAreaWhereInput = {
   notifications?: Prisma.NotificationListRelationFilter
   gradingResults?: Prisma.GradingResultListRelationFilter
   posts?: Prisma.CoursePostListRelationFilter
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideListRelationFilter
 }
 
 export type AssignmentAreaOrderByWithRelationInput = {
@@ -249,6 +258,7 @@ export type AssignmentAreaOrderByWithRelationInput = {
   dueDate?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceFileIds?: Prisma.SortOrderInput | Prisma.SortOrder
   customGradingPrompt?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   course?: Prisma.CourseOrderByWithRelationInput
@@ -258,6 +268,7 @@ export type AssignmentAreaOrderByWithRelationInput = {
   notifications?: Prisma.NotificationOrderByRelationAggregateInput
   gradingResults?: Prisma.GradingResultOrderByRelationAggregateInput
   posts?: Prisma.CoursePostOrderByRelationAggregateInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideOrderByRelationAggregateInput
 }
 
 export type AssignmentAreaWhereUniqueInput = Prisma.AtLeast<{
@@ -273,6 +284,7 @@ export type AssignmentAreaWhereUniqueInput = Prisma.AtLeast<{
   dueDate?: Prisma.DateTimeNullableFilter<"AssignmentArea"> | Date | string | null
   referenceFileIds?: Prisma.StringNullableFilter<"AssignmentArea"> | string | null
   customGradingPrompt?: Prisma.StringNullableFilter<"AssignmentArea"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"AssignmentArea"> | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFilter<"AssignmentArea"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssignmentArea"> | Date | string
   course?: Prisma.XOR<Prisma.CourseScalarRelationFilter, Prisma.CourseWhereInput>
@@ -282,6 +294,7 @@ export type AssignmentAreaWhereUniqueInput = Prisma.AtLeast<{
   notifications?: Prisma.NotificationListRelationFilter
   gradingResults?: Prisma.GradingResultListRelationFilter
   posts?: Prisma.CoursePostListRelationFilter
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideListRelationFilter
 }, "id">
 
 export type AssignmentAreaOrderByWithAggregationInput = {
@@ -294,6 +307,7 @@ export type AssignmentAreaOrderByWithAggregationInput = {
   dueDate?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceFileIds?: Prisma.SortOrderInput | Prisma.SortOrder
   customGradingPrompt?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssignmentAreaCountOrderByAggregateInput
@@ -314,6 +328,7 @@ export type AssignmentAreaScalarWhereWithAggregatesInput = {
   dueDate?: Prisma.DateTimeNullableWithAggregatesFilter<"AssignmentArea"> | Date | string | null
   referenceFileIds?: Prisma.StringNullableWithAggregatesFilter<"AssignmentArea"> | string | null
   customGradingPrompt?: Prisma.StringNullableWithAggregatesFilter<"AssignmentArea"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeWithAggregatesFilter<"AssignmentArea"> | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssignmentArea"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssignmentArea"> | Date | string
 }
@@ -325,6 +340,7 @@ export type AssignmentAreaCreateInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -334,6 +350,7 @@ export type AssignmentAreaCreateInput = {
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateInput = {
@@ -346,12 +363,14 @@ export type AssignmentAreaUncheckedCreateInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUpdateInput = {
@@ -361,6 +380,7 @@ export type AssignmentAreaUpdateInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -370,6 +390,7 @@ export type AssignmentAreaUpdateInput = {
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateInput = {
@@ -382,12 +403,14 @@ export type AssignmentAreaUncheckedUpdateInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaCreateManyInput = {
@@ -400,6 +423,7 @@ export type AssignmentAreaCreateManyInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -411,6 +435,7 @@ export type AssignmentAreaUpdateManyMutationInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -425,6 +450,7 @@ export type AssignmentAreaUncheckedUpdateManyInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -449,6 +475,7 @@ export type AssignmentAreaCountOrderByAggregateInput = {
   dueDate?: Prisma.SortOrder
   referenceFileIds?: Prisma.SortOrder
   customGradingPrompt?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -463,6 +490,7 @@ export type AssignmentAreaMaxOrderByAggregateInput = {
   dueDate?: Prisma.SortOrder
   referenceFileIds?: Prisma.SortOrder
   customGradingPrompt?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -477,6 +505,7 @@ export type AssignmentAreaMinOrderByAggregateInput = {
   dueDate?: Prisma.SortOrder
   referenceFileIds?: Prisma.SortOrder
   customGradingPrompt?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -577,6 +606,24 @@ export type AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput = {
 
 export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
+}
+
+export type EnumAiFeedbackModeFieldUpdateOperationsInput = {
+  set?: $Enums.AiFeedbackMode
+}
+
+export type AssignmentAreaCreateNestedOneWithoutFeedbackModeOverridesInput = {
+  create?: Prisma.XOR<Prisma.AssignmentAreaCreateWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUncheckedCreateWithoutFeedbackModeOverridesInput>
+  connectOrCreate?: Prisma.AssignmentAreaCreateOrConnectWithoutFeedbackModeOverridesInput
+  connect?: Prisma.AssignmentAreaWhereUniqueInput
+}
+
+export type AssignmentAreaUpdateOneRequiredWithoutFeedbackModeOverridesNestedInput = {
+  create?: Prisma.XOR<Prisma.AssignmentAreaCreateWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUncheckedCreateWithoutFeedbackModeOverridesInput>
+  connectOrCreate?: Prisma.AssignmentAreaCreateOrConnectWithoutFeedbackModeOverridesInput
+  upsert?: Prisma.AssignmentAreaUpsertWithoutFeedbackModeOverridesInput
+  connect?: Prisma.AssignmentAreaWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AssignmentAreaUpdateToOneWithWhereWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUpdateWithoutFeedbackModeOverridesInput>, Prisma.AssignmentAreaUncheckedUpdateWithoutFeedbackModeOverridesInput>
 }
 
 export type AssignmentAreaCreateNestedOneWithoutSubmissionsInput = {
@@ -690,6 +737,7 @@ export type AssignmentAreaCreateWithoutCourseInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   class?: Prisma.ClassCreateNestedOneWithoutAssignmentAreasInput
@@ -698,6 +746,7 @@ export type AssignmentAreaCreateWithoutCourseInput = {
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutCourseInput = {
@@ -709,12 +758,14 @@ export type AssignmentAreaUncheckedCreateWithoutCourseInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutCourseInput = {
@@ -756,6 +807,7 @@ export type AssignmentAreaScalarWhereInput = {
   dueDate?: Prisma.DateTimeNullableFilter<"AssignmentArea"> | Date | string | null
   referenceFileIds?: Prisma.StringNullableFilter<"AssignmentArea"> | string | null
   customGradingPrompt?: Prisma.StringNullableFilter<"AssignmentArea"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"AssignmentArea"> | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFilter<"AssignmentArea"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssignmentArea"> | Date | string
 }
@@ -767,6 +819,7 @@ export type AssignmentAreaCreateWithoutClassInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -775,6 +828,7 @@ export type AssignmentAreaCreateWithoutClassInput = {
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutClassInput = {
@@ -786,12 +840,14 @@ export type AssignmentAreaUncheckedCreateWithoutClassInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutClassInput = {
@@ -820,6 +876,98 @@ export type AssignmentAreaUpdateManyWithWhereWithoutClassInput = {
   data: Prisma.XOR<Prisma.AssignmentAreaUpdateManyMutationInput, Prisma.AssignmentAreaUncheckedUpdateManyWithoutClassInput>
 }
 
+export type AssignmentAreaCreateWithoutFeedbackModeOverridesInput = {
+  id?: string
+  name: string
+  description?: string | null
+  dueDate?: Date | string | null
+  referenceFileIds?: string | null
+  customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
+  class?: Prisma.ClassCreateNestedOneWithoutAssignmentAreasInput
+  rubric: Prisma.RubricCreateNestedOneWithoutAssignmentAreasInput
+  submissions?: Prisma.SubmissionCreateNestedManyWithoutAssignmentAreaInput
+  notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
+  gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
+  posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+}
+
+export type AssignmentAreaUncheckedCreateWithoutFeedbackModeOverridesInput = {
+  id?: string
+  name: string
+  description?: string | null
+  courseId: string
+  classId?: string | null
+  rubricId: string
+  dueDate?: Date | string | null
+  referenceFileIds?: string | null
+  customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
+  gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+}
+
+export type AssignmentAreaCreateOrConnectWithoutFeedbackModeOverridesInput = {
+  where: Prisma.AssignmentAreaWhereUniqueInput
+  create: Prisma.XOR<Prisma.AssignmentAreaCreateWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUncheckedCreateWithoutFeedbackModeOverridesInput>
+}
+
+export type AssignmentAreaUpsertWithoutFeedbackModeOverridesInput = {
+  update: Prisma.XOR<Prisma.AssignmentAreaUpdateWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUncheckedUpdateWithoutFeedbackModeOverridesInput>
+  create: Prisma.XOR<Prisma.AssignmentAreaCreateWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUncheckedCreateWithoutFeedbackModeOverridesInput>
+  where?: Prisma.AssignmentAreaWhereInput
+}
+
+export type AssignmentAreaUpdateToOneWithWhereWithoutFeedbackModeOverridesInput = {
+  where?: Prisma.AssignmentAreaWhereInput
+  data: Prisma.XOR<Prisma.AssignmentAreaUpdateWithoutFeedbackModeOverridesInput, Prisma.AssignmentAreaUncheckedUpdateWithoutFeedbackModeOverridesInput>
+}
+
+export type AssignmentAreaUpdateWithoutFeedbackModeOverridesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+  class?: Prisma.ClassUpdateOneWithoutAssignmentAreasNestedInput
+  rubric?: Prisma.RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
+  submissions?: Prisma.SubmissionUpdateManyWithoutAssignmentAreaNestedInput
+  notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
+  gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+  posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+}
+
+export type AssignmentAreaUncheckedUpdateWithoutFeedbackModeOverridesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  courseId?: Prisma.StringFieldUpdateOperationsInput | string
+  classId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  rubricId?: Prisma.StringFieldUpdateOperationsInput | string
+  dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
+  gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+}
+
 export type AssignmentAreaCreateWithoutSubmissionsInput = {
   id?: string
   name: string
@@ -827,6 +975,7 @@ export type AssignmentAreaCreateWithoutSubmissionsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -835,6 +984,7 @@ export type AssignmentAreaCreateWithoutSubmissionsInput = {
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutSubmissionsInput = {
@@ -847,11 +997,13 @@ export type AssignmentAreaUncheckedCreateWithoutSubmissionsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutSubmissionsInput = {
@@ -877,6 +1029,7 @@ export type AssignmentAreaUpdateWithoutSubmissionsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -885,6 +1038,7 @@ export type AssignmentAreaUpdateWithoutSubmissionsInput = {
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutSubmissionsInput = {
@@ -897,11 +1051,13 @@ export type AssignmentAreaUncheckedUpdateWithoutSubmissionsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaCreateWithoutRubricInput = {
@@ -911,6 +1067,7 @@ export type AssignmentAreaCreateWithoutRubricInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -919,6 +1076,7 @@ export type AssignmentAreaCreateWithoutRubricInput = {
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutRubricInput = {
@@ -930,12 +1088,14 @@ export type AssignmentAreaUncheckedCreateWithoutRubricInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutRubricInput = {
@@ -971,6 +1131,7 @@ export type AssignmentAreaCreateWithoutGradingResultsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -979,6 +1140,7 @@ export type AssignmentAreaCreateWithoutGradingResultsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutGradingResultsInput = {
@@ -991,11 +1153,13 @@ export type AssignmentAreaUncheckedCreateWithoutGradingResultsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutGradingResultsInput = {
@@ -1021,6 +1185,7 @@ export type AssignmentAreaUpdateWithoutGradingResultsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -1029,6 +1194,7 @@ export type AssignmentAreaUpdateWithoutGradingResultsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutGradingResultsInput = {
@@ -1041,11 +1207,13 @@ export type AssignmentAreaUncheckedUpdateWithoutGradingResultsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaCreateWithoutNotificationsInput = {
@@ -1055,6 +1223,7 @@ export type AssignmentAreaCreateWithoutNotificationsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -1063,6 +1232,7 @@ export type AssignmentAreaCreateWithoutNotificationsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutAssignmentAreaInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutNotificationsInput = {
@@ -1075,11 +1245,13 @@ export type AssignmentAreaUncheckedCreateWithoutNotificationsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
   posts?: Prisma.CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutNotificationsInput = {
@@ -1105,6 +1277,7 @@ export type AssignmentAreaUpdateWithoutNotificationsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -1113,6 +1286,7 @@ export type AssignmentAreaUpdateWithoutNotificationsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutAssignmentAreaNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutNotificationsInput = {
@@ -1125,11 +1299,13 @@ export type AssignmentAreaUncheckedUpdateWithoutNotificationsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaCreateWithoutPostsInput = {
@@ -1139,6 +1315,7 @@ export type AssignmentAreaCreateWithoutPostsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   course: Prisma.CourseCreateNestedOneWithoutAssignmentAreasInput
@@ -1147,6 +1324,7 @@ export type AssignmentAreaCreateWithoutPostsInput = {
   submissions?: Prisma.SubmissionCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaUncheckedCreateWithoutPostsInput = {
@@ -1159,11 +1337,13 @@ export type AssignmentAreaUncheckedCreateWithoutPostsInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
   submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
   notifications?: Prisma.NotificationUncheckedCreateNestedManyWithoutAssignmentInput
   gradingResults?: Prisma.GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedCreateNestedManyWithoutAssignmentAreaInput
 }
 
 export type AssignmentAreaCreateOrConnectWithoutPostsInput = {
@@ -1189,6 +1369,7 @@ export type AssignmentAreaUpdateWithoutPostsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -1197,6 +1378,7 @@ export type AssignmentAreaUpdateWithoutPostsInput = {
   submissions?: Prisma.SubmissionUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutPostsInput = {
@@ -1209,11 +1391,13 @@ export type AssignmentAreaUncheckedUpdateWithoutPostsInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaCreateManyCourseInput = {
@@ -1225,6 +1409,7 @@ export type AssignmentAreaCreateManyCourseInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1236,6 +1421,7 @@ export type AssignmentAreaUpdateWithoutCourseInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   class?: Prisma.ClassUpdateOneWithoutAssignmentAreasNestedInput
@@ -1244,6 +1430,7 @@ export type AssignmentAreaUpdateWithoutCourseInput = {
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutCourseInput = {
@@ -1255,12 +1442,14 @@ export type AssignmentAreaUncheckedUpdateWithoutCourseInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateManyWithoutCourseInput = {
@@ -1272,6 +1461,7 @@ export type AssignmentAreaUncheckedUpdateManyWithoutCourseInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1285,6 +1475,7 @@ export type AssignmentAreaCreateManyClassInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1296,6 +1487,7 @@ export type AssignmentAreaUpdateWithoutClassInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -1304,6 +1496,7 @@ export type AssignmentAreaUpdateWithoutClassInput = {
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutClassInput = {
@@ -1315,12 +1508,14 @@ export type AssignmentAreaUncheckedUpdateWithoutClassInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateManyWithoutClassInput = {
@@ -1332,6 +1527,7 @@ export type AssignmentAreaUncheckedUpdateManyWithoutClassInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1345,6 +1541,7 @@ export type AssignmentAreaCreateManyRubricInput = {
   dueDate?: Date | string | null
   referenceFileIds?: string | null
   customGradingPrompt?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1356,6 +1553,7 @@ export type AssignmentAreaUpdateWithoutRubricInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   course?: Prisma.CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
@@ -1364,6 +1562,7 @@ export type AssignmentAreaUpdateWithoutRubricInput = {
   notifications?: Prisma.NotificationUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateWithoutRubricInput = {
@@ -1375,12 +1574,14 @@ export type AssignmentAreaUncheckedUpdateWithoutRubricInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   notifications?: Prisma.NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
   gradingResults?: Prisma.GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   posts?: Prisma.CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  feedbackModeOverrides?: Prisma.AssignmentFeedbackModeOverrideUncheckedUpdateManyWithoutAssignmentAreaNestedInput
 }
 
 export type AssignmentAreaUncheckedUpdateManyWithoutRubricInput = {
@@ -1392,6 +1593,7 @@ export type AssignmentAreaUncheckedUpdateManyWithoutRubricInput = {
   dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   referenceFileIds?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customGradingPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1406,6 +1608,7 @@ export type AssignmentAreaCountOutputType = {
   notifications: number
   gradingResults: number
   posts: number
+  feedbackModeOverrides: number
 }
 
 export type AssignmentAreaCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1413,6 +1616,7 @@ export type AssignmentAreaCountOutputTypeSelect<ExtArgs extends runtime.Types.Ex
   notifications?: boolean | AssignmentAreaCountOutputTypeCountNotificationsArgs
   gradingResults?: boolean | AssignmentAreaCountOutputTypeCountGradingResultsArgs
   posts?: boolean | AssignmentAreaCountOutputTypeCountPostsArgs
+  feedbackModeOverrides?: boolean | AssignmentAreaCountOutputTypeCountFeedbackModeOverridesArgs
 }
 
 /**
@@ -1453,6 +1657,13 @@ export type AssignmentAreaCountOutputTypeCountPostsArgs<ExtArgs extends runtime.
   where?: Prisma.CoursePostWhereInput
 }
 
+/**
+ * AssignmentAreaCountOutputType without action
+ */
+export type AssignmentAreaCountOutputTypeCountFeedbackModeOverridesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AssignmentFeedbackModeOverrideWhereInput
+}
+
 
 export type AssignmentAreaSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1464,6 +1675,7 @@ export type AssignmentAreaSelect<ExtArgs extends runtime.Types.Extensions.Intern
   dueDate?: boolean
   referenceFileIds?: boolean
   customGradingPrompt?: boolean
+  aiFeedbackMode?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   course?: boolean | Prisma.CourseDefaultArgs<ExtArgs>
@@ -1473,6 +1685,7 @@ export type AssignmentAreaSelect<ExtArgs extends runtime.Types.Extensions.Intern
   notifications?: boolean | Prisma.AssignmentArea$notificationsArgs<ExtArgs>
   gradingResults?: boolean | Prisma.AssignmentArea$gradingResultsArgs<ExtArgs>
   posts?: boolean | Prisma.AssignmentArea$postsArgs<ExtArgs>
+  feedbackModeOverrides?: boolean | Prisma.AssignmentArea$feedbackModeOverridesArgs<ExtArgs>
   _count?: boolean | Prisma.AssignmentAreaCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["assignmentArea"]>
 
@@ -1486,6 +1699,7 @@ export type AssignmentAreaSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   dueDate?: boolean
   referenceFileIds?: boolean
   customGradingPrompt?: boolean
+  aiFeedbackMode?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   course?: boolean | Prisma.CourseDefaultArgs<ExtArgs>
@@ -1503,6 +1717,7 @@ export type AssignmentAreaSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   dueDate?: boolean
   referenceFileIds?: boolean
   customGradingPrompt?: boolean
+  aiFeedbackMode?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   course?: boolean | Prisma.CourseDefaultArgs<ExtArgs>
@@ -1520,11 +1735,12 @@ export type AssignmentAreaSelectScalar = {
   dueDate?: boolean
   referenceFileIds?: boolean
   customGradingPrompt?: boolean
+  aiFeedbackMode?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssignmentAreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "courseId" | "classId" | "rubricId" | "dueDate" | "referenceFileIds" | "customGradingPrompt" | "createdAt" | "updatedAt", ExtArgs["result"]["assignmentArea"]>
+export type AssignmentAreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "courseId" | "classId" | "rubricId" | "dueDate" | "referenceFileIds" | "customGradingPrompt" | "aiFeedbackMode" | "createdAt" | "updatedAt", ExtArgs["result"]["assignmentArea"]>
 export type AssignmentAreaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   course?: boolean | Prisma.CourseDefaultArgs<ExtArgs>
   class?: boolean | Prisma.AssignmentArea$classArgs<ExtArgs>
@@ -1533,6 +1749,7 @@ export type AssignmentAreaInclude<ExtArgs extends runtime.Types.Extensions.Inter
   notifications?: boolean | Prisma.AssignmentArea$notificationsArgs<ExtArgs>
   gradingResults?: boolean | Prisma.AssignmentArea$gradingResultsArgs<ExtArgs>
   posts?: boolean | Prisma.AssignmentArea$postsArgs<ExtArgs>
+  feedbackModeOverrides?: boolean | Prisma.AssignmentArea$feedbackModeOverridesArgs<ExtArgs>
   _count?: boolean | Prisma.AssignmentAreaCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AssignmentAreaIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1556,6 +1773,7 @@ export type $AssignmentAreaPayload<ExtArgs extends runtime.Types.Extensions.Inte
     notifications: Prisma.$NotificationPayload<ExtArgs>[]
     gradingResults: Prisma.$GradingResultPayload<ExtArgs>[]
     posts: Prisma.$CoursePostPayload<ExtArgs>[]
+    feedbackModeOverrides: Prisma.$AssignmentFeedbackModeOverridePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1567,6 +1785,7 @@ export type $AssignmentAreaPayload<ExtArgs extends runtime.Types.Extensions.Inte
     dueDate: Date | null
     referenceFileIds: string | null
     customGradingPrompt: string | null
+    aiFeedbackMode: $Enums.AiFeedbackMode
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["assignmentArea"]>
@@ -1970,6 +2189,7 @@ export interface Prisma__AssignmentAreaClient<T, Null = never, ExtArgs extends r
   notifications<T extends Prisma.AssignmentArea$notificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssignmentArea$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   gradingResults<T extends Prisma.AssignmentArea$gradingResultsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssignmentArea$gradingResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   posts<T extends Prisma.AssignmentArea$postsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssignmentArea$postsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  feedbackModeOverrides<T extends Prisma.AssignmentArea$feedbackModeOverridesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssignmentArea$feedbackModeOverridesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignmentFeedbackModeOverridePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2008,6 +2228,7 @@ export interface AssignmentAreaFieldRefs {
   readonly dueDate: Prisma.FieldRef<"AssignmentArea", 'DateTime'>
   readonly referenceFileIds: Prisma.FieldRef<"AssignmentArea", 'String'>
   readonly customGradingPrompt: Prisma.FieldRef<"AssignmentArea", 'String'>
+  readonly aiFeedbackMode: Prisma.FieldRef<"AssignmentArea", 'AiFeedbackMode'>
   readonly createdAt: Prisma.FieldRef<"AssignmentArea", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssignmentArea", 'DateTime'>
 }
@@ -2518,6 +2739,30 @@ export type AssignmentArea$postsArgs<ExtArgs extends runtime.Types.Extensions.In
   take?: number
   skip?: number
   distinct?: Prisma.CoursePostScalarFieldEnum | Prisma.CoursePostScalarFieldEnum[]
+}
+
+/**
+ * AssignmentArea.feedbackModeOverrides
+ */
+export type AssignmentArea$feedbackModeOverridesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AssignmentFeedbackModeOverride
+   */
+  select?: Prisma.AssignmentFeedbackModeOverrideSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AssignmentFeedbackModeOverride
+   */
+  omit?: Prisma.AssignmentFeedbackModeOverrideOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AssignmentFeedbackModeOverrideInclude<ExtArgs> | null
+  where?: Prisma.AssignmentFeedbackModeOverrideWhereInput
+  orderBy?: Prisma.AssignmentFeedbackModeOverrideOrderByWithRelationInput | Prisma.AssignmentFeedbackModeOverrideOrderByWithRelationInput[]
+  cursor?: Prisma.AssignmentFeedbackModeOverrideWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AssignmentFeedbackModeOverrideScalarFieldEnum | Prisma.AssignmentFeedbackModeOverrideScalarFieldEnum[]
 }
 
 /**

@@ -1,3 +1,6 @@
+import type { AiFeedbackMode, FeedbackAcceptancePayload } from '@/types/feedback-mode';
+import type { Prisma } from '@/types/database';
+
 /**
  * Shared type definitions for Student-related features
  *
@@ -47,6 +50,8 @@ export interface SubmissionInfo {
   isLatest: boolean;
   previousVersionId: string | null;
   aiAnalysisResult: any | null;
+  aiFeedbackMode?: AiFeedbackMode;
+  feedbackAcceptance?: FeedbackAcceptancePayload | Prisma.JsonValue | null;
   finalScore: number | null;
   normalizedScore: number | null;
   teacherFeedback: string | null;

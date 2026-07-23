@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link, useRouteError, isRouteErrorResponse } from 'react-router';
-import { Save, Trash2, Calendar, FileText, Users, Clock, FileUp, File, Loader2, Image, Smile, Check, X } from 'lucide-react';
+import { Save, Trash2, Users, FileUp, File, Loader2, Image, Check, X, BrainCircuit } from 'lucide-react';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -24,6 +24,20 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateOnlyInTimeZone, formatTimeInTimeZone, parseTaipeiDateTimeToUTC } from '@/lib/date';
+import {
+  AI_FEEDBACK_MODES,
+  getFeedbackModeDescription,
+  getFeedbackModeLabel,
+  parseAiFeedbackMode,
+  type AiFeedbackMode,
+} from '@/types/feedback-mode';
+import {
+  getAssignmentFeedbackModeSetup,
+  saveAssignmentFeedbackModeOverrides,
+  type AssignmentFeedbackModeChoice,
+  type AssignmentFeedbackModeOverrideInput,
+  type AssignmentFeedbackModeSetup,
+} from '@/services/assignment-feedback-mode.server';
 
 interface Attachment {
   fileId: string;
@@ -34,13 +48,37 @@ interface Attachment {
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
-  assignmentArea: any;
-  rubrics: any[];
+  assignmentArea: NonNullable<Awaited<ReturnType<typeof getAssignmentAreaById>>>;
+  rubrics: Array<{ id: string; name: string; isActive: boolean }>;
+  feedbackModeSetup: AssignmentFeedbackModeSetup;
   formattedDueDate?: string;
   formattedDueTime: string;
   formattedCreatedAt: string;
   formattedUpdatedAt: string;
   existingAttachments: Attachment[];
+}
+
+function parseFeedbackModeOverridePayload(value: FormDataEntryValue | null): AssignmentFeedbackModeOverrideInput[] {
+  if (typeof value !== 'string' || value.trim().length === 0) return [];
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item): AssignmentFeedbackModeOverrideInput | null => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+        const record = item as Record<string, unknown>;
+        const studentId = typeof record.studentId === 'string' ? record.studentId : '';
+        const rawMode = record.mode;
+        const mode = rawMode === 'DEFAULT' ? 'DEFAULT' : parseAiFeedbackMode(rawMode);
+        if (!studentId) return null;
+        return { studentId, mode };
+      })
+      .filter((item): item is AssignmentFeedbackModeOverrideInput => item !== null);
+  } catch {
+    return [];
+  }
 }
 
 interface ActionData {
@@ -57,21 +95,20 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     throw new Response('Course ID and Assignment ID are required', { status: 400 });
   }
 
-  const [assignmentArea, rubricsResult] = await Promise.all([
+  const [assignmentArea, rubricsResult, feedbackModeSetup] = await Promise.all([
     getAssignmentAreaById(assignmentId, teacher.id),
     listRubrics(teacher.id),
+    getAssignmentFeedbackModeSetup(assignmentId, teacher.id),
   ]);
 
-  if (!assignmentArea) {
+  if (!assignmentArea || !feedbackModeSetup) {
     throw new Response('Assignment area not found', { status: 404 });
   }
 
   const { formatDateForDisplay } = await import('@/lib/date.server');
   const formattedDueDate = assignmentArea.dueDate ? formatDateOnlyInTimeZone(assignmentArea.dueDate) : undefined;
   const dueTimeOptions = new Set(['00:00', '06:00', '12:00', '18:00', '23:59']);
-  const dueTimeFromAssignment = assignmentArea.dueDate
-    ? formatTimeInTimeZone(assignmentArea.dueDate)
-    : '';
+  const dueTimeFromAssignment = assignmentArea.dueDate ? formatTimeInTimeZone(assignmentArea.dueDate) : '';
   const formattedDueTime = dueTimeOptions.has(dueTimeFromAssignment) ? dueTimeFromAssignment : '18:00';
   const formattedCreatedAt = formatDateForDisplay(new Date(assignmentArea.createdAt));
   const formattedUpdatedAt = formatDateForDisplay(new Date(assignmentArea.updatedAt));
@@ -110,7 +147,8 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   return {
     teacher,
     assignmentArea,
-    rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || [],
+    rubrics: rubricsResult.rubrics?.filter((rubric: { isActive: boolean }) => rubric.isActive) || [],
+    feedbackModeSetup,
     formattedDueDate,
     formattedDueTime,
     formattedCreatedAt,
@@ -147,6 +185,8 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       const dueTime = formData.get('dueTime') as string;
       const referenceFileIds = formData.get('referenceFileIds') as string;
       const customGradingPrompt = formData.get('customGradingPrompt') as string;
+      const aiFeedbackMode = parseAiFeedbackMode(formData.get('aiFeedbackMode'));
+      const feedbackModeOverrides = parseFeedbackModeOverridePayload(formData.get('feedbackModeOverrides'));
 
       if (!name || name.trim().length === 0) {
         return { success: false, error: 'course:assignment.manage.errors.nameRequired' };
@@ -166,6 +206,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
         description: description?.trim() || undefined,
         rubricId,
         dueDate: parsedDueDate,
+        aiFeedbackMode,
       };
 
       const updatedArea = await updateAssignmentArea(assignmentId, teacher.id, updateData);
@@ -175,12 +216,14 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       }
 
       // Update reference files and custom grading prompt
-      const additionalUpdateData: any = {};
+      const additionalUpdateData: { referenceFileIds?: string | null; customGradingPrompt?: string | null } = {};
 
       if (referenceFileIds && referenceFileIds.trim() !== '') {
         try {
-          const fileIds = JSON.parse(referenceFileIds);
-          const validFileIds = fileIds.filter((id: any) => id && typeof id === 'string');
+          const fileIds = JSON.parse(referenceFileIds) as unknown;
+          const validFileIds = Array.isArray(fileIds)
+            ? fileIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+            : [];
           if (validFileIds.length > 0) {
             additionalUpdateData.referenceFileIds = JSON.stringify(validFileIds);
           } else {
@@ -207,6 +250,11 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
         });
       }
 
+      const overrideResult = await saveAssignmentFeedbackModeOverrides(assignmentId, teacher.id, feedbackModeOverrides);
+      if (!overrideResult.success) {
+        return { success: false, error: overrideResult.error || 'course:assignment.manage.errors.updateFailed' };
+      }
+
       return { success: true, action: 'update' };
     }
 
@@ -221,29 +269,54 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function ManageAssignmentArea() {
-  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedDueTime, formattedCreatedAt, formattedUpdatedAt, existingAttachments } =
+  const { assignmentArea, rubrics, feedbackModeSetup, formattedDueDate, formattedDueTime, existingAttachments } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const { t, i18n } = useTranslation(['course', 'common']);
-  
+
   const [allowLateSubmissions, setAllowLateSubmissions] = useState(true);
   const [assignTo, setAssignTo] = useState<'all' | 'specific'>('all');
   const [selectedGroups, setSelectedGroups] = useState<string[]>(['groupA']);
-  
+
   // Attachments state
   const [attachments, setAttachments] = useState<Attachment[]>(existingAttachments);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Custom grading prompt state
   const [customGradingPrompt, setCustomGradingPrompt] = useState(assignmentArea.customGradingPrompt || '');
+  const [aiFeedbackMode, setAiFeedbackMode] = useState<AiFeedbackMode>(feedbackModeSetup.defaultMode);
+  const [studentFeedbackModes, setStudentFeedbackModes] = useState<Record<string, AssignmentFeedbackModeChoice>>(() =>
+    Object.fromEntries(
+      feedbackModeSetup.students.map((student) => [student.id, student.overrideMode ?? 'DEFAULT'] as const)
+    )
+  );
   const lastActionToastRef = useRef<string | null>(null);
 
-  const resolveMessage = (message?: string): string => {
-    if (!message) return '';
-    return i18n.exists(message) ? t(message) : message;
-  };
+  useEffect(() => {
+    setAiFeedbackMode(feedbackModeSetup.defaultMode);
+    setStudentFeedbackModes(
+      Object.fromEntries(
+        feedbackModeSetup.students.map((student) => [student.id, student.overrideMode ?? 'DEFAULT'] as const)
+      )
+    );
+  }, [feedbackModeSetup]);
+
+  const feedbackModeOverridePayload = JSON.stringify(
+    feedbackModeSetup.students.map((student) => ({
+      studentId: student.id,
+      mode: studentFeedbackModes[student.id] ?? 'DEFAULT',
+    }))
+  );
+
+  const resolveMessage = useCallback(
+    (message?: string): string => {
+      if (!message) return '';
+      return i18n.exists(message) ? t(message) : message;
+    },
+    [i18n, t]
+  );
 
   useEffect(() => {
     if (!actionData) return;
@@ -259,7 +332,7 @@ export default function ManageAssignmentArea() {
     if (actionData.error) {
       toast.error(resolveMessage(actionData.error));
     }
-  }, [actionData, t, i18n]);
+  }, [actionData, t, resolveMessage]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -268,16 +341,20 @@ export default function ManageAssignmentArea() {
 
   const handleFileUpload = async (files: FileList | null, isImage: boolean = false) => {
     if (!files || files.length === 0) return;
-    
+
     const file = files[0];
-    const allowedDocTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    const allowedDocTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ];
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     const allowedTypes = isImage ? allowedImageTypes : allowedDocTypes;
-    
+
     const docExtPattern = /\.(pdf|docx|txt)$/i;
     const imageExtPattern = /\.(jpg|jpeg|png|gif|webp)$/i;
     const extPattern = isImage ? imageExtPattern : docExtPattern;
-    
+
     if (!allowedTypes.includes(file.type) && !file.name.match(extPattern)) {
       toast.error(
         t(
@@ -288,7 +365,7 @@ export default function ManageAssignmentArea() {
       );
       return;
     }
-    
+
     if (file.size > 10 * 1024 * 1024) {
       toast.error(t('course:assignment.manage.attachments.fileTooLarge'));
       return;
@@ -310,15 +387,20 @@ export default function ManageAssignmentArea() {
         throw new Error(result.error || 'course:assignment.manage.attachments.uploadFailed');
       }
 
-      setAttachments(prev => [...prev, {
-        fileId: result.data.fileId,
-        fileName: result.data.fileName,
-        fileSize: result.data.fileSize,
-        mimeType: file.type,
-      }]);
+      setAttachments((prev) => [
+        ...prev,
+        {
+          fileId: result.data.fileId,
+          fileName: result.data.fileName,
+          fileSize: result.data.fileSize,
+          mimeType: file.type,
+        },
+      ]);
       toast.success(t('course:assignment.manage.attachments.uploaded', { fileName: file.name }));
     } catch (err) {
-      toast.error(resolveMessage(err instanceof Error ? err.message : 'course:assignment.manage.attachments.uploadFailed'));
+      toast.error(
+        resolveMessage(err instanceof Error ? err.message : 'course:assignment.manage.attachments.uploadFailed')
+      );
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -327,7 +409,7 @@ export default function ManageAssignmentArea() {
   };
 
   const removeAttachment = (fileId: string) => {
-    setAttachments(prev => prev.filter(a => a.fileId !== fileId));
+    setAttachments((prev) => prev.filter((a) => a.fileId !== fileId));
     toast.success(t('course:assignment.manage.attachments.removed'));
   };
 
@@ -337,7 +419,9 @@ export default function ManageAssignmentArea() {
       <header className="border-b border-border">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">{t('course:assignment.manage.editAssignment')}</h1>
+            <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">
+              {t('course:assignment.manage.editAssignment')}
+            </h1>
             <Link
               to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/submissions`}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 sm:px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex-shrink-0"
@@ -357,6 +441,7 @@ export default function ManageAssignmentArea() {
 
         <Form method="post" className="space-y-6">
           <input type="hidden" name="intent" value="update" />
+          <input type="hidden" name="feedbackModeOverrides" value={feedbackModeOverridePayload} />
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -372,13 +457,7 @@ export default function ManageAssignmentArea() {
                     <Label htmlFor="name" className="text-sm font-medium mb-2 block">
                       {t('course:assignment.manage.assignmentTitle')}
                     </Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      defaultValue={assignmentArea.name}
-                      required
-                      className="h-10"
-                    />
+                    <Input id="name" name="name" defaultValue={assignmentArea.name} required className="h-10" />
                   </div>
 
                   <div>
@@ -388,40 +467,84 @@ export default function ManageAssignmentArea() {
                     <div className="border border-border rounded-lg overflow-hidden">
                       {/* Rich Text Toolbar */}
                       <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30">
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.bold')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.bold')}
+                        >
                           <span className="font-bold text-sm">B</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.italic')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.italic')}
+                        >
                           <span className="italic text-sm">I</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.underline')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.underline')}
+                        >
                           <span className="underline text-sm">U</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.strikethrough')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.strikethrough')}
+                        >
                           <span className="line-through text-sm">S</span>
                         </button>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.code')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.code')}
+                        >
                           <span className="font-mono text-sm">&lt;/&gt;</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.superscript')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.superscript')}
+                        >
                           <span className="text-sm">x²</span>
                         </button>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.bulletList')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.bulletList')}
+                        >
                           <span className="text-sm">•</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.numberedList')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.numberedList')}
+                        >
                           <span className="text-sm">1.</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.indent')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.indent')}
+                        >
                           <span className="text-sm">→</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.outdent')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.outdent')}
+                        >
                           <span className="text-sm">←</span>
                         </button>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.link')}>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-accent rounded"
+                          title={t('course:assignment.manage.editor.link')}
+                        >
                           <span className="text-sm">🔗</span>
                         </button>
                       </div>
@@ -439,7 +562,9 @@ export default function ManageAssignmentArea() {
                   {/* Attachments Section */}
                   <div className="pt-4 border-t border-border">
                     <div className="flex items-center justify-between px-3 py-2 border border-border rounded-lg hover:bg-muted/30 transition-colors">
-                      <span className="text-sm font-medium text-foreground">{t('course:assignment.manage.attachments.addReference')}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {t('course:assignment.manage.attachments.addReference')}
+                      </span>
                       <div className="flex items-center gap-1">
                         {/* File Upload */}
                         <input
@@ -487,7 +612,7 @@ export default function ManageAssignmentArea() {
                     {attachments.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {attachments.map((attachment) => (
-                          <div 
+                          <div
                             key={attachment.fileId}
                             className="flex items-center justify-between px-3 py-2 bg-muted/50 border border-border rounded-lg"
                           >
@@ -512,10 +637,10 @@ export default function ManageAssignmentArea() {
                     )}
 
                     {/* Hidden input for form submission */}
-                    <input 
-                      type="hidden" 
-                      name="referenceFileIds" 
-                      value={JSON.stringify(attachments.map(a => a.fileId))} 
+                    <input
+                      type="hidden"
+                      name="referenceFileIds"
+                      value={JSON.stringify(attachments.map((a) => a.fileId))}
                     />
                   </div>
 
@@ -546,7 +671,9 @@ export default function ManageAssignmentArea() {
               {/* Submission & Timeline */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.submissionTimeline')}</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    {t('course:assignment.manage.submissionTimeline')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -554,10 +681,7 @@ export default function ManageAssignmentArea() {
                       <Label htmlFor="dueDate" className="text-sm font-medium mb-2 block">
                         {t('course:assignment.manage.dueDate')}
                       </Label>
-                      <DatePicker
-                        name="dueDate"
-                        defaultISOString={formattedDueDate}
-                      />
+                      <DatePicker name="dueDate" defaultISOString={formattedDueDate} />
                     </div>
                     <div>
                       <Label htmlFor="dueTime" className="text-sm font-medium mb-2 block">
@@ -587,9 +711,15 @@ export default function ManageAssignmentArea() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="file-upload">{t('course:assignment.manage.submissionTypes.fileUploadTextEntry')}</SelectItem>
-                        <SelectItem value="file-only">{t('course:assignment.manage.submissionTypes.fileOnly')}</SelectItem>
-                        <SelectItem value="text-only">{t('course:assignment.manage.submissionTypes.textOnly')}</SelectItem>
+                        <SelectItem value="file-upload">
+                          {t('course:assignment.manage.submissionTypes.fileUploadTextEntry')}
+                        </SelectItem>
+                        <SelectItem value="file-only">
+                          {t('course:assignment.manage.submissionTypes.fileOnly')}
+                        </SelectItem>
+                        <SelectItem value="text-only">
+                          {t('course:assignment.manage.submissionTypes.textOnly')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -629,7 +759,9 @@ export default function ManageAssignmentArea() {
               {/* Grading & Evaluation */}
               <Card className="min-w-0">
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.gradingEvaluation')}</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    {t('course:assignment.manage.gradingEvaluation')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 min-w-0">
                   <div className="min-w-0">
@@ -679,14 +811,122 @@ export default function ManageAssignmentArea() {
                 </CardContent>
               </Card>
 
+              <Card className="min-w-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <BrainCircuit className="h-5 w-5 text-primary" />
+                    {t('course:assignment.feedbackMode.title', 'AI 回饋模式')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5 min-w-0">
+                  <div className="space-y-2">
+                    <Label htmlFor="aiFeedbackMode" className="text-sm font-medium">
+                      {t('course:assignment.feedbackMode.defaultMode', '作業預設模式')}
+                    </Label>
+                    <Select
+                      name="aiFeedbackMode"
+                      value={aiFeedbackMode}
+                      onValueChange={(value) => setAiFeedbackMode(parseAiFeedbackMode(value))}
+                    >
+                      <SelectTrigger id="aiFeedbackMode" className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AI_FEEDBACK_MODES.map((mode) => (
+                          <SelectItem key={mode} value={mode}>
+                            {getFeedbackModeLabel(mode, i18n.language)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {getFeedbackModeDescription(aiFeedbackMode, i18n.language)}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 border-t border-border pt-4">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {t('course:assignment.feedbackMode.studentOverrides', '指定學生模式')}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {t(
+                          'course:assignment.feedbackMode.studentOverridesHelp',
+                          '未指定的學生會使用作業預設模式；指定後，該學生評分與送出流程會套用個別模式。'
+                        )}
+                      </p>
+                    </div>
+
+                    {feedbackModeSetup.students.length > 0 ? (
+                      <div className="max-h-72 overflow-y-auto rounded-lg border border-border">
+                        {feedbackModeSetup.students.map((student) => {
+                          const selectedMode = studentFeedbackModes[student.id] ?? 'DEFAULT';
+                          const effectiveMode = selectedMode === 'DEFAULT' ? aiFeedbackMode : selectedMode;
+
+                          return (
+                            <div
+                              key={student.id}
+                              className="grid grid-cols-1 gap-3 border-b border-border p-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_220px]"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-foreground">{student.name}</p>
+                                <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{student.className}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <Select
+                                  value={selectedMode}
+                                  onValueChange={(value) =>
+                                    setStudentFeedbackModes((prev) => ({
+                                      ...prev,
+                                      [student.id]: value === 'DEFAULT' ? 'DEFAULT' : parseAiFeedbackMode(value),
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="DEFAULT">
+                                      {t('course:assignment.feedbackMode.useDefault', '使用作業預設')}
+                                    </SelectItem>
+                                    {AI_FEEDBACK_MODES.map((mode) => (
+                                      <SelectItem key={mode} value={mode}>
+                                        {getFeedbackModeLabel(mode, i18n.language)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('course:assignment.feedbackMode.effectiveMode', '實際模式')}:{' '}
+                                  {getFeedbackModeLabel(effectiveMode, i18n.language)}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                        {t('course:assignment.feedbackMode.noStudents', '目前沒有可指定的學生。')}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Assignment Distribution */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.distribution.title')}</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    {t('course:assignment.manage.distribution.title')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-3 block">{t('course:assignment.manage.distribution.assignTo')}</Label>
+                    <Label className="text-sm font-medium mb-3 block">
+                      {t('course:assignment.manage.distribution.assignTo')}
+                    </Label>
                     <RadioGroup
                       value={assignTo}
                       onValueChange={(value) => setAssignTo(value as 'all' | 'specific')}
@@ -731,7 +971,6 @@ export default function ManageAssignmentArea() {
                   )}
                 </CardContent>
               </Card>
-
             </div>
           </div>
 

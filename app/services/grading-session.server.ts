@@ -1,6 +1,8 @@
 import { db, GradingSessionStatus, GradingStatus, type GradingSession, type GradingResult } from '@/types/database';
 import logger from '@/utils/logger';
 import { checkAIAccess } from '@/services/ai-access.server';
+import { getEffectiveAiFeedbackModeForStudent } from '@/services/assignment-feedback-mode.server';
+import { DEFAULT_AI_FEEDBACK_MODE, type AiFeedbackMode } from '@/types/feedback-mode';
 
 export interface CreateGradingSessionRequest {
   userId: string;
@@ -32,6 +34,9 @@ export async function createGradingSession(
 ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
   try {
     const { userId, filePairs, assignmentAreaId } = request;
+    const aiFeedbackMode: AiFeedbackMode = assignmentAreaId
+      ? await getEffectiveAiFeedbackModeForStudent(assignmentAreaId, userId)
+      : DEFAULT_AI_FEEDBACK_MODE;
 
     // Validate user exists
     const user = await db.user.findUnique({
@@ -48,11 +53,14 @@ export async function createGradingSession(
 
     // Check for duplicate rubric IDs
     const uniqueRubricIds = [...new Set(rubricIds)];
-    logger.info({
-      requestedRubricIds: rubricIds,
-      uniqueRubricIds,
-      hasDuplicates: rubricIds.length !== uniqueRubricIds.length,
-    }, `Validating rubrics for user ${userId}:`);
+    logger.info(
+      {
+        requestedRubricIds: rubricIds,
+        uniqueRubricIds,
+        hasDuplicates: rubricIds.length !== uniqueRubricIds.length,
+      },
+      `Validating rubrics for user ${userId}:`
+    );
 
     // Validate files exist and belong to user
     const files = await db.uploadedFile.findMany({
@@ -95,11 +103,14 @@ export async function createGradingSession(
       },
     });
 
-    logger.info({
-      foundRubrics: rubrics.map((r) => ({ id: r.id, name: r.name, isActive: r.isActive })),
-      requestedCount: uniqueRubricIds.length,
-      foundCount: rubrics.length,
-    }, `Found rubrics for user ${userId}:`);
+    logger.info(
+      {
+        foundRubrics: rubrics.map((r) => ({ id: r.id, name: r.name, isActive: r.isActive })),
+        requestedCount: uniqueRubricIds.length,
+        foundCount: rubrics.length,
+      },
+      `Found rubrics for user ${userId}:`
+    );
 
     if (rubrics.length !== uniqueRubricIds.length) {
       const foundRubricIds = rubrics.map((r) => r.id);
@@ -111,11 +122,14 @@ export async function createGradingSession(
         select: { id: true, userId: true, isActive: true, name: true },
       });
 
-      logger.error({
-        missingRubricIds,
-        foundRubricIds,
-        allMatchingRubrics,
-      }, `Missing rubrics for user ${userId}:`);
+      logger.error(
+        {
+          missingRubricIds,
+          foundRubricIds,
+          allMatchingRubrics,
+        },
+        `Missing rubrics for user ${userId}:`
+      );
 
       return {
         success: false,
@@ -144,6 +158,7 @@ export async function createGradingSession(
             rubricId: pair.rubricId,
             // Feature 004: Store assignmentAreaId for context-aware grading
             assignmentAreaId: assignmentAreaId || null,
+            aiFeedbackMode,
             status: GradingStatus.PENDING,
             progress: 0,
           },
@@ -454,9 +469,7 @@ export async function startGradingSession(
           : 'AI access is not enabled yet. Please contact an administrator to enable your AI access.';
 
       const localizedReason =
-        aiAccess.reasonCode === 'AI_ACCESS_DISABLED'
-          ? defaultDeniedMessage
-          : (aiAccess.reason || defaultDeniedMessage);
+        aiAccess.reasonCode === 'AI_ACCESS_DISABLED' ? defaultDeniedMessage : aiAccess.reason || defaultDeniedMessage;
 
       return {
         success: false,
@@ -504,7 +517,7 @@ export async function startGradingSession(
       },
       opts: {
         jobId: `grade-${result.id}`,
-      }
+      },
     }));
 
     await gradingQueue.addBulk(gradingJobs);

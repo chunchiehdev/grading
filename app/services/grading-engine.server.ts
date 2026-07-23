@@ -8,8 +8,8 @@ import { GeminiPrompts } from './gemini-prompts.server';
 import logger from '@/utils/logger';
 import { parseRubricCriteria, flattenCategoriesToCriteria, type DbCriterion } from '@/schemas/rubric-data';
 import { extractOverallFeedback } from '@/utils/grading-helpers';
-import { gradingQueue } from './queue.server';
 import { GeminiCacheManager } from './gemini-cache.server';
+import { getFeedbackModeCapabilities, parseAiFeedbackMode, type AiFeedbackMode } from '@/types/feedback-mode';
 
 /**
  * Simple grading engine - no fallback hell, no special cases
@@ -48,6 +48,9 @@ export async function processGradingResult(
     if (!result) {
       return { success: false, error: 'Grading result not found' };
     }
+
+    const aiFeedbackMode = parseAiFeedbackMode(result.aiFeedbackMode);
+    const feedbackModeCapabilities = getFeedbackModeCapabilities(aiFeedbackMode);
 
     // Log user information
     if (result.gradingSession?.user) {
@@ -611,8 +614,13 @@ export async function processGradingResult(
       }
 
       const normalizedSparringQuestions = Array.isArray(gradingResponse.result.sparringQuestions)
-        ? gradingResponse.result.sparringQuestions.slice(0, 1)
+        ? feedbackModeCapabilities.requiresChallenge
+          ? gradingResponse.result.sparringQuestions.slice(0, 1)
+          : []
         : [];
+      const visibleThoughtSummary = feedbackModeCapabilities.showThinking ? gradingResponse.thoughtSummary : null;
+      const visibleThinkingProcess = feedbackModeCapabilities.showThinking ? gradingResponse.thinkingProcess : null;
+      const visibleGradingRationale = feedbackModeCapabilities.showThinking ? gradingResponse.gradingRationale : null;
 
       // 🔍 CRITICAL DEBUG: Check sparringQuestions BEFORE saving to DB
       logger.info(
@@ -634,9 +642,10 @@ export async function processGradingResult(
             sparringQuestions: normalizedSparringQuestions,
             processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
           },
-          thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
-          thinkingProcess: gradingResponse.thinkingProcess, // Feature 012: Save raw thinking process
-          gradingRationale: gradingResponse.gradingRationale, // Feature 012: Save grading rationale
+          aiFeedbackMode,
+          thoughtSummary: visibleThoughtSummary, // Feature 005: Save AI thinking process
+          thinkingProcess: visibleThinkingProcess, // Feature 012: Save raw thinking process
+          gradingRationale: visibleGradingRationale, // Feature 012: Save grading rationale
           normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
@@ -682,6 +691,7 @@ export async function processGradingResult(
             thoughtSummary?: string | null;
             thinkingProcess?: string | null;
             gradingRationale?: string | null;
+            aiFeedbackMode?: AiFeedbackMode;
           } = {};
 
           if (
@@ -718,16 +728,20 @@ export async function processGradingResult(
             };
           }
 
-          if (linkedSubmission.thoughtSummary !== (gradingResponse.thoughtSummary ?? null)) {
-            submissionUpdate.thoughtSummary = gradingResponse.thoughtSummary ?? null;
+          if (linkedSubmission.aiFeedbackMode !== aiFeedbackMode) {
+            submissionUpdate.aiFeedbackMode = aiFeedbackMode;
           }
 
-          if (linkedSubmission.thinkingProcess !== (gradingResponse.thinkingProcess ?? null)) {
-            submissionUpdate.thinkingProcess = gradingResponse.thinkingProcess ?? null;
+          if (linkedSubmission.thoughtSummary !== (visibleThoughtSummary ?? null)) {
+            submissionUpdate.thoughtSummary = visibleThoughtSummary ?? null;
           }
 
-          if (linkedSubmission.gradingRationale !== (gradingResponse.gradingRationale ?? null)) {
-            submissionUpdate.gradingRationale = gradingResponse.gradingRationale ?? null;
+          if (linkedSubmission.thinkingProcess !== (visibleThinkingProcess ?? null)) {
+            submissionUpdate.thinkingProcess = visibleThinkingProcess ?? null;
+          }
+
+          if (linkedSubmission.gradingRationale !== (visibleGradingRationale ?? null)) {
+            submissionUpdate.gradingRationale = visibleGradingRationale ?? null;
           }
 
           if (Object.keys(submissionUpdate).length > 0) {
@@ -814,14 +828,16 @@ export async function processGradingResult(
             : fallbackRaw && typeof fallbackRaw === 'object' && 'summary' in fallbackRaw
               ? String((fallbackRaw as Record<string, unknown>).summary ?? '')
               : '';
+        const fallbackSparringQuestions =
+          Array.isArray(gradingResponse.result.sparringQuestions) && feedbackModeCapabilities.requiresChallenge
+            ? gradingResponse.result.sparringQuestions.slice(0, 1)
+            : [];
         updateData.result = {
           totalScore: gradingResponse.result.totalScore,
           maxScore: gradingResponse.result.maxScore,
           breakdown: gradingResponse.result.breakdown || [],
           overallFeedback: overallFeedbackStr,
-          sparringQuestions: Array.isArray(gradingResponse.result.sparringQuestions)
-            ? gradingResponse.result.sparringQuestions.slice(0, 1)
-            : [],
+          sparringQuestions: fallbackSparringQuestions,
           processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
         };
       }

@@ -141,6 +141,7 @@ export async function action({ request, params }: { request: Request; params: Ro
       name: data.name,
       description: data.description ?? undefined,
       dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+      aiFeedbackMode: data.aiFeedbackMode,
     });
 
     if (!updatedAssignment) {

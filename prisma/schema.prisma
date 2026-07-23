@@ -28,10 +28,12 @@ model User {
   courses          Course[]
   teacherRubrics   Rubric[] @relation("TeacherRubrics")
   assistantClasses Class[]  @relation("ClassAssistants")
+  feedbackModeOverridesAssigned AssignmentFeedbackModeOverride[] @relation("FeedbackModeAssignedBy")
 
   // Student-specific relations
   submissions     Submission[]
   enrollments     Enrollment[]
+  feedbackModeOverridesForStudent AssignmentFeedbackModeOverride[] @relation("FeedbackModeStudent")
   usedInvitations InvitationCode[] @relation("InvitationCodeUsage")
   aiFeedbackComments SubmissionAiFeedbackComment[] @relation("TeacherAiFeedbackComments")
 
@@ -136,6 +138,7 @@ model AssignmentArea {
   // AI Grading Context (Feature 004)
   referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)
   customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)
+  aiFeedbackMode      AiFeedbackMode @default(THINKING_CHALLENGE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -145,11 +148,35 @@ model AssignmentArea {
   notifications  Notification[]  @relation("AssignmentNotifications")
   gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading
   posts          CoursePost[] // Assignment-linked posts
+  feedbackModeOverrides AssignmentFeedbackModeOverride[]
 
   @@index([courseId])
   @@index([classId])
   @@index([rubricId])
   @@map("assignment_areas")
+}
+
+model AssignmentFeedbackModeOverride {
+  id               String         @id @default(uuid())
+  assignmentAreaId String
+  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("FeedbackModeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  mode AiFeedbackMode
+
+  assignedById String
+  assignedBy   User   @relation("FeedbackModeAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assignmentAreaId, studentId])
+  @@index([studentId])
+  @@index([assignedById])
+  @@index([mode])
+  @@map("assignment_feedback_mode_overrides")
 }
 
 // Student submissions to assignment areas
@@ -174,6 +201,8 @@ model Submission {
   sessionId        String? // GradingSession ID for linking AI results
   aiAnalysisResult Json? // AI analysis results
   draftUiState     Json? // UI-only draft recovery state (chat, sparring progress)
+  aiFeedbackMode   AiFeedbackMode @default(THINKING_CHALLENGE)
+  feedbackAcceptance Json? // Student acceptance markers for transparent feedback mode
   thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)
   thinkingProcess  String? @db.Text // AI 的原始思考過程
   gradingRationale String? @db.Text // AI 的正式評分推理
@@ -349,6 +378,7 @@ model GradingResult {
   // LLM評分結果 (JSON結構)
   result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
   errorMessage String? // 評分失敗時的錯誤訊息
+  aiFeedbackMode AiFeedbackMode @default(THINKING_CHALLENGE)
 
   // AI Thinking Process (Feature 005: Thinking Models)
   thoughtSummary   String? @db.Text // AI 的思考過程摘要 (Deprecated)
@@ -450,6 +480,12 @@ enum SubmissionStatus {
   SUBMITTED // Just submitted
   ANALYZED // AI analysis complete
   GRADED // Teacher has provided feedback/grade
+}
+
+enum AiFeedbackMode {
+  COMMENT_ONLY
+  THINKING_VISIBLE
+  THINKING_CHALLENGE
 }
 
 // Course enrollment for students

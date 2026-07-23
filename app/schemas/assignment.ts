@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+export const AiFeedbackModeSchema = z.enum(['COMMENT_ONLY', 'THINKING_VISIBLE', 'THINKING_CHALLENGE']);
+
 /**
  * Schema for creating a new assignment with optional reference materials
  */
@@ -15,6 +17,7 @@ export const createAssignmentSchema = z.object({
   classId: z.string().uuid('Invalid class ID').optional().nullable(),
   rubricId: z.string().uuid('Invalid rubric ID'),
   dueDate: z.string().datetime('Invalid date format').optional().nullable(),
+  aiFeedbackMode: AiFeedbackModeSchema.optional(),
 
   // Feature 004: Reference materials and custom instructions
   referenceFileIds: z
@@ -37,6 +40,7 @@ export const updateAssignmentSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
+  aiFeedbackMode: AiFeedbackModeSchema.optional(),
 
   // Feature 004: Allow updating reference materials and instructions
   referenceFileIds: z.array(z.string().uuid()).max(5, 'Maximum 5 reference files allowed').optional().nullable(),

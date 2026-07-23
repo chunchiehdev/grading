@@ -60,6 +60,15 @@ export const SubmissionStatus = {
 export type SubmissionStatus = (typeof SubmissionStatus)[keyof typeof SubmissionStatus]
 
 
+export const AiFeedbackMode = {
+  COMMENT_ONLY: 'COMMENT_ONLY',
+  THINKING_VISIBLE: 'THINKING_VISIBLE',
+  THINKING_CHALLENGE: 'THINKING_CHALLENGE'
+} as const
+
+export type AiFeedbackMode = (typeof AiFeedbackMode)[keyof typeof AiFeedbackMode]
+
+
 export const Role = {
   USER: 'USER',
   AI: 'AI'

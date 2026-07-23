@@ -1,3 +1,5 @@
+import type { AiFeedbackMode, FeedbackAcceptancePayload } from '@/types/feedback-mode';
+
 /**
  * Shared type definitions for Teacher-related features
  *
@@ -99,6 +101,10 @@ export interface TeacherSubmissionView {
     formattedHumanRatedAt?: string | null;
     /** AI analysis result JSON, null if analysis incomplete */
     aiAnalysisResult: any | null;
+    /** AI feedback mode used for this submission */
+    aiFeedbackMode?: AiFeedbackMode;
+    /** Student acceptance markers for transparent feedback mode */
+    feedbackAcceptance?: FeedbackAcceptancePayload | null;
     /** Flattened rubric criteria used to collect teacher scores */
     rubricCriteria: Array<{
       criteriaId: string;

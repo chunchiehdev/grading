@@ -1,4 +1,4 @@
-// Unified database type exports  
+// Unified database type exports
 // All imports should come from here instead of directly from the generated client
 // PrismaClient needs to be exported as a value for constructor usage
 export {
@@ -8,6 +8,7 @@ export {
   FileParseStatus,
   UserRole,
   SubmissionStatus,
+  AiFeedbackMode,
 } from '../generated/prisma/client/client';
 
 export type {

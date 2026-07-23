@@ -394,6 +394,7 @@ export const ModelName = {
   Course: 'Course',
   Class: 'Class',
   AssignmentArea: 'AssignmentArea',
+  AssignmentFeedbackModeOverride: 'AssignmentFeedbackModeOverride',
   Submission: 'Submission',
   SubmissionAiFeedbackComment: 'SubmissionAiFeedbackComment',
   Rubric: 'Rubric',
@@ -429,7 +430,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "submissionAiFeedbackComment" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
+    modelProps: "user" | "course" | "class" | "assignmentArea" | "assignmentFeedbackModeOverride" | "submission" | "submissionAiFeedbackComment" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -726,6 +727,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.AssignmentAreaCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.AssignmentAreaCountAggregateOutputType> | number
+        }
+      }
+    }
+    AssignmentFeedbackModeOverride: {
+      payload: Prisma.$AssignmentFeedbackModeOverridePayload<ExtArgs>
+      fields: Prisma.AssignmentFeedbackModeOverrideFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssignmentFeedbackModeOverrideFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssignmentFeedbackModeOverrideFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>
+        }
+        findFirst: {
+          args: Prisma.AssignmentFeedbackModeOverrideFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssignmentFeedbackModeOverrideFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>
+        }
+        findMany: {
+          args: Prisma.AssignmentFeedbackModeOverrideFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>[]
+        }
+        create: {
+          args: Prisma.AssignmentFeedbackModeOverrideCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>
+        }
+        createMany: {
+          args: Prisma.AssignmentFeedbackModeOverrideCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssignmentFeedbackModeOverrideCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>[]
+        }
+        delete: {
+          args: Prisma.AssignmentFeedbackModeOverrideDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>
+        }
+        update: {
+          args: Prisma.AssignmentFeedbackModeOverrideUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>
+        }
+        deleteMany: {
+          args: Prisma.AssignmentFeedbackModeOverrideDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssignmentFeedbackModeOverrideUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssignmentFeedbackModeOverrideUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>[]
+        }
+        upsert: {
+          args: Prisma.AssignmentFeedbackModeOverrideUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignmentFeedbackModeOverridePayload>
+        }
+        aggregate: {
+          args: Prisma.AssignmentFeedbackModeOverrideAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssignmentFeedbackModeOverride>
+        }
+        groupBy: {
+          args: Prisma.AssignmentFeedbackModeOverrideGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssignmentFeedbackModeOverrideGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssignmentFeedbackModeOverrideCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssignmentFeedbackModeOverrideCountAggregateOutputType> | number
         }
       }
     }
@@ -2303,11 +2378,25 @@ export const AssignmentAreaScalarFieldEnum = {
   dueDate: 'dueDate',
   referenceFileIds: 'referenceFileIds',
   customGradingPrompt: 'customGradingPrompt',
+  aiFeedbackMode: 'aiFeedbackMode',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type AssignmentAreaScalarFieldEnum = (typeof AssignmentAreaScalarFieldEnum)[keyof typeof AssignmentAreaScalarFieldEnum]
+
+
+export const AssignmentFeedbackModeOverrideScalarFieldEnum = {
+  id: 'id',
+  assignmentAreaId: 'assignmentAreaId',
+  studentId: 'studentId',
+  mode: 'mode',
+  assignedById: 'assignedById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssignmentFeedbackModeOverrideScalarFieldEnum = (typeof AssignmentFeedbackModeOverrideScalarFieldEnum)[keyof typeof AssignmentFeedbackModeOverrideScalarFieldEnum]
 
 
 export const SubmissionScalarFieldEnum = {
@@ -2322,6 +2411,8 @@ export const SubmissionScalarFieldEnum = {
   sessionId: 'sessionId',
   aiAnalysisResult: 'aiAnalysisResult',
   draftUiState: 'draftUiState',
+  aiFeedbackMode: 'aiFeedbackMode',
+  feedbackAcceptance: 'feedbackAcceptance',
   thoughtSummary: 'thoughtSummary',
   thinkingProcess: 'thinkingProcess',
   gradingRationale: 'gradingRationale',
@@ -2429,6 +2520,7 @@ export const GradingResultScalarFieldEnum = {
   progress: 'progress',
   result: 'result',
   errorMessage: 'errorMessage',
+  aiFeedbackMode: 'aiFeedbackMode',
   thoughtSummary: 'thoughtSummary',
   thinkingProcess: 'thinkingProcess',
   gradingRationale: 'gradingRationale',
@@ -2802,6 +2894,18 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'AiFeedbackMode'
+ */
+export type EnumAiFeedbackModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AiFeedbackMode'>
+
+
+/**
+ * Reference to a field of type 'AiFeedbackMode[]'
+ */
+export type ListEnumAiFeedbackModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AiFeedbackMode[]'>
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -3003,6 +3107,7 @@ export type GlobalOmitConfig = {
   course?: Prisma.CourseOmit
   class?: Prisma.ClassOmit
   assignmentArea?: Prisma.AssignmentAreaOmit
+  assignmentFeedbackModeOverride?: Prisma.AssignmentFeedbackModeOverrideOmit
   submission?: Prisma.SubmissionOmit
   submissionAiFeedbackComment?: Prisma.SubmissionAiFeedbackCommentOmit
   rubric?: Prisma.RubricOmit
@@ -3085,4 +3190,3 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
-

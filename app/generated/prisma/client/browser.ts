@@ -38,6 +38,11 @@ export type Class = Prisma.ClassModel
  */
 export type AssignmentArea = Prisma.AssignmentAreaModel
 /**
+ * Model AssignmentFeedbackModeOverride
+ *
+ */
+export type AssignmentFeedbackModeOverride = Prisma.AssignmentFeedbackModeOverrideModel
+/**
  * Model Submission
  * 
  */

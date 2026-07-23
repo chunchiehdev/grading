@@ -54,6 +54,7 @@ export type SubmissionMinAggregateOutputType = {
   filePath: string | null
   uploadedAt: Date | null
   sessionId: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode | null
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
@@ -87,6 +88,7 @@ export type SubmissionMaxAggregateOutputType = {
   filePath: string | null
   uploadedAt: Date | null
   sessionId: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode | null
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
@@ -122,6 +124,8 @@ export type SubmissionCountAggregateOutputType = {
   sessionId: number
   aiAnalysisResult: number
   draftUiState: number
+  aiFeedbackMode: number
+  feedbackAcceptance: number
   thoughtSummary: number
   thinkingProcess: number
   gradingRationale: number
@@ -177,6 +181,7 @@ export type SubmissionMinAggregateInputType = {
   filePath?: true
   uploadedAt?: true
   sessionId?: true
+  aiFeedbackMode?: true
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
@@ -210,6 +215,7 @@ export type SubmissionMaxAggregateInputType = {
   filePath?: true
   uploadedAt?: true
   sessionId?: true
+  aiFeedbackMode?: true
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
@@ -245,6 +251,8 @@ export type SubmissionCountAggregateInputType = {
   sessionId?: true
   aiAnalysisResult?: true
   draftUiState?: true
+  aiFeedbackMode?: true
+  feedbackAcceptance?: true
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
@@ -369,6 +377,8 @@ export type SubmissionGroupByOutputType = {
   sessionId: string | null
   aiAnalysisResult: runtime.JsonValue | null
   draftUiState: runtime.JsonValue | null
+  aiFeedbackMode: $Enums.AiFeedbackMode
+  feedbackAcceptance: runtime.JsonValue | null
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
@@ -429,6 +439,8 @@ export type SubmissionWhereInput = {
   sessionId?: Prisma.StringNullableFilter<"Submission"> | string | null
   aiAnalysisResult?: Prisma.JsonNullableFilter<"Submission">
   draftUiState?: Prisma.JsonNullableFilter<"Submission">
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"Submission"> | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.JsonNullableFilter<"Submission">
   thoughtSummary?: Prisma.StringNullableFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"Submission"> | string | null
@@ -472,6 +484,8 @@ export type SubmissionOrderByWithRelationInput = {
   sessionId?: Prisma.SortOrderInput | Prisma.SortOrder
   aiAnalysisResult?: Prisma.SortOrderInput | Prisma.SortOrder
   draftUiState?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
+  feedbackAcceptance?: Prisma.SortOrderInput | Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrderInput | Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingRationale?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -518,6 +532,8 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   sessionId?: Prisma.StringNullableFilter<"Submission"> | string | null
   aiAnalysisResult?: Prisma.JsonNullableFilter<"Submission">
   draftUiState?: Prisma.JsonNullableFilter<"Submission">
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"Submission"> | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.JsonNullableFilter<"Submission">
   thoughtSummary?: Prisma.StringNullableFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"Submission"> | string | null
@@ -561,6 +577,8 @@ export type SubmissionOrderByWithAggregationInput = {
   sessionId?: Prisma.SortOrderInput | Prisma.SortOrder
   aiAnalysisResult?: Prisma.SortOrderInput | Prisma.SortOrder
   draftUiState?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
+  feedbackAcceptance?: Prisma.SortOrderInput | Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrderInput | Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingRationale?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -606,6 +624,8 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   sessionId?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   aiAnalysisResult?: Prisma.JsonNullableWithAggregatesFilter<"Submission">
   draftUiState?: Prisma.JsonNullableWithAggregatesFilter<"Submission">
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeWithAggregatesFilter<"Submission"> | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.JsonNullableWithAggregatesFilter<"Submission">
   thoughtSummary?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
@@ -640,6 +660,8 @@ export type SubmissionCreateInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -683,6 +705,8 @@ export type SubmissionUncheckedCreateInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -720,6 +744,8 @@ export type SubmissionUpdateInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -763,6 +789,8 @@ export type SubmissionUncheckedUpdateInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -803,6 +831,8 @@ export type SubmissionCreateManyInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -837,6 +867,8 @@ export type SubmissionUpdateManyMutationInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -874,6 +906,8 @@ export type SubmissionUncheckedUpdateManyInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -926,6 +960,8 @@ export type SubmissionCountOrderByAggregateInput = {
   sessionId?: Prisma.SortOrder
   aiAnalysisResult?: Prisma.SortOrder
   draftUiState?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
+  feedbackAcceptance?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
@@ -970,6 +1006,7 @@ export type SubmissionMaxOrderByAggregateInput = {
   filePath?: Prisma.SortOrder
   uploadedAt?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
@@ -1003,6 +1040,7 @@ export type SubmissionMinOrderByAggregateInput = {
   filePath?: Prisma.SortOrder
   uploadedAt?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
@@ -1241,6 +1279,8 @@ export type SubmissionCreateWithoutStudentInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1282,6 +1322,8 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1351,6 +1393,8 @@ export type SubmissionScalarWhereInput = {
   sessionId?: Prisma.StringNullableFilter<"Submission"> | string | null
   aiAnalysisResult?: Prisma.JsonNullableFilter<"Submission">
   draftUiState?: Prisma.JsonNullableFilter<"Submission">
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"Submission"> | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.JsonNullableFilter<"Submission">
   thoughtSummary?: Prisma.StringNullableFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"Submission"> | string | null
@@ -1385,6 +1429,8 @@ export type SubmissionCreateWithoutAssignmentAreaInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1426,6 +1472,8 @@ export type SubmissionUncheckedCreateWithoutAssignmentAreaInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1489,6 +1537,8 @@ export type SubmissionCreateWithoutNextVersionsInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1531,6 +1581,8 @@ export type SubmissionUncheckedCreateWithoutNextVersionsInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1572,6 +1624,8 @@ export type SubmissionCreateWithoutPreviousVersionInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1613,6 +1667,8 @@ export type SubmissionUncheckedCreateWithoutPreviousVersionInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1671,6 +1727,8 @@ export type SubmissionUpdateWithoutNextVersionsInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1713,6 +1771,8 @@ export type SubmissionUncheckedUpdateWithoutNextVersionsInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1765,6 +1825,8 @@ export type SubmissionCreateWithoutAiFeedbackCommentsInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1807,6 +1869,8 @@ export type SubmissionUncheckedCreateWithoutAiFeedbackCommentsInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1859,6 +1923,8 @@ export type SubmissionUpdateWithoutAiFeedbackCommentsInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1901,6 +1967,8 @@ export type SubmissionUncheckedUpdateWithoutAiFeedbackCommentsInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1937,6 +2005,8 @@ export type SubmissionCreateWithoutCommentInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1979,6 +2049,8 @@ export type SubmissionUncheckedCreateWithoutCommentInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -2031,6 +2103,8 @@ export type SubmissionUpdateWithoutCommentInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2073,6 +2147,8 @@ export type SubmissionUncheckedUpdateWithoutCommentInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2111,6 +2187,8 @@ export type SubmissionCreateManyStudentInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -2145,6 +2223,8 @@ export type SubmissionUpdateWithoutStudentInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2186,6 +2266,8 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2225,6 +2307,8 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2261,6 +2345,8 @@ export type SubmissionCreateManyAssignmentAreaInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -2295,6 +2381,8 @@ export type SubmissionUpdateWithoutAssignmentAreaInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2336,6 +2424,8 @@ export type SubmissionUncheckedUpdateWithoutAssignmentAreaInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2375,6 +2465,8 @@ export type SubmissionUncheckedUpdateManyWithoutAssignmentAreaInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2411,6 +2503,8 @@ export type SubmissionCreateManyPreviousVersionInput = {
   sessionId?: string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -2445,6 +2539,8 @@ export type SubmissionUpdateWithoutPreviousVersionInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2486,6 +2582,8 @@ export type SubmissionUncheckedUpdateWithoutPreviousVersionInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2525,6 +2623,8 @@ export type SubmissionUncheckedUpdateManyWithoutPreviousVersionInput = {
   sessionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aiAnalysisResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   draftUiState?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
+  feedbackAcceptance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2602,6 +2702,8 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   sessionId?: boolean
   aiAnalysisResult?: boolean
   draftUiState?: boolean
+  aiFeedbackMode?: boolean
+  feedbackAcceptance?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2646,6 +2748,8 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   sessionId?: boolean
   aiAnalysisResult?: boolean
   draftUiState?: boolean
+  aiFeedbackMode?: boolean
+  feedbackAcceptance?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2686,6 +2790,8 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   sessionId?: boolean
   aiAnalysisResult?: boolean
   draftUiState?: boolean
+  aiFeedbackMode?: boolean
+  feedbackAcceptance?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2726,6 +2832,8 @@ export type SubmissionSelectScalar = {
   sessionId?: boolean
   aiAnalysisResult?: boolean
   draftUiState?: boolean
+  aiFeedbackMode?: boolean
+  feedbackAcceptance?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2751,7 +2859,7 @@ export type SubmissionSelectScalar = {
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "assignmentAreaId" | "version" | "isLatest" | "previousVersionId" | "filePath" | "uploadedAt" | "sessionId" | "aiAnalysisResult" | "draftUiState" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "sparringDecision" | "sparringDecisionReason" | "sparringDecisionAt" | "sparringConvergenceShownAt" | "sparringDecisionLatencyMs" | "sparringRoundsBeforeDecision" | "finalScore" | "normalizedScore" | "usedContext" | "teacherFeedback" | "humanScore" | "humanCriteriaScores" | "humanRaterId" | "humanRatedAt" | "status" | "isDeleted" | "deletedAt" | "deletedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "assignmentAreaId" | "version" | "isLatest" | "previousVersionId" | "filePath" | "uploadedAt" | "sessionId" | "aiAnalysisResult" | "draftUiState" | "aiFeedbackMode" | "feedbackAcceptance" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "sparringDecision" | "sparringDecisionReason" | "sparringDecisionAt" | "sparringConvergenceShownAt" | "sparringDecisionLatencyMs" | "sparringRoundsBeforeDecision" | "finalScore" | "normalizedScore" | "usedContext" | "teacherFeedback" | "humanScore" | "humanCriteriaScores" | "humanRaterId" | "humanRatedAt" | "status" | "isDeleted" | "deletedAt" | "deletedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   assignmentArea?: boolean | Prisma.AssignmentAreaDefaultArgs<ExtArgs>
@@ -2794,6 +2902,8 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     sessionId: string | null
     aiAnalysisResult: runtime.JsonValue | null
     draftUiState: runtime.JsonValue | null
+    aiFeedbackMode: $Enums.AiFeedbackMode
+    feedbackAcceptance: runtime.JsonValue | null
     thoughtSummary: string | null
     thinkingProcess: string | null
     gradingRationale: string | null
@@ -3257,6 +3367,8 @@ export interface SubmissionFieldRefs {
   readonly sessionId: Prisma.FieldRef<"Submission", 'String'>
   readonly aiAnalysisResult: Prisma.FieldRef<"Submission", 'Json'>
   readonly draftUiState: Prisma.FieldRef<"Submission", 'Json'>
+  readonly aiFeedbackMode: Prisma.FieldRef<"Submission", 'AiFeedbackMode'>
+  readonly feedbackAcceptance: Prisma.FieldRef<"Submission", 'Json'>
   readonly thoughtSummary: Prisma.FieldRef<"Submission", 'String'>
   readonly thinkingProcess: Prisma.FieldRef<"Submission", 'String'>
   readonly gradingRationale: Prisma.FieldRef<"Submission", 'String'>

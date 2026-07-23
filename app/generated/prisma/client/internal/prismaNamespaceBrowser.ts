@@ -53,6 +53,7 @@ export const ModelName = {
   Course: 'Course',
   Class: 'Class',
   AssignmentArea: 'AssignmentArea',
+  AssignmentFeedbackModeOverride: 'AssignmentFeedbackModeOverride',
   Submission: 'Submission',
   SubmissionAiFeedbackComment: 'SubmissionAiFeedbackComment',
   Rubric: 'Rubric',
@@ -146,11 +147,25 @@ export const AssignmentAreaScalarFieldEnum = {
   dueDate: 'dueDate',
   referenceFileIds: 'referenceFileIds',
   customGradingPrompt: 'customGradingPrompt',
+  aiFeedbackMode: 'aiFeedbackMode',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type AssignmentAreaScalarFieldEnum = (typeof AssignmentAreaScalarFieldEnum)[keyof typeof AssignmentAreaScalarFieldEnum]
+
+
+export const AssignmentFeedbackModeOverrideScalarFieldEnum = {
+  id: 'id',
+  assignmentAreaId: 'assignmentAreaId',
+  studentId: 'studentId',
+  mode: 'mode',
+  assignedById: 'assignedById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssignmentFeedbackModeOverrideScalarFieldEnum = (typeof AssignmentFeedbackModeOverrideScalarFieldEnum)[keyof typeof AssignmentFeedbackModeOverrideScalarFieldEnum]
 
 
 export const SubmissionScalarFieldEnum = {
@@ -165,6 +180,8 @@ export const SubmissionScalarFieldEnum = {
   sessionId: 'sessionId',
   aiAnalysisResult: 'aiAnalysisResult',
   draftUiState: 'draftUiState',
+  aiFeedbackMode: 'aiFeedbackMode',
+  feedbackAcceptance: 'feedbackAcceptance',
   thoughtSummary: 'thoughtSummary',
   thinkingProcess: 'thinkingProcess',
   gradingRationale: 'gradingRationale',
@@ -272,6 +289,7 @@ export const GradingResultScalarFieldEnum = {
   progress: 'progress',
   result: 'result',
   errorMessage: 'errorMessage',
+  aiFeedbackMode: 'aiFeedbackMode',
   thoughtSummary: 'thoughtSummary',
   thinkingProcess: 'thinkingProcess',
   gradingRationale: 'gradingRationale',

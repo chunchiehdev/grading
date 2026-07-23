@@ -55,6 +55,7 @@ export type GradingResultMinAggregateOutputType = {
   status: $Enums.GradingStatus | null
   progress: number | null
   errorMessage: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode | null
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
@@ -83,6 +84,7 @@ export type GradingResultMaxAggregateOutputType = {
   status: $Enums.GradingStatus | null
   progress: number | null
   errorMessage: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode | null
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
@@ -112,6 +114,7 @@ export type GradingResultCountAggregateOutputType = {
   progress: number
   result: number
   errorMessage: number
+  aiFeedbackMode: number
   thoughtSummary: number
   thinkingProcess: number
   gradingRationale: number
@@ -165,6 +168,7 @@ export type GradingResultMinAggregateInputType = {
   status?: true
   progress?: true
   errorMessage?: true
+  aiFeedbackMode?: true
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
@@ -193,6 +197,7 @@ export type GradingResultMaxAggregateInputType = {
   status?: true
   progress?: true
   errorMessage?: true
+  aiFeedbackMode?: true
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
@@ -222,6 +227,7 @@ export type GradingResultCountAggregateInputType = {
   progress?: true
   result?: true
   errorMessage?: true
+  aiFeedbackMode?: true
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
@@ -341,6 +347,7 @@ export type GradingResultGroupByOutputType = {
   progress: number
   result: runtime.JsonValue | null
   errorMessage: string | null
+  aiFeedbackMode: $Enums.AiFeedbackMode
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
@@ -396,6 +403,7 @@ export type GradingResultWhereInput = {
   progress?: Prisma.IntFilter<"GradingResult"> | number
   result?: Prisma.JsonNullableFilter<"GradingResult">
   errorMessage?: Prisma.StringNullableFilter<"GradingResult"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"GradingResult"> | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.StringNullableFilter<"GradingResult"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"GradingResult"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"GradingResult"> | string | null
@@ -433,6 +441,7 @@ export type GradingResultOrderByWithRelationInput = {
   progress?: Prisma.SortOrder
   result?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrderInput | Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingRationale?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -473,6 +482,7 @@ export type GradingResultWhereUniqueInput = Prisma.AtLeast<{
   progress?: Prisma.IntFilter<"GradingResult"> | number
   result?: Prisma.JsonNullableFilter<"GradingResult">
   errorMessage?: Prisma.StringNullableFilter<"GradingResult"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"GradingResult"> | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.StringNullableFilter<"GradingResult"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"GradingResult"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"GradingResult"> | string | null
@@ -510,6 +520,7 @@ export type GradingResultOrderByWithAggregationInput = {
   progress?: Prisma.SortOrder
   result?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrderInput | Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingRationale?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -550,6 +561,7 @@ export type GradingResultScalarWhereWithAggregatesInput = {
   progress?: Prisma.IntWithAggregatesFilter<"GradingResult"> | number
   result?: Prisma.JsonNullableWithAggregatesFilter<"GradingResult">
   errorMessage?: Prisma.StringNullableWithAggregatesFilter<"GradingResult"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeWithAggregatesFilter<"GradingResult"> | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.StringNullableWithAggregatesFilter<"GradingResult"> | string | null
   thinkingProcess?: Prisma.StringNullableWithAggregatesFilter<"GradingResult"> | string | null
   gradingRationale?: Prisma.StringNullableWithAggregatesFilter<"GradingResult"> | string | null
@@ -578,6 +590,7 @@ export type GradingResultCreateInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -615,6 +628,7 @@ export type GradingResultUncheckedCreateInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -644,6 +658,7 @@ export type GradingResultUpdateInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -681,6 +696,7 @@ export type GradingResultUncheckedUpdateInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -714,6 +730,7 @@ export type GradingResultCreateManyInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -742,6 +759,7 @@ export type GradingResultUpdateManyMutationInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -774,6 +792,7 @@ export type GradingResultUncheckedUpdateManyInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -816,6 +835,7 @@ export type GradingResultCountOrderByAggregateInput = {
   progress?: Prisma.SortOrder
   result?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
@@ -857,6 +877,7 @@ export type GradingResultMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   progress?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
@@ -885,6 +906,7 @@ export type GradingResultMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   progress?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  aiFeedbackMode?: Prisma.SortOrder
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
@@ -1111,6 +1133,7 @@ export type GradingResultCreateWithoutAssignmentAreaInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1146,6 +1169,7 @@ export type GradingResultUncheckedCreateWithoutAssignmentAreaInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1208,6 +1232,7 @@ export type GradingResultScalarWhereInput = {
   progress?: Prisma.IntFilter<"GradingResult"> | number
   result?: Prisma.JsonNullableFilter<"GradingResult">
   errorMessage?: Prisma.StringNullableFilter<"GradingResult"> | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFilter<"GradingResult"> | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.StringNullableFilter<"GradingResult"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"GradingResult"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"GradingResult"> | string | null
@@ -1236,6 +1261,7 @@ export type GradingResultCreateWithoutRubricInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1271,6 +1297,7 @@ export type GradingResultUncheckedCreateWithoutRubricInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1326,6 +1353,7 @@ export type GradingResultCreateWithoutGradingSessionInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1361,6 +1389,7 @@ export type GradingResultUncheckedCreateWithoutGradingSessionInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1416,6 +1445,7 @@ export type GradingResultCreateWithoutUploadedFileInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1451,6 +1481,7 @@ export type GradingResultUncheckedCreateWithoutUploadedFileInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1506,6 +1537,7 @@ export type GradingResultCreateWithoutAgentLogsInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1542,6 +1574,7 @@ export type GradingResultUncheckedCreateWithoutAgentLogsInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1586,6 +1619,7 @@ export type GradingResultUpdateWithoutAgentLogsInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1622,6 +1656,7 @@ export type GradingResultUncheckedUpdateWithoutAgentLogsInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1653,6 +1688,7 @@ export type GradingResultCreateManyAssignmentAreaInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1681,6 +1717,7 @@ export type GradingResultUpdateWithoutAssignmentAreaInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1716,6 +1753,7 @@ export type GradingResultUncheckedUpdateWithoutAssignmentAreaInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1748,6 +1786,7 @@ export type GradingResultUncheckedUpdateManyWithoutAssignmentAreaInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1779,6 +1818,7 @@ export type GradingResultCreateManyRubricInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1807,6 +1847,7 @@ export type GradingResultUpdateWithoutRubricInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1842,6 +1883,7 @@ export type GradingResultUncheckedUpdateWithoutRubricInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1874,6 +1916,7 @@ export type GradingResultUncheckedUpdateManyWithoutRubricInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1905,6 +1948,7 @@ export type GradingResultCreateManyGradingSessionInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -1933,6 +1977,7 @@ export type GradingResultUpdateWithoutGradingSessionInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1968,6 +2013,7 @@ export type GradingResultUncheckedUpdateWithoutGradingSessionInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2000,6 +2046,7 @@ export type GradingResultUncheckedUpdateManyWithoutGradingSessionInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2031,6 +2078,7 @@ export type GradingResultCreateManyUploadedFileInput = {
   progress?: number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: string | null
+  aiFeedbackMode?: $Enums.AiFeedbackMode
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
@@ -2059,6 +2107,7 @@ export type GradingResultUpdateWithoutUploadedFileInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2094,6 +2143,7 @@ export type GradingResultUncheckedUpdateWithoutUploadedFileInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2126,6 +2176,7 @@ export type GradingResultUncheckedUpdateManyWithoutUploadedFileInput = {
   progress?: Prisma.IntFieldUpdateOperationsInput | number
   result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  aiFeedbackMode?: Prisma.EnumAiFeedbackModeFieldUpdateOperationsInput | $Enums.AiFeedbackMode
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2189,6 +2240,7 @@ export type GradingResultSelect<ExtArgs extends runtime.Types.Extensions.Interna
   progress?: boolean
   result?: boolean
   errorMessage?: boolean
+  aiFeedbackMode?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2227,6 +2279,7 @@ export type GradingResultSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   progress?: boolean
   result?: boolean
   errorMessage?: boolean
+  aiFeedbackMode?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2263,6 +2316,7 @@ export type GradingResultSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   progress?: boolean
   result?: boolean
   errorMessage?: boolean
+  aiFeedbackMode?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2299,6 +2353,7 @@ export type GradingResultSelectScalar = {
   progress?: boolean
   result?: boolean
   errorMessage?: boolean
+  aiFeedbackMode?: boolean
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
@@ -2321,7 +2376,7 @@ export type GradingResultSelectScalar = {
   completedAt?: boolean
 }
 
-export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "assignmentAreaId" | "status" | "progress" | "result" | "errorMessage" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "usedContext" | "normalizedScore" | "gradingModel" | "gradingTokens" | "sparringTokens" | "gradingDuration" | "agentSteps" | "toolCalls" | "confidenceScore" | "requiresReview" | "reviewedBy" | "reviewedAt" | "agentModel" | "agentExecutionTime" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["gradingResult"]>
+export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "assignmentAreaId" | "status" | "progress" | "result" | "errorMessage" | "aiFeedbackMode" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "usedContext" | "normalizedScore" | "gradingModel" | "gradingTokens" | "sparringTokens" | "gradingDuration" | "agentSteps" | "toolCalls" | "confidenceScore" | "requiresReview" | "reviewedBy" | "reviewedAt" | "agentModel" | "agentExecutionTime" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["gradingResult"]>
 export type GradingResultInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   gradingSession?: boolean | Prisma.GradingSessionDefaultArgs<ExtArgs>
   uploadedFile?: boolean | Prisma.UploadedFileDefaultArgs<ExtArgs>
@@ -2362,6 +2417,7 @@ export type $GradingResultPayload<ExtArgs extends runtime.Types.Extensions.Inter
     progress: number
     result: runtime.JsonValue | null
     errorMessage: string | null
+    aiFeedbackMode: $Enums.AiFeedbackMode
     thoughtSummary: string | null
     thinkingProcess: string | null
     gradingRationale: string | null
@@ -2819,6 +2875,7 @@ export interface GradingResultFieldRefs {
   readonly progress: Prisma.FieldRef<"GradingResult", 'Int'>
   readonly result: Prisma.FieldRef<"GradingResult", 'Json'>
   readonly errorMessage: Prisma.FieldRef<"GradingResult", 'String'>
+  readonly aiFeedbackMode: Prisma.FieldRef<"GradingResult", 'AiFeedbackMode'>
   readonly thoughtSummary: Prisma.FieldRef<"GradingResult", 'String'>
   readonly thinkingProcess: Prisma.FieldRef<"GradingResult", 'String'>
   readonly gradingRationale: Prisma.FieldRef<"GradingResult", 'String'>

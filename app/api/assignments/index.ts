@@ -11,6 +11,15 @@ import { db } from '@/lib/db.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import logger from '@/utils/logger';
 
+interface ReferenceFile {
+  id: string;
+  originalFileName: string;
+  fileSize: number;
+  parseStatus: string | null;
+  parseError: string | null;
+  createdAt: Date;
+}
+
 /**
  * POST /api/assignments
  * Create a new assignment with optional reference files and custom instructions
@@ -50,6 +59,7 @@ export async function action({ request }: { request: Request }) {
       rubricId: data.rubricId,
       dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
       classId: data.classId,
+      aiFeedbackMode: data.aiFeedbackMode,
     });
 
     if (data.referenceFileIds || data.customGradingPrompt) {
@@ -84,7 +94,7 @@ export async function action({ request }: { request: Request }) {
     });
 
     // Parse reference file IDs and fetch file details
-    let referenceFiles: any[] = [];
+    let referenceFiles: ReferenceFile[] = [];
     if (updatedAssignment?.referenceFileIds) {
       try {
         const fileIds: string[] = JSON.parse(updatedAssignment.referenceFileIds);
@@ -118,6 +128,7 @@ export async function action({ request }: { request: Request }) {
         dueDate: updatedAssignment!.dueDate,
         referenceFileIds: data.referenceFileIds || [],
         customGradingPrompt: updatedAssignment!.customGradingPrompt,
+        aiFeedbackMode: updatedAssignment!.aiFeedbackMode,
         referenceFiles,
         rubric: updatedAssignment!.rubric,
         createdAt: updatedAssignment!.createdAt,
